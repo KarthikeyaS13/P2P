@@ -503,10 +503,10 @@ export default function EditPO() {
 
                       {/* EDIT Cells */}
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" step="any" placeholder={it.supply_qty} value={it.edit_supply_qty === null ? 0 : it.edit_supply_qty} onChange={e => updateItem(idx, 'edit_supply_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                        <input type="text" placeholder={it.supply_qty} value={it.edit_supply_qty === null ? 0 : it.edit_supply_qty} onChange={e => updateItem(idx, 'edit_supply_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" step="any" placeholder={it.supply_rate} value={it.edit_supply_rate === null ? 0 : it.edit_supply_rate} onChange={e => updateItem(idx, 'edit_supply_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                        <input type="text" placeholder={it.supply_rate} value={it.edit_supply_rate === null ? 0 : it.edit_supply_rate} onChange={e => updateItem(idx, 'edit_supply_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
                         <select value={it.edit_supply_gst_rate === null ? '' : it.edit_supply_gst_rate} onChange={e => updateItem(idx, 'edit_supply_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '8px', textAlign: 'center', background: 'transparent', cursor: 'pointer' }}>
@@ -517,10 +517,10 @@ export default function EditPO() {
                         </select>
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" step="any" placeholder={it.service_qty} value={it.edit_service_qty === null ? 0 : it.edit_service_qty} onChange={e => updateItem(idx, 'edit_service_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                        <input type="text" placeholder={it.service_qty} value={it.edit_service_qty === null ? 0 : it.edit_service_qty} onChange={e => updateItem(idx, 'edit_service_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" step="any" placeholder={it.service_rate} value={it.edit_service_rate === null ? 0 : it.edit_service_rate} onChange={e => updateItem(idx, 'edit_service_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                        <input type="text" placeholder={it.service_rate} value={it.edit_service_rate === null ? 0 : it.edit_service_rate} onChange={e => updateItem(idx, 'edit_service_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
                         <select value={it.edit_service_gst_rate === null ? '' : it.edit_service_gst_rate} onChange={e => updateItem(idx, 'edit_service_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '8px', textAlign: 'center', background: 'transparent', cursor: 'pointer' }}>
