@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,25 +14,23 @@ export default function EditPO() {
   const [submitting, setSubmitting] = useState(false);
 
   // Selection State
+  const [customers, setCustomers] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [allPOs, setAllPOs] = useState([]);
+  
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('');
   const [selectedPO, setSelectedPO] = useState(null);
   
   // PO Details
   const [poDetails, setPODetails] = useState(null);
   const [items, setItems] = useState([]);
   const [newVersionLabel, setNewVersionLabel] = useState('');
-
-  // Attachments State
-  const [attachments, setAttachments] = useState({
-    po_copy: null,
-    po_annex: null,
-    other: null
-  });
-  const [attachmentPaths, setAttachmentPaths] = useState({
-    po_copy: '',
-    po_annex: '',
-    other: ''
-  });
+  
+  // Preview State
+  const [previewPath, setPreviewPath] = useState(null);
+  const [previewExcelData, setPreviewExcelData] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   // --- Helper Functions ---
 
@@ -80,18 +79,39 @@ export default function EditPO() {
   // --- API Calls ---
 
   useEffect(() => {
-    const fetchPOs = async () => {
+    const fetchInitial = async () => {
       try {
         const token = localStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get('http://localhost:3000/api/pos', { headers });
-        setAllPOs(Array.isArray(res.data) ? res.data : []);
+        const [cRes, pRes] = await Promise.all([
+          axios.get('http://localhost:3000/api/customers', { headers }),
+          axios.get('http://localhost:3000/api/pos', { headers })
+        ]);
+        setCustomers(Array.isArray(cRes.data) ? cRes.data : []);
+        setAllPOs(Array.isArray(pRes.data) ? pRes.data : []);
       } catch (err) {
         console.error(err);
       }
     };
-    fetchPOs();
+    fetchInitial();
   }, []);
+
+  const handleCustomerChange = async (e) => {
+    const val = e.target.value;
+    setSelectedCustomer(val);
+    setSelectedLocation('');
+    setSelectedPO(null);
+    setPODetails(null);
+    setLocations([]);
+    if (val) {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        const res = await axios.get(`http://localhost:3000/api/locations?customer_id=${val}`, { headers });
+        setLocations(Array.isArray(res.data) ? res.data : []);
+      } catch (err) { console.error(err); }
+    }
+  };
 
   const handlePOSelect = async (e) => {
     const poId = e.target.value;
@@ -132,24 +152,6 @@ export default function EditPO() {
     }
   };
 
-  const uploadAttachments = async () => {
-    const formData = new FormData();
-    if (attachments.po_copy) formData.append('po_copy', attachments.po_copy);
-    if (attachments.po_annex) formData.append('po_annex', attachments.po_annex);
-    if (attachments.other) formData.append('other', attachments.other);
-
-    try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' };
-      const res = await axios.post('http://localhost:3000/api/upload-multi', formData, { headers });
-      setAttachmentPaths(res.data);
-      return res.data;
-    } catch (err) {
-      console.error('Upload failed', err);
-      return {};
-    }
-  };
-
   const updateItem = (idx, field, val) => {
     setItems(prev => {
       const updated = [...prev];
@@ -167,8 +169,6 @@ export default function EditPO() {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       
-      const paths = await uploadAttachments();
-
       const subtotal = items.reduce((acc, it) => acc + (it.rev_total_taxable || 0), 0);
       const gst_total = items.reduce((acc, it) => acc + (it.rev_total_gst || 0), 0);
       const grand_total = items.reduce((acc, it) => acc + (it.rev_total_invoice || 0), 0);
@@ -180,11 +180,11 @@ export default function EditPO() {
         po_date: poDetails.po_date,
         start_date: poDetails.start_date,
         end_date: poDetails.end_date,
-        po_copy_path: paths.po_copy || poDetails.po_copy_path,
-        po_annex_path: paths.po_annex || poDetails.po_annex_path,
-        other_attachment_path: paths.other_attachment_path || poDetails.other_attachment_path,
+        po_copy_path: poDetails.po_copy_path,
+        po_annex_path: poDetails.po_annex_path,
+        other_attachment_path: poDetails.other_attachment_path,
         is_nt_po: poDetails.is_nt_po,
-        linked_po_id: poDetails.id, // Link to original for version history
+        linked_po_id: poDetails.id,
         subtotal,
         gst_total,
         grand_total,
@@ -211,8 +211,104 @@ export default function EditPO() {
 
   // --- Renderers ---
 
+  const handleViewFile = async (path) => {
+    const filename = path.split('/').pop();
+    const fullUrl = `http://localhost:3000/uploads/${filename}`;
+    const isExcel = filename.toLowerCase().match(/\.(xlsx|xls|xlsm)$/);
+    
+    if (isExcel) {
+      setLoadingPreview(true);
+      setPreviewPath(filename);
+      try {
+        const res = await axios.get(fullUrl, { responseType: 'arraybuffer' });
+        const wb = XLSX.read(res.data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+        let headerIdx = 0;
+        let maxScore = -1;
+        for (let i = 0; i < Math.min(rawData.length, 20); i++) {
+          const row = rawData[i] || [];
+          const s = row.map(c => String(c || '').toLowerCase()).join(' ');
+          let sc = 0;
+          if (s.includes('item')) sc += 2;
+          if (s.includes('qty')) sc += 2;
+          if (s.includes('rate')) sc += 2;
+          if (s.includes('package')) sc += 2;
+          if (sc > maxScore) { maxScore = sc; headerIdx = i; }
+        }
+
+        const headersRaw = rawData[headerIdx] || [];
+        const dataRows = (maxScore < 2) ? rawData : rawData.slice(headerIdx + 1);
+        
+        const formatted = dataRows.map(row => {
+          const obj = {};
+          if (maxScore >= 2) {
+            headersRaw.forEach((h, idx) => { if (h) obj[String(h).trim()] = row[idx]; });
+          } else {
+            headersRaw.forEach((_, idx) => { obj[`Col ${idx + 1}`] = row[idx]; });
+          }
+          return obj;
+        }).filter(row => Object.values(row).some(v => v !== null && v !== ''));
+
+        setPreviewExcelData(formatted);
+      } catch (err) {
+        console.error("Preview failed", err);
+        alert("Could not preview Excel file.");
+        setPreviewPath(null);
+      } finally {
+        setLoadingPreview(false);
+      }
+    } else {
+      setPreviewPath(fullUrl);
+      setPreviewExcelData(null);
+    }
+  };
+
+  const renderFileViewer = () => {
+    if (!previewPath) return null;
+    const allHeaders = previewExcelData ? Array.from(new Set(previewExcelData.flatMap(row => Object.keys(row)))) : [];
+    
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)' }}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '95%', height: '90%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0 }}>Preview: {previewPath.split('/').pop()}</h3>
+            <button onClick={() => { setPreviewPath(null); setPreviewExcelData(null); }} style={{ padding: '8px 16px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Close Preview</button>
+          </div>
+          
+          <div style={{ flex: 1, background: '#F3F4F6', borderRadius: '8px', overflow: 'auto' }}>
+            {loadingPreview ? (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <p>Parsing Excel data...</p>
+              </div>
+            ) : previewExcelData ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', background: 'white' }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#F9FAFB', zIndex: 10 }}>
+                  <tr>
+                    {allHeaders.map(h => <th key={h} style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'left' }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewExcelData.map((row, i) => (
+                    <tr key={i}>
+                      {allHeaders.map((h, j) => <td key={j} style={{ padding: '8px', border: '1px solid #E5E7EB' }}>{row[h] !== undefined ? String(row[h]) : '-'}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <iframe src={previewPath} width="100%" height="100%" title="File Viewer" style={{ border: 'none' }} />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ padding: '24px', maxWidth: '1600px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
+      {renderFileViewer()}
       
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
         <button onClick={() => navigate('/dashboard')} style={{ padding: '8px 16px', background: '#374151', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>← Back</button>
@@ -222,143 +318,200 @@ export default function EditPO() {
       <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
         
         {step === 1 && (
-          <div style={{ maxWidth: '600px' }}>
-            <h3>1. Select PO to Edit</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <h3 style={{ marginBottom: '24px', color: '#1F2937' }}>1. Select PO to Edit</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
               <div>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Existing Purchase Order</label>
-                <select value={selectedPO || ''} onChange={handlePOSelect} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #D1D5DB' }}>
-                  <option value="">-- Select PO --</option>
-                  {allPOs.map(po => <option key={po.id} value={po.id}>{po.po_number || po.order_id} - {po.customer_name}</option>)}
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '10px', color: '#4B5563' }}>Select Customer</label>
+                <select value={selectedCustomer} onChange={handleCustomerChange} style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '1rem' }}>
+                  <option value="">-- Select Customer --</option>
+                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-              
-              {loading && <p>Loading details...</p>}
+              <div>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '10px', color: '#4B5563' }}>Select Location</label>
+                <select value={selectedLocation} onChange={(e) => { setSelectedLocation(e.target.value); setSelectedPO(null); }} style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '1rem' }}>
+                  <option value="">-- Select Location --</option>
+                  {locations.map(l => <option key={l.id} value={l.id}>{l.label} ({l.city})</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '10px', color: '#4B5563' }}>Existing Purchase Order</label>
+                <select value={selectedPO || ''} onChange={handlePOSelect} style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '1rem' }}>
+                  <option value="">-- Select PO --</option>
+                  {allPOs.filter(p => p.customer_id == selectedCustomer && p.location_id == selectedLocation).map(po => (
+                    <option key={po.id} value={po.id}>{po.po_number || po.order_id}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            {loading && <div style={{ textAlign: 'center', padding: '40px' }}><p>Loading PO Details...</p></div>}
 
-              {poDetails && (
-                <div style={{ background: '#F9FAFB', padding: '20px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
-                  <p><strong>Customer:</strong> {poDetails.customer_name}</p>
-                  <p><strong>Location:</strong> {poDetails.location_name}</p>
-                  <p><strong>Original Date:</strong> {poDetails.po_date}</p>
-                  <div style={{ marginTop: '15px' }}>
-                    <label style={{ fontWeight: 600, display: 'block', marginBottom: '5px' }}>New Version PO Number</label>
-                    <input type="text" value={newVersionLabel} onChange={e => setNewVersionLabel(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: '#FFFBEB' }} />
+            {poDetails && (
+              <div style={{ background: '#F9FAFB', padding: '32px', borderRadius: '16px', border: '1px solid #E5E7EB', marginBottom: '32px', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '32px', marginBottom: '24px' }}>
+                  <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
+                    <p style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>New Version PO No</p>
+                    <p style={{ fontWeight: 800, margin: 0, fontSize: '1.25rem', color: '#2563EB' }}>{newVersionLabel}</p>
+                  </div>
+                  <div>
+                    <p style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>PO Date</p>
+                    <p style={{ fontWeight: 700, margin: 0, fontSize: '1.1rem' }}>{poDetails.po_date}</p>
+                  </div>
+                  <div>
+                    <p style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>Start Date</p>
+                    <p style={{ fontWeight: 700, margin: 0, fontSize: '1.1rem' }}>{poDetails.start_date}</p>
+                  </div>
+                  <div>
+                    <p style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>End Date</p>
+                    <p style={{ fontWeight: 700, margin: 0, fontSize: '1.1rem' }}>{poDetails.end_date}</p>
                   </div>
                 </div>
-              )}
 
-              <button onClick={nextStep} disabled={!selectedPO} style={{ padding: '12px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: !selectedPO ? 'not-allowed' : 'pointer', opacity: !selectedPO ? 0.5 : 1 }}>Next: Attachments & Dates →</button>
-            </div>
+                <div style={{ display: 'flex', gap: '20px', borderTop: '1px solid #E5E7EB', paddingTop: '24px' }}>
+                  {['po_copy', 'po_annex', 'other'].map(type => {
+                    const path = poDetails[type === 'other' ? 'other_attachment_path' : type + '_path'];
+                    return (
+                      <div key={type} style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: '10px', border: '1px solid #E5E7EB' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="material-symbols-outlined" style={{ color: '#6B7280' }}>description</span>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 600, textTransform: 'capitalize' }}>{type.replace('_', ' ')}</span>
+                        </div>
+                        {path ? (
+                          <button onClick={() => handleViewFile(path)} style={{ padding: '6px 14px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>View File</button>
+                        ) : (
+                          <span style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>Not Attached</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <button onClick={nextStep} disabled={!selectedPO} style={{ width: '100%', padding: '16px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '1.1rem', cursor: !selectedPO ? 'not-allowed' : 'pointer', opacity: !selectedPO ? 0.5 : 1, transition: 'all 0.2s' }}>Proceed to Edit Items →</button>
           </div>
         )}
 
         {step === 2 && (
           <div>
-            <h3>2. Attachments & Non-Editable Details</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-              <div style={{ background: '#F3F4F6', padding: '20px', borderRadius: '8px' }}>
-                <p style={{ color: '#6B7280', fontSize: '0.9rem', marginBottom: '15px' }}>Note: These dates are fetched from the database and cannot be modified here.</p>
-                <div style={{ display: 'grid', gap: '10px' }}>
-                  <p><strong>PO Date:</strong> {poDetails.po_date}</p>
-                  <p><strong>Start Date:</strong> {poDetails.start_date}</p>
-                  <p><strong>End Date:</strong> {poDetails.end_date}</p>
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
+              <div>
+                <button onClick={prevStep} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px', padding: 0 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+                  <span style={{ fontWeight: 600 }}>Back to selection</span>
+                </button>
+                <h3 style={{ margin: 0, fontSize: '1.5rem', color: '#111827' }}>2. Edit Line Items: {newVersionLabel}</h3>
               </div>
-              <div style={{ display: 'grid', gap: '15px' }}>
-                {['po_copy', 'po_annex', 'other'].map(type => (
-                  <div key={type} style={{ border: '1px solid #E5E7EB', padding: '12px', borderRadius: '8px' }}>
-                    <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px', textTransform: 'capitalize' }}>{type === 'po_copy' ? 'Revised PO Copy' : type === 'po_annex' ? 'Revised PO Annex' : 'Other Attachment'}</label>
-                    <input type="file" onChange={(e) => setAttachments(prev => ({ ...prev, [type]: e.target.files[0] }))} style={{ width: '100%' }} />
-                    <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>Existing: {poDetails[type + '_path'] ? 'File Attached' : 'None'}</p>
-                  </div>
-                ))}
+              <div style={{ background: '#FFFBEB', padding: '10px 16px', borderRadius: '8px', border: '1px solid #FEF3C7', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="material-symbols-outlined" style={{ color: '#D97706', fontSize: '20px' }}>info</span>
+                <span style={{ fontSize: '0.9rem', color: '#92400E', fontWeight: 500 }}>Only yellow columns are editable. Others are fetched or auto-calculated.</span>
               </div>
-            </div>
-            <div style={{ marginTop: '30px', display: 'flex', gap: '15px' }}>
-              <button onClick={prevStep} style={{ padding: '12px 24px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '6px' }}>Back</button>
-              <button onClick={nextStep} style={{ flex: 1, padding: '12px 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600 }}>Next: Edit Line Items →</button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3>3. Edit Line Items</h3>
-              <p style={{ background: '#FFFBEB', padding: '4px 12px', borderRadius: '4px', border: '1px solid #FEF3C7', fontSize: '0.85rem' }}>Yellow columns are editable. Blue columns show revised results.</p>
             </div>
             
-            <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '8px' }}>
-              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.65rem' }}>
-                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB' }}>
-                  <tr style={{ whiteSpace: 'nowrap' }}>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB' }}>SI no</th>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB' }}>Ref No</th>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB' }}>Item Details (Read-only)</th>
+            <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '12px', background: '#F9FAFB' }}>
+              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.75rem' }}>
+                <thead>
+                  <tr style={{ background: '#F3F4F6' }}>
+                    <th rowSpan="2" style={{ padding: '12px', border: '1px solid #E5E7EB', borderTopLeftRadius: '12px' }}>Sl No</th>
+                    <th rowSpan="2" style={{ padding: '12px', border: '1px solid #E5E7EB' }}>Ref No</th>
+                    <th rowSpan="2" style={{ padding: '12px', border: '1px solid #E5E7EB', minWidth: '220px' }}>Item Details (Read-only)</th>
                     
-                    <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center' }}>Fetched Original</th>
-                    <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'center' }}>EDIT ENTRY</th>
-                    <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center' }}>REVISED AUTO CAL</th>
-                    
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7' }}>REV. TOTAL</th>
+                    <th colSpan="6" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#E5E7EB', textAlign: 'center', color: '#4B5563' }}>Original PO Data (Fetched)</th>
+                    <th colSpan="6" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'center', color: '#92400E' }}>Revision Entries (Edit Yellow Columns)</th>
+                    <th colSpan="4" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center', color: '#1E40AF' }}>Revised Calculations</th>
                   </tr>
-                  <tr style={{ whiteSpace: 'nowrap' }}>
-                    <th style={{ background: '#F3F4F6' }}>S-Qty / Rate</th>
-                    <th style={{ background: '#F3F4F6' }}>Sv-Qty / Rate</th>
-                    <th style={{ background: '#F3F4F6' }}>GST S/Sv</th>
+                  <tr style={{ background: '#F9FAFB' }}>
+                    {/* Original Data */}
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '70px' }}>Supply Qty</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '80px' }}>Supply Rate</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '70px' }}>Service Qty</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '80px' }}>Service Rate</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '60px' }}>S-GST %</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '60px' }}>Sv-GST %</th>
                     
-                    <th style={{ background: '#FEF3C7' }}>Edit S-Qty</th>
-                    <th style={{ background: '#FEF3C7' }}>Edit S-Rate</th>
-                    <th style={{ background: '#FEF3C7' }}>Edit Sv-Qty</th>
+                    {/* Edit Entry */}
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '90px' }}>New Supply Qty</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '100px' }}>New Supply Rate</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '90px' }}>New Service Qty</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '100px' }}>New Service Rate</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '70px' }}>New S-GST %</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '70px' }}>New Sv-GST %</th>
                     
-                    <th style={{ background: '#EFF6FF' }}>Rev S-Taxable</th>
-                    <th style={{ background: '#EFF6FF' }}>Rev Sv-Taxable</th>
-                    <th style={{ background: '#EFF6FF' }}>Rev Grand</th>
+                    {/* Revised Calc */}
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F0F9FF', minWidth: '110px' }}>Rev. Supply Taxable</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F0F9FF', minWidth: '110px' }}>Rev. Service Taxable</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F0F9FF', minWidth: '100px' }}>Rev. Total GST</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', minWidth: '120px' }}>Rev. Grand Total</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody style={{ background: 'white' }}>
                   {items.map((it, idx) => (
-                    <tr key={idx}>
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{idx + 1}</td>
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.ref_no || '-'}</td>
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', maxWidth: '200px', whiteSpace: 'normal' }}>
-                        <strong>{it.package_name || '-'}</strong> | {it.item_name}<br/>
-                        <span style={{ fontSize: '0.6rem', color: '#6B7280' }}>{it.description}</span>
+                    <tr key={idx} style={{ transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'center', fontWeight: 600, color: '#6B7280' }}>{idx + 1}</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'center', fontWeight: 500 }}>{it.ref_no || '-'}</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB' }}>
+                        <div style={{ fontWeight: 700, color: '#111827' }}>{it.package_name || '-'}</div>
+                        <div style={{ color: '#4B5563' }}>{it.heading} | {it.sub_heading}</div>
+                        <div style={{ fontWeight: 600, color: '#2563EB', marginTop: '4px' }}>{it.item_name}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#9CA3AF' }}>{it.description}</div>
                       </td>
                       
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#F9FAFB', textAlign: 'right' }}>{it.supply_qty} @ {it.supply_rate}</td>
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#F9FAFB', textAlign: 'right' }}>{it.service_qty} @ {it.service_rate}</td>
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#F9FAFB', textAlign: 'center' }}>{it.supply_gst_rate}% / {it.service_gst_rate}%</td>
+                      {/* Original Data Cells */}
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280' }}>{it.supply_qty}</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280' }}>₹{it.supply_rate.toLocaleString()}</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280' }}>{it.service_qty}</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280' }}>₹{it.service_rate.toLocaleString()}</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{it.supply_gst_rate}%</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{it.service_gst_rate}%</td>
                       
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}><input type="number" placeholder={it.supply_qty} value={it.edit_supply_qty} onChange={e => updateItem(idx, 'edit_supply_qty', e.target.value)} style={{ width: '100%', border: 'none', padding: '6px', textAlign: 'right', background: 'transparent' }} /></td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}><input type="number" placeholder={it.supply_rate} value={it.edit_supply_rate} onChange={e => updateItem(idx, 'edit_supply_rate', e.target.value)} style={{ width: '100%', border: 'none', padding: '6px', textAlign: 'right', background: 'transparent' }} /></td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}><input type="number" placeholder={it.service_qty} value={it.edit_service_qty} onChange={e => updateItem(idx, 'edit_service_qty', e.target.value)} style={{ width: '100%', border: 'none', padding: '6px', textAlign: 'right', background: 'transparent' }} /></td>
+                      {/* Revision Input Cells */}
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.supply_qty} value={it.edit_supply_qty} onChange={e => updateItem(idx, 'edit_supply_qty', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'right', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.supply_rate} value={it.edit_supply_rate} onChange={e => updateItem(idx, 'edit_supply_rate', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'right', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.service_qty} value={it.edit_service_qty} onChange={e => updateItem(idx, 'edit_service_qty', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'right', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.service_rate} value={it.edit_service_rate} onChange={e => updateItem(idx, 'edit_service_rate', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'right', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.supply_gst_rate} value={it.edit_supply_gst_rate} onChange={e => updateItem(idx, 'edit_supply_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'center', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.service_gst_rate} value={it.edit_service_gst_rate} onChange={e => updateItem(idx, 'edit_service_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'center', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
+                      </td>
                       
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'right' }}>₹{(it.rev_taxable_supply || 0).toLocaleString()}</td>
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'right' }}>₹{(it.rev_taxable_service || 0).toLocaleString()}</td>
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'right', fontWeight: 600 }}>₹{(it.rev_total_invoice || 0).toLocaleString()}</td>
-                      
-                      <td style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'right', fontWeight: 700 }}>₹{(it.rev_total_invoice || 0).toLocaleString()}</td>
+                      {/* Calculations Cells */}
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', background: '#F0F9FF', textAlign: 'right', fontWeight: 600 }}>₹{(it.rev_taxable_supply || 0).toLocaleString()}</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', background: '#F0F9FF', textAlign: 'right', fontWeight: 600 }}>₹{(it.rev_taxable_service || 0).toLocaleString()}</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', background: '#F0F9FF', textAlign: 'right', fontWeight: 600 }}>₹{(it.rev_total_gst || 0).toLocaleString()}</td>
+                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'right', fontWeight: 800, color: '#92400E' }}>₹{(it.rev_total_invoice || 0).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '32px' }}>
+            <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', gap: '48px', background: '#F9FAFB', padding: '24px', borderRadius: '16px', border: '1px solid #E5E7EB' }}>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ color: '#6B7280', margin: 0 }}>Revised Subtotal</p>
-                <p style={{ fontSize: '1.2rem', fontWeight: 700 }}>₹{items.reduce((s, i) => s + (i.rev_total_taxable || 0), 0).toLocaleString()}</p>
+                <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>Revised Taxable Amount</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#374151' }}>₹{items.reduce((s, i) => s + (i.rev_total_taxable || 0), 0).toLocaleString()}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ color: '#6B7280', margin: 0 }}>Revised Grand Total</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#10B981' }}>₹{items.reduce((s, i) => s + (i.rev_total_invoice || 0), 0).toLocaleString()}</p>
+                <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>Revised Grand Total</p>
+                <p style={{ fontSize: '2rem', fontWeight: 900, margin: 0, color: '#10B981' }}>₹{items.reduce((s, i) => s + (i.rev_total_invoice || 0), 0).toLocaleString()}</p>
               </div>
             </div>
 
-            <div style={{ marginTop: '30px', display: 'flex', gap: '15px' }}>
-              <button onClick={prevStep} style={{ padding: '12px 24px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '6px' }}>Back</button>
-              <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, padding: '12px 24px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}>{submitting ? 'Submitting Revision...' : '✓ Submit Revised PO'}</button>
+            <div style={{ marginTop: '32px', display: 'flex', gap: '16px' }}>
+              <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, padding: '18px', background: '#10B981', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 800, fontSize: '1.2rem', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)', transition: 'all 0.2s' }}>
+                {submitting ? 'Processing Revision...' : '✓ Submit Revised Purchase Order'}
+              </button>
             </div>
           </div>
         )}

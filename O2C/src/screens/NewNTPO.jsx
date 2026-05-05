@@ -2,7 +2,15 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import { useAuth } from '../context/AuthContext';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getGroupedRowModel,
+  flexRender,
+} from '@tanstack/react-table';
 
 export default function NewNTPO() {
   const navigate = useNavigate();
@@ -44,7 +52,10 @@ export default function NewNTPO() {
   const [showViewer, setShowViewer] = useState(null);
   const [previewExcelData, setPreviewExcelData] = useState(null);
   const [showPasteModal, setShowPasteModal] = useState(false);
-  const [pasteContent, setPasteContent] = useState('');
+  const [pasteRows, setPasteRows] = useState(Array(10).fill({}).map(() => ({
+    ref_no: '', package_name: '', heading: '', sub_heading: '', item_name: '', description: '', uom: '',
+    supply_qty: '', supply_rate: '', supply_gst_rate: '', service_qty: '', service_rate: '', service_gst_rate: ''
+  })));
 
   // Items State
   const [entryMethod, setEntryMethod] = useState(null);
@@ -167,6 +178,159 @@ export default function NewNTPO() {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('PO Format for UPLOAD');
+    const masterSheet = workbook.addWorksheet('MasterData', { state: 'veryHidden' });
+
+    // Populate Master Data
+    masterSheet.getCell('A1').value = 'Customers';
+    customers.forEach((c, i) => {
+      masterSheet.getCell(`A${i + 2}`).value = c.name || c.customer_name || String(c);
+    });
+
+    masterSheet.getCell('B1').value = 'Locations';
+    locations.forEach((l, i) => {
+      masterSheet.getCell(`B${i + 2}`).value = l.name || l.location_name || String(l);
+    });
+
+    // Define columns width
+    worksheet.columns = [
+      { width: 15 }, // A: Label
+      { width: 25 }, // B: Input
+      { width: 15 }, // C: empty
+      { width: 15 }, // D: Label
+      { width: 15 }, // E: Button
+      { width: 15 }, // F: empty
+      { width: 15 }, // G: empty
+      { width: 15 }, // H: empty
+      { width: 30 }, // I: Help
+    ];
+
+    // Header Section (Row 1)
+    worksheet.mergeCells('A1:G1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = 'Table for NEW PO';
+    titleCell.font = { size: 20, bold: true, color: { argb: 'FFFF0000' } };
+
+    worksheet.mergeCells('F1:H1');
+    const reviewBtn = worksheet.getCell('F1');
+    reviewBtn.value = 'REVIEW/SUBMIT';
+    reviewBtn.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F81BD' } };
+    reviewBtn.alignment = { horizontal: 'center', vertical: 'middle' };
+    reviewBtn.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+
+    const headerFields = [
+      ['Select Customer', 'Selects from Master - If customer is not in Master, then Master to be updated first'],
+      ['Select Location', 'Selects from Master - If customer is not in Master, then Master to be updated first'],
+      ['Enter PO No', 'Sales enters the PO number as per the Customer Issued Document'],
+      ['PO Number Displayed', 'This is System Generated - CUST ID/Location ID/PO NO'],
+      ['PO Date', 'Calender', 'Attach PO Copy'],
+      ['Start Date', 'Calender', 'Attach PO Annex'],
+      ['Est End Date', 'Calender', 'Other Attachment']
+    ];
+
+    headerFields.forEach((field, i) => {
+      const rowNum = i + 2;
+      const labelCell = worksheet.getCell(`A${rowNum}`);
+      labelCell.value = field[0];
+      labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF1DE' } };
+      labelCell.font = { bold: true };
+      labelCell.border = { outline: true, top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+      const inputCell = worksheet.getCell(`B${rowNum}`);
+      inputCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; // Yellow for input
+      inputCell.border = { outline: true, top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+      const helpCell = worksheet.getCell(`I${rowNum}`);
+      helpCell.value = field[field.length - 1];
+      helpCell.font = { size: 9, italic: true };
+
+      // Add Dropdowns
+      if (field[0] === 'Select Customer' && customers.length > 0) {
+        inputCell.dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: [`MasterData!$A$2:$A$${customers.length + 1}`]
+        };
+      }
+      if (field[0] === 'Select Location' && locations.length > 0) {
+        inputCell.dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: [`MasterData!$B$2:$B$${locations.length + 1}`]
+        };
+      }
+
+      if (field[1] === 'Calender') {
+        const calLabel = worksheet.getCell(`D${rowNum}`);
+        calLabel.value = 'Calender';
+        calLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+        calLabel.border = { outline: true, top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+        const btnCell = worksheet.getCell(`E${rowNum}`);
+        btnCell.value = field[2];
+        btnCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F81BD' } };
+        btnCell.font = { color: { argb: 'FFFFFFFF' }, size: 9 };
+        btnCell.alignment = { horizontal: 'center' };
+        btnCell.border = { outline: true, top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+      }
+    });
+
+    // Table Header (Row 11)
+    const tableHeaderRow = worksheet.getRow(11);
+    const headers = [
+      'Sl no (SYS GEN)', 'Ref No', 'Package', 'Heading', 'Sub Heading (if Any)',
+      'Item Name', 'Item Description', 'UOM', 'Supply QTY', 'Supply Rate',
+      'Supply GST', 'Service QTY', 'Service Rate', 'Service GST'
+    ];
+
+    tableHeaderRow.values = headers;
+    tableHeaderRow.eachCell((cell, colNum) => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
+      cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 10 };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = {
+        top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+      };
+      // Set width for table columns
+      const column = worksheet.getColumn(colNum);
+      if (colNum > 8) column.width = 15;
+      else if (colNum === 6) column.width = 30;
+      else if (colNum === 7) column.width = 40;
+    });
+    tableHeaderRow.height = 35;
+
+    // Data rows style (12 to 50)
+    for (let i = 12; i <= 50; i++) {
+      const row = worksheet.getRow(i);
+      row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+        if (colNum <= headers.length) {
+          cell.border = {
+            top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+          };
+          if (colNum === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+        }
+      });
+    }
+
+    // Add Note
+    worksheet.mergeCells('A52:N52');
+    const noteCell = worksheet.getCell('A52');
+    noteCell.value = 'NOTE: The User will click the Review Button after entering the details into the form. The system will display a summary by Package for the entered details.';
+    noteCell.font = { bold: true, size: 10 };
+
+    // EDIT Section (Row 55...)
+    worksheet.mergeCells('A55:G55');
+    const editTitleCell = worksheet.getCell('A55');
+    editTitleCell.value = 'Table for EDIT PO or EDIT NT PO';
+    editTitleCell.font = { size: 20, bold: true, color: { argb: 'FFFF0000' } };
+
+    // Generate and Save
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), 'NT_PO_Template.xlsx');
+  };
+
   const uploadAttachments = async () => {
     const formData = new FormData();
     if (attachments.po_copy) formData.append('po_copy', attachments.po_copy);
@@ -211,7 +375,7 @@ export default function NewNTPO() {
 
           const headersRaw = rawData[headerIdx] || [];
           const dataRows = (maxScore < 2) ? rawData : rawData.slice(headerIdx + 1);
-          
+
           const formatted = dataRows.map(row => {
             const obj = {};
             if (maxScore >= 2) {
@@ -256,40 +420,125 @@ export default function NewNTPO() {
     setStep(5);
   };
 
-  const handleBulkPaste = () => {
-    if (!pasteContent.trim()) return;
-    const rows = pasteContent.split('\n').filter(r => r.trim());
-    const newItems = [];
-    
-    rows.forEach((r, idx) => {
-      const cols = r.split('\t').map(c => c.trim());
-      // Skip header rows
-      if (cols[0].toLowerCase().includes('ref') || cols[0].toLowerCase().includes('sl')) return;
-      
-      // If first column is a number, it's likely a Sl No, so we shift
-      const isSlNoPresent = /^\d+$/.test(cols[0]) && cols[0].length < 4;
-      const offset = isSlNoPresent ? 1 : 0;
+  const handleGridPaste = (e) => {
+    e.preventDefault();
+    const clipboardData = e.clipboardData || window.clipboardData;
+    const pastedData = clipboardData.getData('Text');
+    const rows = pastedData.split('\n').filter(r => r.trim());
 
-      newItems.push(calculateRow({
-        line_number: items.length + newItems.length + 1,
+    const newPasteRows = rows.map(r => {
+      const cols = r.split('\t').map(c => c.trim());
+      // Skip header if it looks like one
+      if (cols[0].toLowerCase().includes('ref') || cols[0].toLowerCase().includes('sl')) return null;
+
+      const isSlNo = /^\d+$/.test(cols[0]) && cols[0].length < 4;
+      const offset = isSlNo ? 1 : 0;
+
+      return {
         ref_no: cols[0 + offset] || '',
         package_name: cols[1 + offset] || '',
         heading: cols[2 + offset] || '',
         sub_heading: cols[3 + offset] || '',
-        item_name: cols[4 + offset] || 'Item',
+        item_name: cols[4 + offset] || '',
         description: cols[5 + offset] || '',
         uom: cols[6 + offset] || '',
-        supply_qty: cleanNum(cols[7 + offset]),
-        supply_rate: cleanNum(cols[8 + offset]),
-        supply_gst_rate: cleanNum(cols[9 + offset]) || 18,
-        service_qty: cleanNum(cols[10 + offset]),
-        service_rate: cleanNum(cols[11 + offset]),
-        service_gst_rate: cleanNum(cols[12 + offset]) || 18
-      }));
+        supply_qty: cols[7 + offset] || '',
+        supply_rate: cols[8 + offset] || '',
+        supply_gst_rate: cols[9 + offset] || '',
+        service_qty: cols[10 + offset] || '',
+        service_rate: cols[11 + offset] || '',
+        service_gst_rate: cols[12 + offset] || ''
+      };
+    }).filter(Boolean);
+
+    if (newPasteRows.length > 0) {
+      setPasteRows(newPasteRows);
+    }
+  };
+
+  const handleModalFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const raw = await parseExcel(file);
+    const mapped = raw.map(r => {
+      if (r._is_headerless) {
+        const isSlNo = /^\d+$/.test(r.col0) && String(r.col0).length < 4;
+        const offset = isSlNo ? 1 : 0;
+        return {
+          ref_no: r[`col${0 + offset}`] || '',
+          package_name: r[`col${1 + offset}`] || '',
+          heading: r[`col${2 + offset}`] || '',
+          sub_heading: r[`col${3 + offset}`] || '',
+          item_name: r[`col${4 + offset}`] || '',
+          description: r[`col${5 + offset}`] || '',
+          uom: r[`col${6 + offset}`] || '',
+          supply_qty: r[`col${7 + offset}`] || '',
+          supply_rate: r[`col${8 + offset}`] || '',
+          supply_gst_rate: r[`col${9 + offset}`] || '18',
+          service_qty: r[`col${10 + offset}`] || '',
+          service_rate: r[`col${11 + offset}`] || '',
+          service_gst_rate: r[`col${12 + offset}`] || '18'
+        };
+      }
+      return {
+        ref_no: r['Ref No'] || r['ref_no'] || '',
+        package_name: r.Package || r['Package Name'] || '',
+        heading: r.Heading || '',
+        sub_heading: r['Sub Heading'] || '',
+        item_name: r['Item Name'] || r.Item || '',
+        description: r.Description || '',
+        uom: r.UOM || '',
+        supply_qty: r['Supply Qty'] || r['Supply QTY'] || '',
+        supply_rate: r['Supply Rate'] || '',
+        supply_gst_rate: r['Supply GST'] || '18',
+        service_qty: r['Service Qty'] || '',
+        service_rate: r['Service Rate'] || '',
+        service_gst_rate: r['Service GST'] || '18'
+      };
+    });
+    setPasteRows(mapped);
+  };
+
+  const handleExportGrid = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Exported Items');
+    const headers = ['Ref No', 'Package', 'Heading', 'Sub Heading', 'Item Name', 'Description', 'UOM', 'S.Qty', 'S.Rate', 'S.GST%', 'Sv.Qty', 'Sv.Rate', 'Sv.GST%'];
+    worksheet.addRow(headers);
+    pasteRows.forEach(r => {
+      worksheet.addRow([r.ref_no, r.package_name, r.heading, r.sub_heading, r.item_name, r.description, r.uom, r.supply_qty, r.supply_rate, r.supply_gst_rate, r.service_qty, r.service_rate, r.service_gst_rate]);
+    });
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), 'Exported_Items.xlsx');
+  };
+
+  const handleBulkPaste = () => {
+    const validRows = pasteRows.filter(r => r.item_name || r.package_name || r.ref_no);
+    if (validRows.length === 0) return;
+
+    const newItems = validRows.map((r, idx) => {
+      return calculateRow({
+        line_number: items.length + idx + 1,
+        ref_no: r.ref_no,
+        package_name: r.package_name,
+        heading: r.heading,
+        sub_heading: r.sub_heading,
+        item_name: r.item_name || 'Item',
+        description: r.description,
+        uom: r.uom,
+        supply_qty: cleanNum(r.supply_qty),
+        supply_rate: cleanNum(r.supply_rate),
+        supply_gst_rate: cleanNum(r.supply_gst_rate) || 18,
+        service_qty: cleanNum(r.service_qty),
+        service_rate: cleanNum(r.service_rate),
+        service_gst_rate: cleanNum(r.service_gst_rate) || 18
+      });
     });
 
-    setItems(prev => [...prev, ...newItems].filter(it => it.item_name || it.package_name || it.ref_no));
-    setPasteContent('');
+    setItems(prev => [...prev, ...newItems]);
+    setPasteRows(Array(10).fill({}).map(() => ({
+      ref_no: '', package_name: '', heading: '', sub_heading: '', item_name: '', description: '', uom: '',
+      supply_qty: '', supply_rate: '', supply_gst_rate: '', service_qty: '', service_rate: '', service_gst_rate: ''
+    })));
     setShowPasteModal(false);
   };
 
@@ -527,58 +776,69 @@ export default function NewNTPO() {
           <div>
             <h3>Data Entry Method</h3>
             <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
-              <div style={{ flex: 1, padding: '30px', border: '2px dashed #D1D5DB', borderRadius: '8px', textAlign: 'center' }}>
+              {/* <div style={{ flex: 1, padding: '30px', border: '2px dashed #D1D5DB', borderRadius: '8px', textAlign: 'center' }}>
                 <h4 style={{ margin: '0 0 15px' }}>Upload Excel</h4>
-                <input type="file" accept=".xlsx,.xls" onChange={async (e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    const raw = await parseExcel(file);
-                    setItems(raw.map((r, i) => {
-                      // Smart mapping for positional data
-                      if (r._is_headerless) {
-                        const isSlNo = /^\d+$/.test(r.col0) && String(r.col0).length < 4;
-                        const offset = isSlNo ? 1 : 0;
-                        
-                        return calculateRow({
-                          line_number: i + 1,
-                          ref_no: r[`col${0 + offset}`] || '',
-                          package_name: r[`col${1 + offset}`] || '',
-                          heading: r[`col${2 + offset}`] || '',
-                          sub_heading: r[`col${3 + offset}`] || '',
-                          item_name: r[`col${4 + offset}`] || 'Item',
-                          description: r[`col${5 + offset}`] || '',
-                          uom: r[`col${6 + offset}`] || '',
-                          supply_qty: cleanNum(r[`col${7 + offset}`]),
-                          supply_rate: cleanNum(r[`col${8 + offset}`]),
-                          supply_gst_rate: cleanNum(r[`col${9 + offset}`]) || 18,
-                          service_qty: cleanNum(r[`col${10 + offset}`]),
-                          service_rate: cleanNum(r[`col${11 + offset}`]),
-                          service_gst_rate: cleanNum(r[`col${12 + offset}`]) || 18
-                        });
-                      }
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <input type="file" accept=".xlsx,.xls" onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const raw = await parseExcel(file);
+                      setItems(raw.map((r, i) => {
+                        // Smart mapping for positional data
+                        if (r._is_headerless) {
+                          const isSlNo = /^\d+$/.test(r.col0) && String(r.col0).length < 4;
+                          const offset = isSlNo ? 1 : 0;
+                          
+                          return calculateRow({
+                            line_number: i + 1,
+                            ref_no: r[`col${0 + offset}`] || '',
+                            package_name: r[`col${1 + offset}`] || '',
+                            heading: r[`col${2 + offset}`] || '',
+                            sub_heading: r[`col${3 + offset}`] || '',
+                            item_name: r[`col${4 + offset}`] || 'Item',
+                            description: r[`col${5 + offset}`] || '',
+                            uom: r[`col${6 + offset}`] || '',
+                            supply_qty: cleanNum(r[`col${7 + offset}`]),
+                            supply_rate: cleanNum(r[`col${8 + offset}`]),
+                            supply_gst_rate: cleanNum(r[`col${9 + offset}`]) || 18,
+                            service_qty: cleanNum(r[`col${10 + offset}`]),
+                            service_rate: cleanNum(r[`col${11 + offset}`]),
+                            service_gst_rate: cleanNum(r[`col${12 + offset}`]) || 18
+                          });
+                        }
 
-                      // Named mapping
-                      return calculateRow({
-                        line_number: i + 1, 
-                        ref_no: r['Ref No'] || r['ref_no'] || r['Reference'] || '', 
-                        package_name: r.Package || r['Package Name'] || '',
-                        heading: r.Heading || '', 
-                        sub_heading: r['Sub Heading'] || '',
-                        item_name: r['Item Name'] || r.Item || 'Item', 
-                        description: r.Description || '', 
-                        uom: r.UOM || '',
-                        supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY']),
-                        supply_rate: cleanNum(r['Supply Rate']),
-                        supply_gst_rate: cleanNum(r['Supply GST']) || 18,
-                        service_qty: cleanNum(r['Service Qty']),
-                        service_rate: cleanNum(r['Service Rate']),
-                        service_gst_rate: cleanNum(r['Service GST']) || 18
-                      });
-                    }));
-                    setEntryMethod('upload'); setStep(5);
-                  }
-                }} />
-              </div>
+                        // Named mapping
+                        return calculateRow({
+                          line_number: i + 1, 
+                          ref_no: r['Ref No'] || r['ref_no'] || r['Reference'] || '', 
+                          package_name: r.Package || r['Package Name'] || '',
+                          heading: r.Heading || '', 
+                          sub_heading: r['Sub Heading'] || '',
+                          item_name: r['Item Name'] || r.Item || 'Item', 
+                          description: r.Description || '', 
+                          uom: r.UOM || '',
+                          supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY']),
+                          supply_rate: cleanNum(r['Supply Rate']),
+                          supply_gst_rate: cleanNum(r['Supply GST']) || 18,
+                          service_qty: cleanNum(r['Service Qty']),
+                          service_rate: cleanNum(r['Service Rate']),
+                          service_gst_rate: cleanNum(r['Service GST']) || 18
+                        });
+                      }));
+                      setEntryMethod('upload'); setStep(5);
+                    }
+                  }} />
+                  <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '15px' }}>
+                    <button 
+                      onClick={handleDownloadTemplate}
+                      style={{ background: '#F9FAFB', border: '1px solid #D1D5DB', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', margin: '0 auto' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+                      Download Excel Template
+                    </button>
+                  </div>
+                </div>
+              </div> */}
               <div style={{ flex: 1, padding: '30px', border: '2px solid #E5E7EB', borderRadius: '8px', textAlign: 'center' }}>
                 <h4 style={{ margin: '0 0 15px' }}>Enter Manually</h4>
                 <button onClick={handleManualEntry} style={{ padding: '12px 24px', background: '#374151', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600 }}>Start Manual Entry</button>
@@ -596,8 +856,8 @@ export default function NewNTPO() {
                   onClick={() => setShowPasteModal(true)}
                   style={{ padding: '8px 16px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>content_paste</span>
-                  Paste from Excel
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>table_chart</span>
+                  Excel Upload
                 </button>
                 <button onClick={addRow} style={{ padding: '8px 16px', background: '#10B981', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 600 }}>+ Add Row</button>
               </div>
@@ -605,18 +865,88 @@ export default function NewNTPO() {
 
             {showPasteModal && (
               <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '80%', maxWidth: '800px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-                  <h3 style={{ marginTop: 0 }}>Paste Data from Excel</h3>
-                  <p style={{ fontSize: '0.9rem', color: '#6B7280', marginBottom: '16px' }}>Copy the rows from your Excel sheet and paste them below. Make sure the column order matches your spreadsheet.</p>
-                  <textarea
-                    value={pasteContent}
-                    onChange={(e) => setPasteContent(e.target.value)}
-                    placeholder="Paste rows here..."
-                    style={{ width: '100%', height: '300px', padding: '12px', borderRadius: '8px', border: '1px solid #D1D5DB', fontFamily: 'monospace', fontSize: '0.85rem' }}
-                  />
+                <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '98%', maxWidth: '1400px', maxHeight: '95vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                      <h3 style={{ margin: 0 }}>Interactive Excel Workspace</h3>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <label style={{ padding: '6px 12px', background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
+                          Load from Excel
+                          <input type="file" accept=".xlsx,.xls" onChange={handleModalFileUpload} style={{ display: 'none' }} />
+                        </label>
+                        <button onClick={handleExportGrid} style={{ padding: '6px 12px', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+                          Save as Excel
+                        </button>
+                      </div>
+                    </div>
+                    <button onClick={() => setPasteRows(prev => [...prev, {
+                      ref_no: '', package_name: '', heading: '', sub_heading: '', item_name: '', description: '', uom: '',
+                      supply_qty: '', supply_rate: '', supply_gst_rate: '', service_qty: '', service_rate: '', service_gst_rate: ''
+                    }])} style={{ padding: '6px 12px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>+ Add Row</button>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: '16px' }}>Edit cells directly, use <b>Ctrl+V</b> to paste from your desktop Excel, or <b>Load from Excel</b> to import a whole file. Click <b>Save as Excel</b> to export your current work.</p>
+
+                  <div
+                    onPaste={handleGridPaste}
+                    style={{ flex: 1, overflow: 'auto', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#F9FAFB' }}
+                  >
+                    <table style={{ width: 'max-content', borderCollapse: 'collapse', fontSize: '0.75rem', background: 'white' }}>
+                      <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F3F4F6' }}>
+                        <tr>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '40px' }}>#</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '100px' }}>Ref No</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '120px' }}>Package</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '120px' }}>Heading</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '120px' }}>Sub Heading</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '150px' }}>Item Name</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '200px' }}>Description</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '60px' }}>UOM</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '100px', background: '#ECFDF5' }}>Supply Qty</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '110px', background: '#ECFDF5' }}>Supply Rate</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '100px', background: '#ECFDF5' }}>Supply GST %</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '100px', background: '#EFF6FF' }}>Service Qty</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '110px', background: '#EFF6FF' }}>Service Rate</th>
+                          <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '100px', background: '#EFF6FF' }}>Service GST %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pasteRows.map((row, idx) => (
+                          <tr key={idx}>
+                            <td style={{ padding: '4px', border: '1px solid #E5E7EB', textAlign: 'center', background: '#F9FAFB' }}>{idx + 1}</td>
+                            {Object.keys(row).map(field => {
+                              const isNumeric = ['supply_qty', 'supply_rate', 'supply_gst_rate', 'service_qty', 'service_rate', 'service_gst_rate'].includes(field);
+                              return (
+                                <td key={field} style={{ padding: 0, border: '1px solid #E5E7EB', background: isNumeric ? '#FDFDEA' : 'white' }}>
+                                  <input
+                                    type={isNumeric ? "number" : "text"}
+                                    value={row[field]}
+                                    onChange={(e) => {
+                                      const newRows = [...pasteRows];
+                                      newRows[idx] = { ...newRows[idx], [field]: e.target.value };
+                                      setPasteRows(newRows);
+                                    }}
+                                    style={{ width: '100%', border: 'none', padding: '6px', fontSize: '0.75rem', outline: 'none', background: 'transparent', textAlign: isNumeric ? 'right' : 'left' }}
+                                  />
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-                    <button onClick={() => setShowPasteModal(false)} style={{ padding: '10px 20px', background: '#F3F4F6', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
-                    <button onClick={handleBulkPaste} style={{ padding: '10px 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>Process & Import</button>
+                    <button onClick={() => setShowPasteModal(false)} style={{ padding: '10px 20px', background: '#F3F4F6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+                    <button
+                      onClick={handleBulkPaste}
+                      disabled={pasteRows.every(r => !r.item_name && !r.ref_no)}
+                      style={{ padding: '10px 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', opacity: pasteRows.every(r => !r.item_name && !r.ref_no) ? 0.5 : 1 }}
+                    >
+                      Process & Sync {pasteRows.filter(r => r.item_name || r.ref_no).length} Items
+                    </button>
                   </div>
                 </div>
               </div>
@@ -688,18 +1018,66 @@ export default function NewNTPO() {
         {step === 6 && (
           <div>
             <h3>6. Final Summary</h3>
-            <div style={{ background: '#F9FAFB', padding: '24px', borderRadius: '12px', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+            <div style={{ background: '#F9FAFB', padding: '24px', borderRadius: '12px', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '24px' }}>
               <div>
-                <p><strong>PO Number:</strong> {poNumber}</p>
-                <p><strong>Customer:</strong> {customers.find(c => c.id == selectedCustomer)?.name}</p>
-                <p><strong>Location:</strong> {locations.find(l => l.id == selectedLocation)?.label}</p>
-                <p><strong>Dates:</strong> {poDate} (PO) | {startDate} to {endDate}</p>
+                <p style={{ margin: '0 0 8px' }}><strong>PO Number:</strong> {poNumber}</p>
+                <p style={{ margin: '0 0 8px' }}><strong>Customer:</strong> {customers.find(c => c.id == selectedCustomer)?.name}</p>
+                <p style={{ margin: '0 0 8px' }}><strong>Location:</strong> {locations.find(l => l.id == selectedLocation)?.label}</p>
+                <p style={{ margin: 0 }}><strong>Dates:</strong> {poDate} (PO) | {startDate} to {endDate}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p><strong>Subtotal:</strong> ₹{items.reduce((s, i) => s + (i.total_taxable || 0), 0).toLocaleString()}</p>
-                <p><strong>GST Total:</strong> ₹{items.reduce((s, i) => s + (i.total_gst || 0), 0).toLocaleString()}</p>
-                <p style={{ fontSize: '1.5rem', color: '#111827' }}><strong>Grand Total:</strong> ₹{items.reduce((s, i) => s + (i.total_invoice || 0), 0).toLocaleString()}</p>
+                <p style={{ margin: '0 0 4px' }}><strong>Overall Subtotal:</strong> ₹{items.reduce((s, i) => s + (i.total_taxable || 0), 0).toLocaleString()}</p>
+                <p style={{ margin: '0 0 4px' }}><strong>Overall GST:</strong> ₹{items.reduce((s, i) => s + (i.total_gst || 0), 0).toLocaleString()}</p>
+                <p style={{ fontSize: '1.5rem', color: '#111827', margin: 0 }}><strong>Grand Total:</strong> ₹{items.reduce((s, i) => s + (i.total_invoice || 0), 0).toLocaleString()}</p>
               </div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '32px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                <thead style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', position: 'sticky', top: 0, zIndex: 5 }}>
+                  <tr>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', color: '#4B5563', fontWeight: 700 }}>Item Description</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', color: '#4B5563', fontWeight: 700, width: '110px' }}>Supply (Tax)</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', color: '#4B5563', fontWeight: 700, width: '110px' }}>Service (Tax)</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', color: '#4B5563', fontWeight: 700, width: '90px' }}>GST</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', color: '#4B5563', fontWeight: 700, width: '110px' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(items.reduce((acc, it) => {
+                    const pkg = it.package_name || 'General';
+                    if (!acc[pkg]) acc[pkg] = { items: [], total: 0 };
+                    acc[pkg].items.push(it);
+                    acc[pkg].total += (it.total_invoice || 0);
+                    return acc;
+                  }, {})).map(([pkgName, pkgData], pIdx) => (
+                    <React.Fragment key={pkgName}>
+                      <tr style={{ background: '#F3F4F6' }}>
+                        <td colSpan="4" style={{ padding: '4px 12px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #E5E7EB', textAlign: 'left' }}>
+                          {pkgName}
+                        </td>
+                        <td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 700, color: '#2563EB', borderBottom: '1px solid #E5E7EB' }}>
+                          ₹{pkgData.total.toLocaleString()}
+                        </td>
+                      </tr>
+                      {pkgData.items.map((it, iIdx) => (
+                        <tr key={iIdx} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                          <td style={{ padding: '6px 12px', paddingLeft: '24px', textAlign: 'left' }}>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                              <span style={{ fontWeight: 600, color: '#111827', whiteSpace: 'nowrap' }}>{it.item_name}</span>
+                              <span style={{ color: '#6B7280', fontSize: '0.65rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', color: '#4B5563' }}>₹{(it.taxable_supply || 0).toLocaleString()}</td>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', color: '#4B5563' }}>₹{(it.taxable_service || 0).toLocaleString()}</td>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', color: '#4B5563' }}>₹{(it.total_gst || 0).toLocaleString()}</td>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: '#111827' }}>₹{(it.total_invoice || 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <div style={{ display: 'flex', gap: '15px', marginTop: '30px' }}>
               <button onClick={() => setStep(5)} style={{ padding: '12px 24px', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '6px', fontWeight: 600 }}>← Edit Items</button>

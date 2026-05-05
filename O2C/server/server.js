@@ -437,6 +437,7 @@ app.get('/api/pos', authenticate, (req, res) => {
         p.is_nt_po, p.is_temporary, p.is_temp_po,
         p.grand_total, p.subtotal, p.gst_total,
         p.total_value, p.po_date, p.created_at,
+        p.customer_id, p.location_id,
         c.name as customer_name,
         cl.label as location_name,
         cl.city as location_city,

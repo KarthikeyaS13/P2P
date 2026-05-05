@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,6 +14,11 @@ export default function PODetails() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Preview State
+  const [previewPath, setPreviewPath] = useState(null);
+  const [previewExcelData, setPreviewExcelData] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -79,8 +85,104 @@ export default function PODetails() {
 
   const showActions = (role === 'accounts' || role === 'admin') && (po.status === 'pending' || po.status === 'nt_created');
 
+  const handleViewFile = async (path) => {
+    const filename = path.split('/').pop();
+    const fullUrl = `http://localhost:3000/uploads/${filename}`;
+    const isExcel = filename.toLowerCase().match(/\.(xlsx|xls|xlsm)$/);
+    
+    if (isExcel) {
+      setLoadingPreview(true);
+      setPreviewPath(filename);
+      try {
+        const res = await axios.get(fullUrl, { responseType: 'arraybuffer' });
+        const wb = XLSX.read(res.data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+        let headerIdx = 0;
+        let maxScore = -1;
+        for (let i = 0; i < Math.min(rawData.length, 20); i++) {
+          const row = rawData[i] || [];
+          const s = row.map(c => String(c || '').toLowerCase()).join(' ');
+          let sc = 0;
+          if (s.includes('item')) sc += 2;
+          if (s.includes('qty')) sc += 2;
+          if (s.includes('rate')) sc += 2;
+          if (s.includes('package')) sc += 2;
+          if (sc > maxScore) { maxScore = sc; headerIdx = i; }
+        }
+
+        const headersRaw = rawData[headerIdx] || [];
+        const dataRows = (maxScore < 2) ? rawData : rawData.slice(headerIdx + 1);
+        
+        const formatted = dataRows.map(row => {
+          const obj = {};
+          if (maxScore >= 2) {
+            headersRaw.forEach((h, idx) => { if (h) obj[String(h).trim()] = row[idx]; });
+          } else {
+            headersRaw.forEach((_, idx) => { obj[`Col ${idx + 1}`] = row[idx]; });
+          }
+          return obj;
+        }).filter(row => Object.values(row).some(v => v !== null && v !== ''));
+
+        setPreviewExcelData(formatted);
+      } catch (err) {
+        console.error("Preview failed", err);
+        alert("Could not preview Excel file.");
+        setPreviewPath(null);
+      } finally {
+        setLoadingPreview(false);
+      }
+    } else {
+      setPreviewPath(fullUrl);
+      setPreviewExcelData(null);
+    }
+  };
+
+  const renderFileViewer = () => {
+    if (!previewPath) return null;
+    const allHeaders = previewExcelData ? Array.from(new Set(previewExcelData.flatMap(row => Object.keys(row)))) : [];
+    
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)' }}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '95%', height: '90%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0 }}>Preview: {previewPath.split('/').pop()}</h3>
+            <button onClick={() => { setPreviewPath(null); setPreviewExcelData(null); }} style={{ padding: '8px 16px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Close Preview</button>
+          </div>
+          
+          <div style={{ flex: 1, background: '#F3F4F6', borderRadius: '8px', overflow: 'auto' }}>
+            {loadingPreview ? (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <p>Parsing Excel data...</p>
+              </div>
+            ) : previewExcelData ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', background: 'white' }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#F9FAFB', zIndex: 10 }}>
+                  <tr>
+                    {allHeaders.map(h => <th key={h} style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'left' }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewExcelData.map((row, i) => (
+                    <tr key={i}>
+                      {allHeaders.map((h, j) => <td key={j} style={{ padding: '8px', border: '1px solid #E5E7EB' }}>{row[h] !== undefined ? String(row[h]) : '-'}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <iframe src={previewPath} width="100%" height="100%" title="File Viewer" style={{ border: 'none' }} />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      {renderFileViewer()}
 
       {/* SECTION 1: Header card */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '15px' }}>
@@ -102,12 +204,15 @@ export default function PODetails() {
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>PO Date:</strong> {po.po_date ? new Date(po.po_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>Start Date:</strong> {po.start_date ? new Date(po.start_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>End Date:</strong> {po.end_date ? new Date(po.end_date).toLocaleDateString('en-IN') : 'N/A'}</p>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-            {/* {po.po_copy_path && (
-              <a href={`http://localhost:3000/uploads/${po.po_copy_path.split('/').pop()}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#3B82F6', textDecoration: 'none', border: '1px solid #3B82F6', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>View PO Copy</a>
-            )} */}
+          <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+            {po.po_copy_path && (
+              <button onClick={() => handleViewFile(po.po_copy_path)} style={{ fontSize: '0.75rem', color: '#3B82F6', background: 'none', border: '1px solid #3B82F6', padding: '4px 10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>View PO Copy</button>
+            )}
             {po.po_annex_path && (
-              <a href={`http://localhost:3000/uploads/${po.po_annex_path.split('/').pop()}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#10B981', textDecoration: 'none', border: '1px solid #10B981', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>View Annex</a>
+              <button onClick={() => handleViewFile(po.po_annex_path)} style={{ fontSize: '0.75rem', color: '#10B981', background: 'none', border: '1px solid #10B981', padding: '4px 10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>View Annex</button>
+            )}
+            {po.other_attachment_path && (
+              <button onClick={() => handleViewFile(po.other_attachment_path)} style={{ fontSize: '0.75rem', color: '#6B7280', background: 'none', border: '1px solid #6B7280', padding: '4px 10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>View Other</button>
             )}
           </div>
         </div>
