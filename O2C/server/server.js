@@ -439,7 +439,8 @@ app.get('/api/pos', authenticate, (req, res) => {
         p.total_value, p.po_date, p.created_at,
         c.name as customer_name,
         cl.label as location_name,
-        cl.city as location_city
+        cl.city as location_city,
+        (SELECT COUNT(*) FROM purchase_orders WHERE linked_po_id = p.id) as nt_count
       FROM purchase_orders p
       LEFT JOIN customers c ON p.customer_id = c.id
       LEFT JOIN customer_locations cl ON p.location_id = cl.id

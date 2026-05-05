@@ -16,6 +16,7 @@ import DCRequest from './screens/DCRequest';
 import NewPO from './screens/NewPO';
 import PODetails from './screens/PODetails';
 import NewNTPO from './screens/NewNTPO';
+import EditPO from './screens/EditPO';
 import NewInvoice from './screens/NewInvoice';
 import ARDatabase from './screens/ARDatabase';
 
@@ -49,6 +50,7 @@ function App() {
               <Route path="/dc-request" element={<DCRequest />} />
               <Route path="/new-po" element={<NewPO />} />
               <Route path="/new-nt-po" element={<NewNTPO />} />
+              <Route path="/edit-po" element={<EditPO />} />
               <Route path="/pos/:id" element={<PODetails />} />
               <Route path="/new-invoice" element={<NewInvoice />} />
               <Route path="/ar-database" element={<ARDatabase />} />

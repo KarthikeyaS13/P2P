@@ -230,16 +230,16 @@ export default function POReview() {
                   onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ fontWeight: 600, color: 'var(--primary)', margin: 0 }}>{o.po}</h4>
-                    <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>{new Date(o.date).toLocaleDateString()}</span>
+                    <h4 style={{ fontWeight: 600, color: 'var(--primary)', margin: 0 }}>{o.po_number}</h4>
+                    <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>{new Date(o.po_date || o.created_at).toLocaleDateString()}</span>
                   </div>
-                  <p style={{ fontSize: '14px', marginTop: '8px', fontWeight: 500, color: 'var(--surface-on)' }}>{o.customer}</p>
+                  <p style={{ fontSize: '14px', marginTop: '8px', fontWeight: 500, color: 'var(--surface-on)' }}>{o.customer_name}</p>
                   <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>
-                    Value: <span style={{ color: 'var(--primary)', fontWeight: 600 }}>₹{Number(o.value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    Value: <span style={{ color: 'var(--primary)', fontWeight: 600 }}>₹{Number(o.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </p>
-                  {o.gst_amount > 0 && (
+                  {(o.gst_total || 0) > 0 && (
                     <p style={{ fontSize: '11px', color: 'var(--success)', marginTop: '2px', fontWeight: 500 }}>
-                      Incl. GST: ₹{Number(o.gst_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      Incl. GST: ₹{Number(o.gst_total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   )}
                 </div>
@@ -266,14 +266,14 @@ export default function POReview() {
                   <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>arrow_back</span>
                 </button>
                 <div>
-                  <h2 className="text-h3" style={{ margin: 0 }}>Review: {selectedPO?.po}</h2>
-                  <p style={{ fontSize: '12px', color: 'var(--secondary)' }}>{selectedPO?.customer}</p>
+                  <h2 className="text-h3" style={{ margin: 0 }}>Review: {selectedPO?.po_number}</h2>
+                  <p style={{ fontSize: '12px', color: 'var(--secondary)' }}>{selectedPO?.customer_name}</p>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button className="btn btn-primary" onClick={saveAllItems} disabled={actionLoading} style={{ fontSize: '13px', padding: '8px 16px' }}>
+                {/* <button className="btn btn-primary" onClick={saveAllItems} disabled={actionLoading} style={{ fontSize: '13px', padding: '8px 16px' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>save</span> Save Grid Data
-                </button>
+                </button> */}
                 <button className="btn-ghost" onClick={() => setSelectedPO(null)} style={{ padding: '8px', borderRadius: '50%' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>close</span>
                 </button>

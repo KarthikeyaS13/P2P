@@ -77,12 +77,12 @@ export default function Dashboard() {
             <p className="feature-card__description">Initiate a Non-Tendered/Internal Purchase Order.</p>
           </div>
 
-          <div className="feature-card animate-fade animate-stagger-3">
+          <div className="feature-card animate-fade animate-stagger-3" onClick={() => navigate('/edit-po')}>
             <div className="feature-card__icon">
               <span className="material-symbols-outlined">edit_document</span>
             </div>
-            <h3 className="feature-card__title">Edit PO Request Invoice</h3>
-            <p className="feature-card__description">Modify existing PO details or request invoice adjustments.</p>
+            <h3 className="feature-card__title">Edit PO</h3>
+            <p className="feature-card__description">Modify existing PO details</p>
           </div>
 
           <div className="feature-card animate-fade animate-stagger-4" onClick={() => navigate('/analytics')}>

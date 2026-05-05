@@ -81,7 +81,7 @@ export default function PODetails() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      
+
       {/* SECTION 1: Header card */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '15px' }}>
         <button onClick={() => navigate(-1)} style={{ padding: '8px 16px', background: '#374151', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
@@ -103,9 +103,9 @@ export default function PODetails() {
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>Start Date:</strong> {po.start_date ? new Date(po.start_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>End Date:</strong> {po.end_date ? new Date(po.end_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-            {po.po_copy_path && (
+            {/* {po.po_copy_path && (
               <a href={`http://localhost:3000/uploads/${po.po_copy_path.split('/').pop()}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#3B82F6', textDecoration: 'none', border: '1px solid #3B82F6', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>View PO Copy</a>
-            )}
+            )} */}
             {po.po_annex_path && (
               <a href={`http://localhost:3000/uploads/${po.po_annex_path.split('/').pop()}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#10B981', textDecoration: 'none', border: '1px solid #10B981', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>View Annex</a>
             )}
@@ -127,13 +127,13 @@ export default function PODetails() {
               <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '150px' }}>Item Name</th>
               <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '180px' }}>Description</th>
               <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '60px' }}>UOM</th>
-              
+
               <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#ECFDF5', textAlign: 'center' }}>Supply Details</th>
               <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center' }}>Service Details</th>
-              
+
               <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center' }}>Calculated Supply</th>
               <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center' }}>Calculated Service</th>
-              
+
               <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'center' }}>TOTALS</th>
             </tr>
             <tr style={{ whiteSpace: 'nowrap' }}>
@@ -165,23 +165,23 @@ export default function PODetails() {
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', fontWeight: 600 }}>{it.item_name}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', color: '#4B5563' }}>{it.description || '-'}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.uom || '-'}</td>
-                
+
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#ECFDF5' }}>{it.supply_qty || 0}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#ECFDF5' }}>{fmt(it.supply_rate || 0)}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#ECFDF5' }}>{it.supply_gst_rate || 0}%</td>
-                
+
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#EFF6FF' }}>{it.service_qty || 0}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#EFF6FF' }}>{fmt(it.service_rate || 0)}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#EFF6FF' }}>{it.service_gst_rate || 0}%</td>
-                
+
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.taxable_supply || 0)}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.gst_supply || 0)}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.total_supply || 0)}</td>
-                
+
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.taxable_service || 0)}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.gst_service || 0)}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.total_service || 0)}</td>
-                
+
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB' }}>{fmt(it.total_taxable || 0)}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB' }}>{fmt(it.total_gst || 0)}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, background: '#FEF3C7' }}>{fmt(it.total_invoice || 0)}</td>
@@ -198,8 +198,8 @@ export default function PODetails() {
               <td colSpan="8" style={{ padding: '10px 16px', textAlign: 'right', fontSize: '0.8rem' }}>GRAND TOTALS:</td>
               <td colSpan="3"></td>
               <td colSpan="3"></td>
-              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', fontSize: '0.8rem' }}>{fmt(po.subtotal)} <span style={{fontSize: '0.6rem', opacity: 0.8}}>(Taxable)</span></td>
-              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', fontSize: '0.8rem' }}>{fmt(po.gst_total)} <span style={{fontSize: '0.6rem', opacity: 0.8}}>(GST)</span></td>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', fontSize: '0.8rem' }}>{fmt(po.subtotal)} <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>(Taxable)</span></td>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', fontSize: '0.8rem' }}>{fmt(po.gst_total)} <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>(GST)</span></td>
               <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', background: '#059669', fontSize: '1rem' }}>{fmt(po.grand_total)}</td>
             </tr>
           </tfoot>
@@ -209,15 +209,15 @@ export default function PODetails() {
       {/* SECTION 4: Actions */}
       {showActions && (
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
-          <button 
-            onClick={handleAccept} 
+          <button
+            onClick={handleAccept}
             disabled={actionLoading}
             style={{ padding: '12px 24px', background: '#10B981', color: 'white', border: 'none', borderRadius: '4px', cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '1rem', opacity: actionLoading ? 0.7 : 1 }}
           >
             {actionLoading ? 'Processing...' : '✓ Accept PO'}
           </button>
-          <button 
-            onClick={handleReject} 
+          <button
+            onClick={handleReject}
             disabled={actionLoading}
             style={{ padding: '12px 24px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '4px', cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '1rem', opacity: actionLoading ? 0.7 : 1 }}
           >
@@ -225,7 +225,7 @@ export default function PODetails() {
           </button>
         </div>
       )}
-      
+
     </div>
   );
 }
