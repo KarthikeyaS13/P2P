@@ -30,8 +30,8 @@ export default function PODetails() {
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Loading PO details...</div>;
   if (!po) return <div style={{ padding: '40px', textAlign: 'center', color: '#EF4444' }}>Purchase Order not found.</div>;
 
-  const subtotal = po.subtotal || items.reduce((s, i) => s + (i.taxable_value || 0), 0);
-  const gstTotal = po.gst_total || items.reduce((s, i) => s + (i.gst_amount || 0), 0);
+  const subtotal = po.subtotal || items.reduce((s, i) => s + (i.total_taxable || 0), 0);
+  const gstTotal = po.gst_total || items.reduce((s, i) => s + (i.total_gst || 0), 0);
   const grandTotal = po.grand_total || subtotal + gstTotal;
 
   const fmt = (v) => '₹' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -102,68 +102,108 @@ export default function PODetails() {
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>PO Date:</strong> {po.po_date ? new Date(po.po_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>Start Date:</strong> {po.start_date ? new Date(po.start_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>End Date:</strong> {po.end_date ? new Date(po.end_date).toLocaleDateString('en-IN') : 'N/A'}</p>
-          <p style={{ margin: 0, color: '#4B5563' }}><strong style={{ color: '#111827' }}>Type:</strong> {po.is_nt_po ? 'NT PO' : 'Regular'}</p>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+            {po.po_copy_path && (
+              <a href={`http://localhost:3000/uploads/${po.po_copy_path.split('/').pop()}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#3B82F6', textDecoration: 'none', border: '1px solid #3B82F6', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>View PO Copy</a>
+            )}
+            {po.po_annex_path && (
+              <a href={`http://localhost:3000/uploads/${po.po_annex_path.split('/').pop()}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#10B981', textDecoration: 'none', border: '1px solid #10B981', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>View Annex</a>
+            )}
+          </div>
         </div>
       </div>
 
       {/* SECTION 2: Items table */}
-      <h3 style={{ marginTop: 0, color: '#111827' }}>Line Items</h3>
-      <div style={{ overflowX: 'auto', background: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '24px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
-          <thead style={{ background: '#F3F4F6' }}>
-            <tr>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600 }}>#</th>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600 }}>Package</th>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600 }}>Item Name</th>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600 }}>Description</th>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600, textAlign: 'right' }}>Qty</th>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600, textAlign: 'right' }}>Rate</th>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600, textAlign: 'right' }}>GST%</th>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600, textAlign: 'right' }}>Taxable</th>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600, textAlign: 'right' }}>GST Amt</th>
-              <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600, textAlign: 'right' }}>Total</th>
+      <h3 style={{ marginTop: 0, color: '#111827', fontSize: '1rem' }}>Detailed Line Items</h3>
+      <div style={{ overflowX: 'auto', background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', marginBottom: '24px' }}>
+        <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.75rem' }}>
+          <thead style={{ background: '#F9FAFB' }}>
+            <tr style={{ whiteSpace: 'nowrap' }}>
+              <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '40px' }}>Sl no</th>
+              <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '80px' }}>Ref No</th>
+              <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '120px' }}>Package</th>
+              <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '120px' }}>Heading</th>
+              <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '120px' }}>Sub Heading</th>
+              <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '150px' }}>Item Name</th>
+              <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '180px' }}>Description</th>
+              <th rowSpan="2" style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '60px' }}>UOM</th>
+              
+              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#ECFDF5', textAlign: 'center' }}>Supply Details</th>
+              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center' }}>Service Details</th>
+              
+              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center' }}>Calculated Supply</th>
+              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center' }}>Calculated Service</th>
+              
+              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'center' }}>TOTALS</th>
+            </tr>
+            <tr style={{ whiteSpace: 'nowrap' }}>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '80px' }}>Qty</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '90px' }}>Rate</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '60px' }}>GST%</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '80px' }}>Qty</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '90px' }}>Rate</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '60px' }}>GST%</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Taxable</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>GST</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Total</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Taxable</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>GST</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Total</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '90px' }}>Taxable</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '90px' }}>GST</th>
+              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '100px' }}>Invoice</th>
             </tr>
           </thead>
           <tbody>
             {items.map((it, idx) => (
-              <tr key={it.id || idx} style={{ borderBottom: '1px solid #E5E7EB' }}>
-                <td style={{ padding: '12px 16px', color: '#4B5563' }}>{it.line_number || idx + 1}</td>
-                <td style={{ padding: '12px 16px', color: '#111827' }}>{it.package_name || '-'}</td>
-                <td style={{ padding: '12px 16px', color: '#111827', fontWeight: 500 }}>{it.item_name}</td>
-                <td style={{ padding: '12px 16px', color: '#4B5563', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.description}>{it.description || '-'}</td>
-                <td style={{ padding: '12px 16px', color: '#111827', textAlign: 'right', whiteSpace: 'nowrap', minWidth: '110px' }}>{it.quantity} {it.uom}</td>
-                <td style={{ padding: '12px 16px', color: '#111827', textAlign: 'right', whiteSpace: 'nowrap', minWidth: '110px' }}>{fmt(it.rate_per_unit)}</td>
-                <td style={{ padding: '12px 16px', color: '#111827', textAlign: 'right', whiteSpace: 'nowrap', minWidth: '110px' }}>{it.gst_percent}%</td>
-                <td style={{ padding: '12px 16px', color: '#111827', textAlign: 'right', whiteSpace: 'nowrap', minWidth: '110px' }}>{fmt(it.taxable_value || (it.quantity * it.rate_per_unit))}</td>
-                <td style={{ padding: '12px 16px', color: '#111827', textAlign: 'right', whiteSpace: 'nowrap', minWidth: '110px' }}>{fmt(it.gst_amount)}</td>
-                <td style={{ padding: '12px 16px', color: '#111827', textAlign: 'right', whiteSpace: 'nowrap', minWidth: '110px', fontWeight: 600 }}>{fmt(it.total_value)}</td>
+              <tr key={it.id || idx}>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{it.line_number || idx + 1}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB' }}>{it.ref_no || '-'}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB' }}>{it.package_name || '-'}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB' }}>{it.heading || '-'}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB' }}>{it.sub_heading || '-'}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', fontWeight: 600 }}>{it.item_name}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', color: '#4B5563' }}>{it.description || '-'}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.uom || '-'}</td>
+                
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#ECFDF5' }}>{it.supply_qty || 0}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#ECFDF5' }}>{fmt(it.supply_rate || 0)}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#ECFDF5' }}>{it.supply_gst_rate || 0}%</td>
+                
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#EFF6FF' }}>{it.service_qty || 0}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#EFF6FF' }}>{fmt(it.service_rate || 0)}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#EFF6FF' }}>{it.service_gst_rate || 0}%</td>
+                
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.taxable_supply || 0)}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.gst_supply || 0)}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.total_supply || 0)}</td>
+                
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.taxable_service || 0)}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.gst_service || 0)}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.total_service || 0)}</td>
+                
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB' }}>{fmt(it.total_taxable || 0)}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB' }}>{fmt(it.total_gst || 0)}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, background: '#FEF3C7' }}>{fmt(it.total_invoice || 0)}</td>
               </tr>
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan="10" style={{ padding: '20px', textAlign: 'center', color: '#6B7280' }}>No items found</td>
+                <td colSpan="23" style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>No items found</td>
               </tr>
             )}
           </tbody>
+          <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 10, background: '#374151', color: 'white', fontWeight: 700 }}>
+            <tr>
+              <td colSpan="8" style={{ padding: '10px 16px', textAlign: 'right', fontSize: '0.8rem' }}>GRAND TOTALS:</td>
+              <td colSpan="3"></td>
+              <td colSpan="3"></td>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', fontSize: '0.8rem' }}>{fmt(po.subtotal)} <span style={{fontSize: '0.6rem', opacity: 0.8}}>(Taxable)</span></td>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', fontSize: '0.8rem' }}>{fmt(po.gst_total)} <span style={{fontSize: '0.6rem', opacity: 0.8}}>(GST)</span></td>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', background: '#059669', fontSize: '1rem' }}>{fmt(po.grand_total)}</td>
+            </tr>
+          </tfoot>
         </table>
-      </div>
-
-      {/* SECTION 3: Totals card */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
-        <div style={{ background: 'white', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', width: '300px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', color: '#4B5563' }}>
-            <span>Subtotal (Taxable):</span>
-            <span>{fmt(subtotal)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', color: '#4B5563' }}>
-            <span>GST Total:</span>
-            <span>{fmt(gstTotal)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E5E7EB', paddingTop: '16px', color: '#111827', fontWeight: 'bold', fontSize: '1.1rem' }}>
-            <span>Grand Total:</span>
-            <span>{fmt(grandTotal)}</span>
-          </div>
-        </div>
       </div>
 
       {/* SECTION 4: Actions */}

@@ -22,6 +22,8 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 const db = new Database(path.join(__dirname, 'database.sqlite'));
 db.pragma('foreign_keys = ON');
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // --- Migrations ---
 const migrations = [
   "ALTER TABLE customers ADD COLUMN legal_name TEXT",
@@ -50,7 +52,25 @@ const migrations = [
   "ALTER TABLE customer_locations ADD COLUMN spoc2_name TEXT",
   "ALTER TABLE customer_locations ADD COLUMN spoc2_department TEXT",
   "ALTER TABLE customer_locations ADD COLUMN spoc2_email TEXT",
-  "ALTER TABLE customer_locations ADD COLUMN spoc2_phone TEXT"
+  "ALTER TABLE customer_locations ADD COLUMN spoc2_phone TEXT",
+  "ALTER TABLE purchase_orders ADD COLUMN po_copy_path TEXT",
+  "ALTER TABLE purchase_orders ADD COLUMN po_annex_path TEXT",
+  "ALTER TABLE purchase_orders ADD COLUMN other_attachment_path TEXT",
+  "ALTER TABLE po_line_items ADD COLUMN supply_qty REAL",
+  "ALTER TABLE po_line_items ADD COLUMN supply_rate REAL",
+  "ALTER TABLE po_line_items ADD COLUMN supply_gst_rate REAL",
+  "ALTER TABLE po_line_items ADD COLUMN service_qty REAL",
+  "ALTER TABLE po_line_items ADD COLUMN service_rate REAL",
+  "ALTER TABLE po_line_items ADD COLUMN service_gst_rate REAL",
+  "ALTER TABLE po_line_items ADD COLUMN taxable_supply REAL",
+  "ALTER TABLE po_line_items ADD COLUMN gst_supply REAL",
+  "ALTER TABLE po_line_items ADD COLUMN total_supply REAL",
+  "ALTER TABLE po_line_items ADD COLUMN taxable_service REAL",
+  "ALTER TABLE po_line_items ADD COLUMN gst_service REAL",
+  "ALTER TABLE po_line_items ADD COLUMN total_service REAL",
+  "ALTER TABLE po_line_items ADD COLUMN total_taxable REAL",
+  "ALTER TABLE po_line_items ADD COLUMN total_gst REAL",
+  "ALTER TABLE po_line_items ADD COLUMN total_invoice REAL"
 ];
 
 migrations.forEach(sql => {
@@ -76,6 +96,23 @@ const authenticate = (req, res, next) => {
     return res.status(401).json({ error: 'Invalid token' });
   }
 };
+
+app.post('/api/upload-multi', authenticate, upload.fields([
+  { name: 'po_copy', maxCount: 1 },
+  { name: 'po_annex', maxCount: 1 },
+  { name: 'other', maxCount: 1 }
+]), (req, res) => {
+  try {
+    const files = req.files;
+    res.json({
+      po_copy: files['po_copy']?.[0]?.filename,
+      po_annex: files['po_annex']?.[0]?.filename,
+      other: files['other']?.[0]?.filename
+    });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.get('/api/me', authenticate, (req, res) => {
   try {
@@ -454,16 +491,8 @@ app.get('/api/pos/:id', authenticate, (req, res) => {
 
     const items = db.prepare(`
       SELECT 
-        id, po_id, line_number,
-        COALESCE(package_name, package, '') as package_name,
-        heading, sub_heading,
-        item_name,
-        COALESCE(description, item_description, '') as description,
-        uom, quantity, rate_per_unit,
-        COALESCE(gst_percent, gst_rate, 0) as gst_percent,
-        gst_amount,
-        COALESCE(taxable_value, value, 0) as taxable_value,
-        COALESCE(total_value, value, 0) as total_value
+        *,
+        reference_number AS ref_no
       FROM po_line_items
       WHERE po_id = ?
       ORDER BY line_number ASC
@@ -481,7 +510,9 @@ app.post('/api/pos', authenticate, (req, res) => {
     const {
       customer_id, location_id, po_number, po_date,
       start_date, end_date, is_nt_po, is_temporary,
-      linked_po_id, subtotal, gst_total, grand_total, items
+      linked_po_id, subtotal, gst_total, grand_total,
+      po_copy_path, po_annex_path, other_attachment_path,
+      items
     } = req.body;
 
     const safeLinkedPoId = linked_po_id && linked_po_id !== '' ? parseInt(linked_po_id) : null;
@@ -506,44 +537,57 @@ app.post('/api/pos', authenticate, (req, res) => {
         po_number, po_date, start_date, end_date,
         status, is_nt_po, is_temporary,
         linked_po_id, subtotal, gst_total, grand_total,
-        total_value, created_by
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        total_value, po_copy_path, po_annex_path, other_attachment_path,
+        created_by
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       order_id, customer_id, location_id,
       finalPONumber, po_date||null, start_date||null, end_date||null,
       status, safeIsNtPo, safeIsTemp,
       safeLinkedPoId, subtotal||0, gst_total||0, grand_total||0,
-      grand_total||0, req.user.id
+      grand_total||0, po_copy_path||null, po_annex_path||null, other_attachment_path||null,
+      req.user.id
     );
 
     const poId = r.lastInsertRowid;
 
     const itemStmt = db.prepare(`
       INSERT INTO po_line_items (
-        po_id, line_number, package_name, heading,
+        po_id, line_number, reference_number, package_name, heading,
         sub_heading, item_name, description,
-        uom, quantity, rate_per_unit,
-        gst_percent, gst_amount, taxable_value, total_value
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        uom, supply_qty, supply_rate, supply_gst_rate,
+        service_qty, service_rate, service_gst_rate,
+        taxable_supply, gst_supply, total_supply,
+        taxable_service, gst_service, total_service,
+        total_taxable, total_gst, total_invoice
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `);
 
     (items || []).forEach((item, index) => {
-      const qty = parseFloat(item.quantity) || 0;
-      const rate = parseFloat(item.rate_per_unit) || 0;
-      const gst = parseFloat(item.gst_percent) || 0;
-      const taxable = item.taxable_value || (qty * rate);
-      const gstAmt = item.gst_amount || (taxable * gst / 100);
-      const total = item.total_value || (taxable + gstAmt);
-
       itemStmt.run(
         poId, index + 1,
+        item.ref_no || '',
         item.package_name || '',
         item.heading || '',
         item.sub_heading || '',
         item.item_name || 'Item',
         item.description || '',
         item.uom || '',
-        qty, rate, gst, gstAmt, taxable, total
+        item.supply_qty || 0,
+        item.supply_rate || 0,
+        item.supply_gst_rate || 0,
+        item.service_qty || 0,
+        item.service_rate || 0,
+        item.service_gst_rate || 0,
+        item.taxable_supply || 0,
+        item.gst_supply || 0,
+        item.total_supply || 0,
+        item.taxable_service || 0,
+        item.gst_service || 0,
+        item.total_service || 0,
+        item.total_taxable || 0,
+        item.total_gst || 0,
+        item.total_invoice || 0
       );
     });
 
@@ -581,15 +625,51 @@ app.put('/api/pos/:id', requireRole(['sales','admin','accounts','management']), 
     if (status) db.prepare(`UPDATE purchase_orders SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(status, req.params.id);
     if (items && items.length) {
       db.prepare(`DELETE FROM po_line_items WHERE po_id=?`).run(req.params.id);
-      const stmt = db.prepare(`INSERT INTO po_line_items (po_id,line_number,item_name,quantity,rate_per_unit,gst_percent,taxable_value,gst_amount,total_value,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`);
+      const stmt = db.prepare(`
+        INSERT INTO po_line_items (
+          po_id, line_number, reference_number, package_name, heading,
+          sub_heading, item_name, description,
+          uom, supply_qty, supply_rate, supply_gst_rate,
+          service_qty, service_rate, service_gst_rate,
+          taxable_supply, gst_supply, total_supply,
+          taxable_service, gst_service, total_service,
+          total_taxable, total_gst, total_invoice,
+          created_at, updated_at
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+      `);
+      
       let subtotal=0, gst_total=0;
-      items.forEach((it,i) => {
-        const qty=parseFloat(it.quantity)||0, rate=parseFloat(it.rate_per_unit)||0, gstPct=parseFloat(it.gst_percent)||0;
-        const taxable=it.taxable_value||(qty*rate), gst=it.gst_amount||(taxable*gstPct/100), total=taxable+gst;
-        subtotal+=taxable; gst_total+=gst;
-        stmt.run(req.params.id, i+1, it.item_name, qty, rate, gstPct, taxable, gst, total);
+      items.forEach((it, i) => {
+        subtotal += (it.total_taxable || 0);
+        gst_total += (it.total_gst || 0);
+        
+        stmt.run(
+          req.params.id, i + 1,
+          it.ref_no || '',
+          it.package_name || '',
+          it.heading || '',
+          it.sub_heading || '',
+          it.item_name || 'Item',
+          it.description || '',
+          it.uom || '',
+          it.supply_qty || 0,
+          it.supply_rate || 0,
+          it.supply_gst_rate || 0,
+          it.service_qty || 0,
+          it.service_rate || 0,
+          it.service_gst_rate || 0,
+          it.taxable_supply || 0,
+          it.gst_supply || 0,
+          it.total_supply || 0,
+          it.taxable_service || 0,
+          it.gst_service || 0,
+          it.total_service || 0,
+          it.total_taxable || 0,
+          it.total_gst || 0,
+          it.total_invoice || 0
+        );
       });
-      db.prepare(`UPDATE purchase_orders SET subtotal=?, gst_total=?, grand_total=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(subtotal, gst_total, subtotal+gst_total, req.params.id);
+      db.prepare(`UPDATE purchase_orders SET subtotal=?, gst_total=?, grand_total=?, total_value=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(subtotal, gst_total, subtotal + gst_total, subtotal + gst_total, req.params.id);
     }
     db.exec('COMMIT');
     res.json({ success: true });

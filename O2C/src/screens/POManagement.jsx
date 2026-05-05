@@ -115,7 +115,7 @@ export default function POManagement() {
                   <td style={{ padding: '12px 16px', color: '#4B5563' }}>{p.is_nt_po ? 'NT PO' : 'Regular'}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <button 
-                      onClick={() => navigate(`/po-details/${p.id}`)}
+                      onClick={() => navigate(`/pos/${p.id}`)}
                       style={{ padding: '6px 12px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
                     >
                       View

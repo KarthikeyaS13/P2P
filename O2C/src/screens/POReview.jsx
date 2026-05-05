@@ -44,23 +44,23 @@ export default function POReview() {
       const details = res.data;
       setPoDetails(details);
       
-      setEditableItems((details.line_items || []).map(it => {
-        const qty = parseFloat(it.quantity) || 1;
-        const rate = parseFloat(it.rate_per_unit) || 0;
-        const gstPct = parseFloat(it.gst_percent) || 18;
-        const taxable = parseFloat(it.taxable_value) || (qty * rate);
-        const gstAmt = parseFloat(it.gst_amount) || (taxable * gstPct / 100);
-        const total = parseFloat(it.total_value) || (taxable + gstAmt);
-
-        return {
+      setEditableItems((details.items || []).map((it, i) => {
+        return calculateRow({
           ...it,
-          quantity: qty,
-          rate_base: rate.toFixed(2),
-          gst_percent: gstPct,
-          taxable_base: taxable.toFixed(2),
-          gst_amount_base: gstAmt.toFixed(2),
-          total_base: total.toFixed(2)
-        };
+          line_number: it.line_number || i + 1,
+          package_name: it.package_name || '',
+          heading: it.heading || '',
+          sub_heading: it.sub_heading || '',
+          item_name: it.item_name || '',
+          description: it.description || '',
+          uom: it.uom || '',
+          supply_qty: it.supply_qty || 0,
+          supply_rate: it.supply_rate || 0,
+          supply_gst_rate: it.supply_gst_rate || 0,
+          service_qty: it.service_qty || 0,
+          service_rate: it.service_rate || 0,
+          service_gst_rate: it.service_gst_rate || 0
+        });
       }));
     } catch (err) {
       console.error(err);
@@ -91,41 +91,63 @@ export default function POReview() {
     }
   };
 
+  const calculateRow = (row) => {
+    const s_qty = parseFloat(row.supply_qty) || 0;
+    const s_rate = parseFloat(row.supply_rate) || 0;
+    const s_gst_pct = parseFloat(row.supply_gst_rate) || 0;
+    const sv_qty = parseFloat(row.service_qty) || 0;
+    const sv_rate = parseFloat(row.service_rate) || 0;
+    const sv_gst_pct = parseFloat(row.service_gst_rate) || 0;
+    const taxable_s = s_qty * s_rate;
+    const gst_s = taxable_s * (s_gst_pct / 100);
+    const total_s = taxable_s + gst_s;
+    const taxable_sv = sv_qty * sv_rate;
+    const gst_sv = taxable_sv * (sv_gst_pct / 100);
+    const total_sv = taxable_sv + gst_sv;
+    const total_taxable = taxable_s + taxable_sv;
+    const total_gst = gst_s + gst_sv;
+    const total_invoice = total_s + total_sv;
+    return {
+      ...row,
+      taxable_supply: taxable_s,
+      gst_supply: gst_s,
+      total_supply: total_s,
+      taxable_service: taxable_sv,
+      gst_service: gst_sv,
+      total_service: total_sv,
+      total_taxable,
+      total_gst,
+      total_invoice
+    };
+  };
+
   const handleCellChange = (idx, field, val) => {
     setEditableItems(prev => {
       const newItems = [...prev];
-      const item = { ...newItems[idx], [field]: val };
-
-      const q = parseFloat(item.quantity) || 0;
-      const r = parseFloat(item.rate_base) || 0;
-      const gstPercent = parseFloat(item.gst_percent) || 0;
-
-      const taxable = q * r;
-      const gstAmt = taxable * (gstPercent / 100);
-      const total = taxable + gstAmt;
-
-      item.taxable_base = taxable.toFixed(2);
-      item.gst_amount_base = gstAmt.toFixed(2);
-      item.total_base = total.toFixed(2);
-
-      newItems[idx] = item;
+      newItems[idx] = calculateRow({ ...newItems[idx], [field]: val });
       return newItems;
     });
   };
 
   const addNewItem = (e) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    const newItem = {
+    const newItem = calculateRow({
+      line_number: editableItems.length + 1,
+      package_name: '',
+      heading: '',
+      sub_heading: '',
       item_name: '',
-      quantity: 1,
-      rate_base: '0.00',
-      gst_percent: 0,
-      taxable_base: '0.00',
-      gst_amount_base: '0.00',
-      total_base: '0.00',
-      id: 'row-' + Date.now() + '-' + Math.floor(Math.random() * 1000)
-    };
-    setEditableItems(prev => [newItem, ...prev]);
+      description: '',
+      uom: '',
+      supply_qty: 0,
+      supply_rate: 0,
+      supply_gst_rate: 18,
+      service_qty: 0,
+      service_rate: 0,
+      service_gst_rate: 18,
+      id: 'row-' + Date.now()
+    });
+    setEditableItems(prev => [...prev, newItem]);
   };
 
   const removeItem = (idx) => {
@@ -162,15 +184,9 @@ export default function POReview() {
 
   // Calculate local totals for the Excel-style footer
   // Taxable Total is the sum of all item taxable values
-  const localTaxableTotal = editableItems.reduce((acc, it) => acc + (parseFloat(it.taxable_base) || 0), 0);
-  // GST is 18% of the total taxable amount
-  const localGstTotal = editableItems.reduce((acc, it) => {
-    const taxable = parseFloat(it.taxable_base) || 0;
-    const gstPercent = parseFloat(it.gst_percent) || 18;
-    return acc + (taxable * (gstPercent / 100));
-  }, 0);
-  // Grand Total is Taxable + GST
-  const localGrandTotal = localTaxableTotal + localGstTotal;
+  const localTaxableTotal = editableItems.reduce((acc, it) => acc + (it.total_taxable || 0), 0);
+  const localGstTotal = editableItems.reduce((acc, it) => acc + (it.total_gst || 0), 0);
+  const localGrandTotal = editableItems.reduce((acc, it) => acc + (it.total_invoice || 0), 0);
 
   return (
     <div className="screen-enter">
@@ -309,94 +325,89 @@ export default function POReview() {
                     </div>
                   </div>
 
-                  <div className="card" style={{ overflow: 'hidden', background: 'white', display: 'flex', flexDirection: 'column', maxHeight: '600px' }}>
-                    <div style={{ overflowX: 'auto', flex: 1 }}>
-                      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '13px' }}>
-                        <thead>
-                          <tr style={{ background: 'var(--surface-container-high)', position: 'sticky', top: 0, zIndex: 10 }}>
-                            <th style={{ border: '1px solid var(--outline-variant)', padding: '10px', textAlign: 'center', width: '40px', background: 'inherit' }}>#</th>
-                            <th style={{ border: '1px solid var(--outline-variant)', padding: '10px', textAlign: 'left', minWidth: '300px', background: 'inherit' }}>Item Description / Expenses</th>
-                            <th style={{ border: '1px solid var(--outline-variant)', padding: '10px', textAlign: 'right', width: '80px', background: 'inherit' }}>Qty</th>
-                            <th style={{ border: '1px solid var(--outline-variant)', padding: '10px', textAlign: 'right', width: '160px', background: 'inherit' }}>Rate (₹)</th>
-                            <th style={{ border: '1px solid var(--outline-variant)', padding: '10px', textAlign: 'right', width: '90px', background: 'inherit' }}>GST %</th>
-                            <th style={{ border: '1px solid var(--outline-variant)', padding: '10px', textAlign: 'right', width: '200px', background: 'inherit' }}>Total (₹)</th>
-                            <th style={{ border: '1px solid var(--outline-variant)', padding: '10px', textAlign: 'center', width: '50px', background: 'inherit' }}></th>
+                    <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white' }}>
+                      <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.7rem' }}>
+                        <thead style={{ position: 'sticky', top: 0, zIndex: 20, background: '#F9FAFB' }}>
+                          <tr style={{ whiteSpace: 'nowrap' }}>
+                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '40px' }}>Sl no</th>
+                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '70px' }}>Ref No</th>
+                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '110px' }}>Package</th>
+                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '110px' }}>Heading</th>
+                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '110px' }}>Sub Heading</th>
+                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '140px' }}>Item Name</th>
+                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '160px' }}>Description</th>
+                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '50px' }}>UOM</th>
+                            
+                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#ECFDF5', textAlign: 'center', fontSize: '0.65rem' }}>Supply Details</th>
+                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center', fontSize: '0.65rem' }}>Service Details</th>
+                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center', fontSize: '0.65rem' }}>Calc. Supply</th>
+                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center', fontSize: '0.65rem' }}>Calc. Service</th>
+                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'center', fontSize: '0.65rem' }}>TOTALS</th>
                           </tr>
-                          <tr style={{ background: 'white', position: 'sticky', top: '40px', zIndex: 9 }}>
-                            <td colSpan="7" style={{ border: '1px solid var(--outline-variant)', padding: '0' }}>
-                              <button
-                                onClick={addNewItem}
-                                style={{ width: '100%', padding: '10px', border: 'none', background: 'var(--surface-container-low)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 600 }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>add_circle</span> Add New Row (Excel Style)
-                              </button>
-                            </td>
+                          <tr style={{ whiteSpace: 'nowrap' }}>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '70px' }}>Qty</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '80px' }}>Rate</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '50px' }}>GST%</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '70px' }}>Qty</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '80px' }}>Rate</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '50px' }}>GST%</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Taxable</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>GST</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Total</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Taxable</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>GST</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Total</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '80px' }}>Taxable</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '80px' }}>GST</th>
+                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '90px' }}>Invoice</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {editableItems.map((item, idx) => (
-                            <tr key={item.id || idx}>
-                              <td style={{ border: '1px solid var(--outline-variant)', textAlign: 'center', background: 'var(--surface-container-low)', color: 'var(--secondary)' }}>{idx + 1}</td>
-                              <td style={{ border: '1px solid var(--outline-variant)' }}>
-                                <div style={{ display: 'flex', gap: '8px', padding: '4px' }}>
-                                  <input
-                                    style={{ background: 'var(--surface-container-low)', fontSize: '10px', width: '70px', padding: '4px', border: 'none', borderRadius: '4px' }}
-                                    value={item.package || ''}
-                                    onChange={e => handleCellChange(idx, 'package', e.target.value)}
-                                    placeholder="Pkg..."
-                                  />
-                                  <input
-                                    style={{ flex: 1, padding: '4px', border: 'none', background: 'transparent', fontWeight: 600 }}
-                                    value={item.item_name}
-                                    onChange={e => handleCellChange(idx, 'item_name', e.target.value)}
-                                  />
-                                </div>
-                              </td>
-                              <td style={{ border: '1px solid var(--outline-variant)' }}>
-                                <input type="number" style={{ width: '100%', padding: '10px', border: 'none', background: 'transparent', textAlign: 'right' }} value={item.quantity} onChange={e => handleCellChange(idx, 'quantity', e.target.value)} />
-                              </td>
-                              <td style={{ border: '1px solid var(--outline-variant)' }}>
-                                <input style={{ width: '100%', padding: '10px', border: 'none', background: 'transparent', textAlign: 'right' }} value={item.rate_base} onChange={e => handleCellChange(idx, 'rate_base', e.target.value)} />
-                              </td>
-                              <td style={{ border: '1px solid var(--outline-variant)' }}>
-                                <input type="number" style={{ width: '100%', padding: '10px', border: 'none', background: 'transparent', textAlign: 'right' }} value={item.gst_percent} onChange={e => handleCellChange(idx, 'gst_percent', e.target.value)} />
-                              </td>
-                              <td style={{ border: '1px solid var(--outline-variant)', padding: '10px', textAlign: 'right', fontWeight: 600, background: 'var(--surface-container-lowest)' }}>
-                                ₹{parseFloat(item.total_base).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td style={{ border: '1px solid var(--outline-variant)', textAlign: 'center' }}>
-                                <button className="btn-ghost" onClick={() => removeItem(idx)} style={{ color: 'var(--error)' }}><span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span></button>
+                          {editableItems.map((it, idx) => (
+                            <tr key={it.id || idx}>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{idx + 1}</td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.ref_no} onChange={e => handleCellChange(idx, 'ref_no', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.package_name} onChange={e => handleCellChange(idx, 'package_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.heading} onChange={e => handleCellChange(idx, 'heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.sub_heading} onChange={e => handleCellChange(idx, 'sub_heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.item_name} onChange={e => handleCellChange(idx, 'item_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.description} onChange={e => handleCellChange(idx, 'description', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.uom} onChange={e => handleCellChange(idx, 'uom', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_qty} onChange={e => handleCellChange(idx, 'supply_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_rate} onChange={e => handleCellChange(idx, 'supply_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_gst_rate} onChange={e => handleCellChange(idx, 'supply_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_qty} onChange={e => handleCellChange(idx, 'service_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_rate} onChange={e => handleCellChange(idx, 'service_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_gst_rate} onChange={e => handleCellChange(idx, 'service_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.taxable_supply || 0).toLocaleString()}</td>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.gst_supply || 0).toLocaleString()}</td>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.total_supply || 0).toLocaleString()}</td>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.taxable_service || 0).toLocaleString()}</td>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.gst_service || 0).toLocaleString()}</td>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.total_service || 0).toLocaleString()}</td>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB', fontSize: '0.65rem' }}>₹{(it.total_taxable || 0).toLocaleString()}</td>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB', fontSize: '0.65rem' }}>₹{(it.total_gst || 0).toLocaleString()}</td>
+                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, background: '#FEF3C7', fontSize: '0.7rem' }}>₹{(it.total_invoice || 0).toLocaleString()}</td>
+                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
+                                <button onClick={() => removeItem(idx)} style={{ color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span></button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
-                        <tfoot>
-                          <tr style={{ background: '#FFF4E5', fontWeight: 700 }}>
-                            <td colSpan="5" style={{ border: '1px solid var(--outline-variant)', padding: '12px', textAlign: 'right', fontSize: '13px' }}>TAXABLE AMOUNT</td>
-                            <td style={{ border: '1px solid var(--outline-variant)', padding: '12px', textAlign: 'right', fontSize: '13px' }}>
-                              ₹{localTaxableTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td style={{ border: '1px solid var(--outline-variant)' }}></td>
-                          </tr>
-                          <tr style={{ background: '#FFF4E5', fontWeight: 700 }}>
-                            <td colSpan="5" style={{ border: '1px solid var(--outline-variant)', padding: '12px', textAlign: 'right', fontSize: '13px' }}>GST AMOUNT</td>
-                            <td style={{ border: '1px solid var(--outline-variant)', padding: '12px', textAlign: 'right', fontSize: '13px' }}>
-                              ₹{localGstTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td style={{ border: '1px solid var(--outline-variant)' }}></td>
-                          </tr>
-                          <tr style={{ background: 'var(--primary)', fontWeight: 700, color: 'white' }}>
-                            <td colSpan="5" style={{ border: '1px solid var(--outline-variant)', padding: '16px', textAlign: 'right', fontSize: '15px' }}>TOTAL AMOUNT (INCL. GST)</td>
-                            <td style={{ border: '1px solid var(--outline-variant)', padding: '16px', textAlign: 'right', fontSize: '15px' }}>
-                              ₹{localGrandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td style={{ border: '1px solid var(--outline-variant)' }}></td>
+                        <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 20, background: '#374151', color: 'white', fontWeight: 700 }}>
+                          <tr>
+                            <td colSpan="8" style={{ padding: '4px 10px', textAlign: 'right', fontSize: '0.7rem' }}>GRAND TOTALS:</td>
+                            <td colSpan="3"></td>
+                            <td colSpan="3"></td>
+                            <td colSpan="3" style={{ textAlign: 'right', padding: '4px 10px', fontSize: '0.7rem' }}>₹{localTaxableTotal.toLocaleString()} <span style={{fontSize: '0.55rem', opacity: 0.8}}>(Taxable)</span></td>
+                            <td colSpan="3" style={{ textAlign: 'right', padding: '4px 10px', fontSize: '0.7rem' }}>₹{localGstTotal.toLocaleString()} <span style={{fontSize: '0.55rem', opacity: 0.8}}>(GST)</span></td>
+                            <td colSpan="3" style={{ textAlign: 'right', padding: '4px 10px', background: '#059669', fontSize: '0.8rem' }}>₹{localGrandTotal.toLocaleString()}</td>
+                            <td></td>
                           </tr>
                         </tfoot>
                       </table>
                     </div>
                   </div>
-                </div>
               ) : null}
             </div>
           </div>
