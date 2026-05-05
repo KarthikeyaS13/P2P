@@ -154,9 +154,8 @@ export default function EditPO() {
         edit_service_gst_rate: null
       })));
 
-      // Automatic Versioning: PO-123 -> PO-123_01
-      const cleanNum = (data.po_number || data.order_id).replace(/_(\d+)$/, '');
-      setNewVersionLabel(`${cleanNum}_01`);
+      // Use original PO number for overriding
+      setNewVersionLabel(data.po_number || data.order_id);
 
       setSelectedPO(poId);
     } catch (err) {
@@ -189,32 +188,33 @@ export default function EditPO() {
       const grand_total = items.reduce((acc, it) => acc + (it.rev_total_invoice || 0), 0);
 
       const payload = {
-        customer_id: poDetails.customer_id,
-        location_id: poDetails.location_id,
-        po_number: newVersionLabel,
-        po_date: poDetails.po_date,
-        start_date: poDetails.start_date,
-        end_date: poDetails.end_date,
-        po_copy_path: poDetails.po_copy_path,
-        po_annex_path: poDetails.po_annex_path,
-        other_attachment_path: poDetails.other_attachment_path,
-        is_nt_po: poDetails.is_nt_po,
-        linked_po_id: poDetails.id,
-        subtotal,
-        gst_total,
-        grand_total,
         items: items.map(it => ({
-          ...it,
+          ref_no: it.ref_no,
+          package_name: it.package_name,
+          heading: it.heading,
+          sub_heading: it.sub_heading,
+          item_name: it.item_name,
+          description: it.description,
+          uom: it.uom,
           supply_qty: it.rev_supply_qty,
           supply_rate: it.rev_supply_rate,
           supply_gst_rate: it.rev_supply_gst_rate,
           service_qty: it.rev_service_qty,
           service_rate: it.rev_service_rate,
-          service_gst_rate: it.rev_service_gst_rate
+          service_gst_rate: it.rev_service_gst_rate,
+          taxable_supply: it.rev_taxable_supply,
+          gst_supply: it.rev_gst_supply,
+          total_supply: it.rev_total_supply,
+          taxable_service: it.rev_taxable_service,
+          gst_service: it.rev_gst_service,
+          total_service: it.rev_total_service,
+          total_taxable: it.rev_total_taxable,
+          total_gst: it.rev_total_gst,
+          total_invoice: it.rev_total_invoice
         }))
       };
 
-      await axios.post('http://localhost:3000/api/pos', payload, { headers });
+      await axios.put(`http://localhost:3000/api/pos/${poDetails.id}`, payload, { headers });
       alert('PO Revised successfully!');
       navigate('/dashboard');
     } catch (err) {
