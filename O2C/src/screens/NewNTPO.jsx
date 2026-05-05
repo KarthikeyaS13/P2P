@@ -627,7 +627,7 @@ export default function NewNTPO() {
     const file = attachments[showViewer];
     if (!file) return null;
 
-    const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls') || file.name.toLowerCase().endsWith('.xlsm');
+    const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls') || file.name.toLowerCase().endsWith('.xlsm') || file.name.toLowerCase().endsWith('.csv');
     const url = URL.createObjectURL(file);
 
     if (isExcel && !previewExcelData) {
@@ -761,7 +761,7 @@ export default function NewNTPO() {
                   <div key={type} style={{ border: '1px solid #E5E7EB', padding: '12px', borderRadius: '8px' }}>
                     <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px', textTransform: 'capitalize' }}>{type === 'po_copy' ? 'Customer Approval' : type === 'po_annex' ? 'PO Annex' : 'Other Attachment'}</label>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <input type="file" onChange={(e) => setAttachments(prev => ({ ...prev, [type]: e.target.files[0] }))} style={{ flex: 1 }} />
+                      <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.xlsm,.csv" onChange={(e) => setAttachments(prev => ({ ...prev, [type]: e.target.files[0] }))} style={{ flex: 1 }} />
                       {attachments[type] && <button onClick={() => setShowViewer(type)} style={{ background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.8rem' }}>View</button>}
                     </div>
                   </div>
@@ -779,7 +779,7 @@ export default function NewNTPO() {
               {/* <div style={{ flex: 1, padding: '30px', border: '2px dashed #D1D5DB', borderRadius: '8px', textAlign: 'center' }}>
                 <h4 style={{ margin: '0 0 15px' }}>Upload Excel</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  <input type="file" accept=".xlsx,.xls" onChange={async (e) => {
+                  <input type="file" accept=".xlsx,.xls,.xlsm,.csv" onChange={async (e) => {
                     const file = e.target.files[0];
                     if (file) {
                       const raw = await parseExcel(file);
@@ -873,7 +873,7 @@ export default function NewNTPO() {
                         <label style={{ padding: '6px 12px', background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
                           Load from Excel
-                          <input type="file" accept=".xlsx,.xls" onChange={handleModalFileUpload} style={{ display: 'none' }} />
+                          <input type="file" accept=".xlsx,.xls,.xlsm,.csv" onChange={handleModalFileUpload} style={{ display: 'none' }} />
                         </label>
                         <button onClick={handleExportGrid} style={{ padding: '6px 12px', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>

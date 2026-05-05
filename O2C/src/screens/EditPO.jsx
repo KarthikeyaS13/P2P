@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 export default function EditPO() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   // STATE
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -17,16 +17,16 @@ export default function EditPO() {
   const [customers, setCustomers] = useState([]);
   const [locations, setLocations] = useState([]);
   const [allPOs, setAllPOs] = useState([]);
-  
+
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [selectedPO, setSelectedPO] = useState(null);
-  
+
   // PO Details
   const [poDetails, setPODetails] = useState(null);
   const [items, setItems] = useState([]);
   const [newVersionLabel, setNewVersionLabel] = useState('');
-  
+
   // Preview State
   const [previewPath, setPreviewPath] = useState(null);
   const [previewExcelData, setPreviewExcelData] = useState(null);
@@ -39,11 +39,12 @@ export default function EditPO() {
     const rev_s_qty = parseFloat(row.edit_supply_qty !== undefined && row.edit_supply_qty !== '' ? row.edit_supply_qty : row.supply_qty) || 0;
     const rev_s_rate = parseFloat(row.edit_supply_rate !== undefined && row.edit_supply_rate !== '' ? row.edit_supply_rate : row.supply_rate) || 0;
     const rev_s_gst_pct = parseFloat(row.edit_supply_gst_rate !== undefined && row.edit_supply_gst_rate !== '' ? row.edit_supply_gst_rate : row.supply_gst_rate) || 0;
-    
+
     const rev_sv_qty = parseFloat(row.edit_service_qty !== undefined && row.edit_service_qty !== '' ? row.edit_service_qty : row.service_qty) || 0;
     const rev_sv_rate = parseFloat(row.edit_service_rate !== undefined && row.edit_service_rate !== '' ? row.edit_service_rate : row.service_rate) || 0;
     const rev_sv_gst_pct = parseFloat(row.edit_service_gst_rate !== undefined && row.edit_service_gst_rate !== '' ? row.edit_service_gst_rate : row.service_gst_rate) || 0;
 
+    // Intermediate Calculations
     const taxable_s = rev_s_qty * rev_s_rate;
     const gst_s = taxable_s * (rev_s_gst_pct / 100);
     const total_s = taxable_s + gst_s;
@@ -58,18 +59,22 @@ export default function EditPO() {
 
     return {
       ...row,
+      // Values for display in AUTO CAL section
       rev_supply_qty: rev_s_qty,
       rev_supply_rate: rev_s_rate,
       rev_supply_gst_rate: rev_s_gst_pct,
       rev_service_qty: rev_sv_qty,
       rev_service_rate: rev_sv_rate,
       rev_service_gst_rate: rev_sv_gst_pct,
+
       rev_taxable_supply: taxable_s,
       rev_gst_supply: gst_s,
       rev_total_supply: total_s,
+
       rev_taxable_service: taxable_sv,
       rev_gst_service: gst_sv,
       rev_total_service: total_sv,
+
       rev_total_taxable: total_taxable,
       rev_total_gst: total_gst,
       rev_total_invoice: total_invoice
@@ -120,14 +125,14 @@ export default function EditPO() {
       setPODetails(null);
       return;
     }
-    
+
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`http://localhost:3000/api/pos/${poId}`, { headers });
       const data = res.data;
-      
+
       setPODetails(data);
       setItems(data.items.map(it => calculateRow({
         ...it,
@@ -138,11 +143,11 @@ export default function EditPO() {
         edit_service_rate: '',
         edit_service_gst_rate: ''
       })));
-      
+
       // Automatic Versioning: PO-123 -> PO-123_01
       const cleanNum = (data.po_number || data.order_id).replace(/_(\d+)$/, '');
       setNewVersionLabel(`${cleanNum}_01`);
-      
+
       setSelectedPO(poId);
     } catch (err) {
       console.error(err);
@@ -168,7 +173,7 @@ export default function EditPO() {
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       const subtotal = items.reduce((acc, it) => acc + (it.rev_total_taxable || 0), 0);
       const gst_total = items.reduce((acc, it) => acc + (it.rev_total_gst || 0), 0);
       const grand_total = items.reduce((acc, it) => acc + (it.rev_total_invoice || 0), 0);
@@ -215,7 +220,7 @@ export default function EditPO() {
     const filename = path.split('/').pop();
     const fullUrl = `http://localhost:3000/uploads/${filename}`;
     const isExcel = filename.toLowerCase().match(/\.(xlsx|xls|xlsm)$/);
-    
+
     if (isExcel) {
       setLoadingPreview(true);
       setPreviewPath(filename);
@@ -240,7 +245,7 @@ export default function EditPO() {
 
         const headersRaw = rawData[headerIdx] || [];
         const dataRows = (maxScore < 2) ? rawData : rawData.slice(headerIdx + 1);
-        
+
         const formatted = dataRows.map(row => {
           const obj = {};
           if (maxScore >= 2) {
@@ -268,7 +273,7 @@ export default function EditPO() {
   const renderFileViewer = () => {
     if (!previewPath) return null;
     const allHeaders = previewExcelData ? Array.from(new Set(previewExcelData.flatMap(row => Object.keys(row)))) : [];
-    
+
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)' }}>
         <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '95%', height: '90%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
@@ -276,7 +281,7 @@ export default function EditPO() {
             <h3 style={{ margin: 0 }}>Preview: {previewPath.split('/').pop()}</h3>
             <button onClick={() => { setPreviewPath(null); setPreviewExcelData(null); }} style={{ padding: '8px 16px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Close Preview</button>
           </div>
-          
+
           <div style={{ flex: 1, background: '#F3F4F6', borderRadius: '8px', overflow: 'auto' }}>
             {loadingPreview ? (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -309,14 +314,14 @@ export default function EditPO() {
   return (
     <div style={{ padding: '24px', maxWidth: '1600px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
       {renderFileViewer()}
-      
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
         <button onClick={() => navigate('/dashboard')} style={{ padding: '8px 16px', background: '#374151', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>← Back</button>
         <h2 style={{ margin: 0 }}>Edit Purchase Order / NT PO</h2>
       </div>
 
       <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-        
+
         {step === 1 && (
           <div>
             <h3 style={{ marginBottom: '24px', color: '#1F2937' }}>1. Select PO to Edit</h3>
@@ -345,7 +350,7 @@ export default function EditPO() {
                 </select>
               </div>
             </div>
-            
+
             {loading && <div style={{ textAlign: 'center', padding: '40px' }}><p>Loading PO Details...</p></div>}
 
             {poDetails && (
@@ -409,88 +414,122 @@ export default function EditPO() {
                 <span style={{ fontSize: '0.9rem', color: '#92400E', fontWeight: 500 }}>Only yellow columns are editable. Others are fetched or auto-calculated.</span>
               </div>
             </div>
-            
-            <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '12px', background: '#F9FAFB' }}>
-              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.75rem' }}>
-                <thead>
+
+            <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '12px', background: '#F9FAFB', maxHeight: '600px' }}>
+              <table style={{ width: 'max-content', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.65rem' }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                   <tr style={{ background: '#F3F4F6' }}>
-                    <th rowSpan="2" style={{ padding: '12px', border: '1px solid #E5E7EB', borderTopLeftRadius: '12px' }}>Sl No</th>
-                    <th rowSpan="2" style={{ padding: '12px', border: '1px solid #E5E7EB' }}>Ref No</th>
-                    <th rowSpan="2" style={{ padding: '12px', border: '1px solid #E5E7EB', minWidth: '220px' }}>Item Details (Read-only)</th>
+                    <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white' }}>Sl no (SYS GEN)</th>
+                    <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white' }}>Ref No</th>
+                    <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white' }}>Package</th>
+                    <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white' }}>Heading</th>
+                    <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white' }}>Sub Heading (if Any)</th>
+                    <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white' }}>Item Name</th>
+                    <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white', minWidth: '150px' }}>Item Description</th>
+                    <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white' }}>UOM</th>
                     
-                    <th colSpan="6" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#E5E7EB', textAlign: 'center', color: '#4B5563' }}>Original PO Data (Fetched)</th>
-                    <th colSpan="6" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'center', color: '#92400E' }}>Revision Entries (Edit Yellow Columns)</th>
-                    <th colSpan="4" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center', color: '#1E40AF' }}>Revised Calculations</th>
+                    <th colSpan="6" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white', textAlign: 'center' }}>Fetched (Original PO Data)</th>
+                    <th colSpan="6" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FCD34D', color: '#111827', textAlign: 'center' }}>EDIT Entry (Only Yellow Columns)</th>
+                    <th colSpan="15" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#A5F3FC', color: '#0E7490', textAlign: 'center' }}>AUTO CAL (Revised Values)</th>
                   </tr>
                   <tr style={{ background: '#F9FAFB' }}>
-                    {/* Original Data */}
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '70px' }}>Supply Qty</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '80px' }}>Supply Rate</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '70px' }}>Service Qty</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '80px' }}>Service Rate</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '60px' }}>S-GST %</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '60px' }}>Sv-GST %</th>
-                    
-                    {/* Edit Entry */}
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '90px' }}>New Supply Qty</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '100px' }}>New Supply Rate</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '90px' }}>New Service Qty</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '100px' }}>New Service Rate</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '70px' }}>New S-GST %</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FFFBEB', minWidth: '70px' }}>New Sv-GST %</th>
-                    
-                    {/* Revised Calc */}
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F0F9FF', minWidth: '110px' }}>Rev. Supply Taxable</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F0F9FF', minWidth: '110px' }}>Rev. Service Taxable</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F0F9FF', minWidth: '100px' }}>Rev. Total GST</th>
-                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', minWidth: '120px' }}>Rev. Grand Total</th>
+                    {/* Fetched */}
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E40AF', color: 'white' }}>Supply QTY</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E40AF', color: 'white' }}>Supply Rate</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E40AF', color: 'white' }}>Supply GST</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E40AF', color: 'white' }}>Service QTY</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E40AF', color: 'white' }}>Service Rate</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E40AF', color: 'white' }}>Service GST</th>
+
+                    {/* EDIT */}
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E' }}>EDIT Supply Qty</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E' }}>EDIT RPU Supply</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E' }}>EDIT GST on Supply</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E' }}>EDIT Service Qty</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E' }}>EDIT RPU Service</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E' }}>EDIT GST on SERVICE</th>
+
+                    {/* AUTO CAL */}
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED Supply Qty</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED RPU Supply</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED GST % Supply</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED Service Qty</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED RPU Service</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED GST % Service</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED Taxable Supply</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED GST Value Supply</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED Total Supply</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED Taxable Service</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED GST Value Service</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE' }}>REVISED Total Service</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontWeight: 700 }}>REVISED TOTAL Taxable</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontWeight: 700 }}>REVISED TOTAL GST</th>
+                    <th style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontWeight: 700 }}>REVISED TOTAL Invoice</th>
                   </tr>
                 </thead>
-                <tbody style={{ background: 'white' }}>
+                <tbody>
                   {items.map((it, idx) => (
-                    <tr key={idx} style={{ transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'center', fontWeight: 600, color: '#6B7280' }}>{idx + 1}</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'center', fontWeight: 500 }}>{it.ref_no || '-'}</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB' }}>
-                        <div style={{ fontWeight: 700, color: '#111827' }}>{it.package_name || '-'}</div>
-                        <div style={{ color: '#4B5563' }}>{it.heading} | {it.sub_heading}</div>
-                        <div style={{ fontWeight: 600, color: '#2563EB', marginTop: '4px' }}>{it.item_name}</div>
-                        <div style={{ fontSize: '0.7rem', color: '#9CA3AF' }}>{it.description}</div>
+                    <tr key={it.id || idx} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center', background: '#F9FAFB' }}>{idx + 1}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB' }}>{it.ref_no}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB' }}>{it.package_name}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB' }}>{it.heading}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB' }}>{it.sub_heading}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', fontWeight: 600 }}>{it.item_name}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '150px', maxWidth: '200px' }}>
+                        <div style={{ whiteSpace: 'normal', wordBreak: 'break-word', fontSize: '0.6rem', color: '#6B7280' }}>
+                          {it.description}
+                        </div>
                       </td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.uom}</td>
+
+                      {/* Fetched Cells */}
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>{it.supply_qty}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.supply_rate.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.supply_gst_rate}%</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>{it.service_qty}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.service_rate.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.service_gst_rate}%</td>
+
+                      {/* EDIT Cells */}
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.supply_qty} value={it.edit_supply_qty} onChange={e => updateItem(idx, 'edit_supply_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.supply_rate} value={it.edit_supply_rate} onChange={e => updateItem(idx, 'edit_supply_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.supply_gst_rate} value={it.edit_supply_gst_rate} onChange={e => updateItem(idx, 'edit_supply_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '8px', textAlign: 'center', background: 'transparent' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.service_qty} value={it.edit_service_qty} onChange={e => updateItem(idx, 'edit_service_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.service_rate} value={it.edit_service_rate} onChange={e => updateItem(idx, 'edit_service_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                      </td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                        <input type="number" placeholder={it.service_gst_rate} value={it.edit_service_gst_rate} onChange={e => updateItem(idx, 'edit_service_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '8px', textAlign: 'center', background: 'transparent' }} />
+                      </td>
+
+                      {/* AUTO CAL Cells */}
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>{it.rev_supply_qty}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_supply_rate.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.rev_supply_gst_rate}%</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>{it.rev_service_qty}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_service_rate.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.rev_service_gst_rate}%</td>
                       
-                      {/* Original Data Cells */}
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280' }}>{it.supply_qty}</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280' }}>₹{it.supply_rate.toLocaleString()}</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280' }}>{it.service_qty}</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280' }}>₹{it.service_rate.toLocaleString()}</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{it.supply_gst_rate}%</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{it.service_gst_rate}%</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_taxable_supply.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_gst_supply.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_total_supply.toLocaleString()}</td>
                       
-                      {/* Revision Input Cells */}
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.supply_qty} value={it.edit_supply_qty} onChange={e => updateItem(idx, 'edit_supply_qty', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'right', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.supply_rate} value={it.edit_supply_rate} onChange={e => updateItem(idx, 'edit_supply_rate', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'right', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.service_qty} value={it.edit_service_qty} onChange={e => updateItem(idx, 'edit_service_qty', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'right', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.service_rate} value={it.edit_service_rate} onChange={e => updateItem(idx, 'edit_service_rate', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'right', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.supply_gst_rate} value={it.edit_supply_gst_rate} onChange={e => updateItem(idx, 'edit_supply_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'center', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.service_gst_rate} value={it.edit_service_gst_rate} onChange={e => updateItem(idx, 'edit_service_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', padding: '12px', textAlign: 'center', background: 'transparent', fontWeight: 700, color: '#92400E' }} />
-                      </td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_taxable_service.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_gst_service.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_total_service.toLocaleString()}</td>
                       
-                      {/* Calculations Cells */}
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', background: '#F0F9FF', textAlign: 'right', fontWeight: 600 }}>₹{(it.rev_taxable_supply || 0).toLocaleString()}</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', background: '#F0F9FF', textAlign: 'right', fontWeight: 600 }}>₹{(it.rev_taxable_service || 0).toLocaleString()}</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', background: '#F0F9FF', textAlign: 'right', fontWeight: 600 }}>₹{(it.rev_total_gst || 0).toLocaleString()}</td>
-                      <td style={{ padding: '10px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'right', fontWeight: 800, color: '#92400E' }}>₹{(it.rev_total_invoice || 0).toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600 }}>₹{it.rev_total_taxable.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600 }}>₹{it.rev_total_gst.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, color: '#1E40AF' }}>₹{it.rev_total_invoice.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>

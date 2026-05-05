@@ -615,7 +615,7 @@ export default function NewPO() {
     const file = attachments[showViewer];
     if (!file) return null;
 
-    const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls') || file.name.toLowerCase().endsWith('.xlsm');
+    const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls') || file.name.toLowerCase().endsWith('.xlsm') || file.name.toLowerCase().endsWith('.csv');
     const url = URL.createObjectURL(file);
 
     // Auto-parse if Excel and not yet parsed
@@ -740,7 +740,7 @@ export default function NewPO() {
                       {type.replace('_', ' ')}
                     </label>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <input type="file" onChange={(e) => handleFileChange(type, e.target.files[0])} style={{ flex: 1 }} />
+                      <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.xlsm,.csv" onChange={(e) => handleFileChange(type, e.target.files[0])} style={{ flex: 1 }} />
                       {attachments[type] && (
                         <button onClick={() => setShowViewer(type)} style={{ background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
@@ -951,7 +951,7 @@ export default function NewPO() {
                     <label style={{ padding: '6px 12px', background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
                       Load from Excel
-                      <input type="file" accept=".xlsx,.xls" onChange={handleModalFileUpload} style={{ display: 'none' }} />
+                      <input type="file" accept=".xlsx,.xls,.xlsm,.csv" onChange={handleModalFileUpload} style={{ display: 'none' }} />
                     </label>
                     <button onClick={handleExportGrid} style={{ padding: '6px 12px', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
