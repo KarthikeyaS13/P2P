@@ -34,15 +34,25 @@ export default function EditPO() {
 
   // --- Helper Functions ---
 
-  const calculateRow = (row) => {
-    // REVISED values are the EDIT values if provided, otherwise the ORIGINAL values
-    const rev_s_qty = parseFloat(row.edit_supply_qty !== undefined && row.edit_supply_qty !== '' ? row.edit_supply_qty : row.supply_qty) || 0;
-    const rev_s_rate = parseFloat(row.edit_supply_rate !== undefined && row.edit_supply_rate !== '' ? row.edit_supply_rate : row.supply_rate) || 0;
-    const rev_s_gst_pct = parseFloat(row.edit_supply_gst_rate !== undefined && row.edit_supply_gst_rate !== '' ? row.edit_supply_gst_rate : row.supply_gst_rate) || 0;
+  const cleanParse = (val) => {
+    if (val === null || val === undefined || val === '') return 0;
+    if (typeof val === 'number') return val;
+    // Remove currency symbols, commas, and other non-numeric chars except decimal point
+    const cleaned = String(val).replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
-    const rev_sv_qty = parseFloat(row.edit_service_qty !== undefined && row.edit_service_qty !== '' ? row.edit_service_qty : row.service_qty) || 0;
-    const rev_sv_rate = parseFloat(row.edit_service_rate !== undefined && row.edit_service_rate !== '' ? row.edit_service_rate : row.service_rate) || 0;
-    const rev_sv_gst_pct = parseFloat(row.edit_service_gst_rate !== undefined && row.edit_service_gst_rate !== '' ? row.edit_service_gst_rate : row.service_gst_rate) || 0;
+  const calculateRow = (row) => {
+    // REVISED values: Use the EDIT values if provided (not null/empty), otherwise fallback to the ORIGINAL values
+    // REVISED values: Use the EDIT values if NOT NULL, otherwise fallback to ORIGINAL
+    const rev_s_qty = row.edit_supply_qty !== null ? cleanParse(row.edit_supply_qty) : cleanParse(row.supply_qty);
+    const rev_s_rate = row.edit_supply_rate !== null ? cleanParse(row.edit_supply_rate) : cleanParse(row.supply_rate);
+    const rev_s_gst_pct = row.edit_supply_gst_rate !== null ? cleanParse(row.edit_supply_gst_rate) : cleanParse(row.supply_gst_rate);
+
+    const rev_sv_qty = row.edit_service_qty !== null ? cleanParse(row.edit_service_qty) : cleanParse(row.service_qty);
+    const rev_sv_rate = row.edit_service_rate !== null ? cleanParse(row.edit_service_rate) : cleanParse(row.service_rate);
+    const rev_sv_gst_pct = row.edit_service_gst_rate !== null ? cleanParse(row.edit_service_gst_rate) : cleanParse(row.service_gst_rate);
 
     // Intermediate Calculations
     const taxable_s = rev_s_qty * rev_s_rate;
@@ -136,12 +146,12 @@ export default function EditPO() {
       setPODetails(data);
       setItems(data.items.map(it => calculateRow({
         ...it,
-        edit_supply_qty: '',
-        edit_supply_rate: '',
-        edit_supply_gst_rate: '',
-        edit_service_qty: '',
-        edit_service_rate: '',
-        edit_service_gst_rate: ''
+        edit_supply_qty: null,
+        edit_supply_rate: null,
+        edit_supply_gst_rate: null,
+        edit_service_qty: null,
+        edit_service_rate: null,
+        edit_service_gst_rate: null
       })));
 
       // Automatic Versioning: PO-123 -> PO-123_01
@@ -427,7 +437,7 @@ export default function EditPO() {
                     <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white' }}>Item Name</th>
                     <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white', minWidth: '150px' }}>Item Description</th>
                     <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white' }}>UOM</th>
-                    
+
                     <th colSpan="6" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white', textAlign: 'center' }}>Fetched (Original PO Data)</th>
                     <th colSpan="6" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#FCD34D', color: '#111827', textAlign: 'center' }}>EDIT Entry (Only Yellow Columns)</th>
                     <th colSpan="15" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#A5F3FC', color: '#0E7490', textAlign: 'center' }}>AUTO CAL (Revised Values)</th>
@@ -493,22 +503,32 @@ export default function EditPO() {
 
                       {/* EDIT Cells */}
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.supply_qty} value={it.edit_supply_qty} onChange={e => updateItem(idx, 'edit_supply_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                        <input type="number" step="any" placeholder={it.supply_qty} value={it.edit_supply_qty === null ? 0 : it.edit_supply_qty} onChange={e => updateItem(idx, 'edit_supply_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.supply_rate} value={it.edit_supply_rate} onChange={e => updateItem(idx, 'edit_supply_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                        <input type="number" step="any" placeholder={it.supply_rate} value={it.edit_supply_rate === null ? 0 : it.edit_supply_rate} onChange={e => updateItem(idx, 'edit_supply_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.supply_gst_rate} value={it.edit_supply_gst_rate} onChange={e => updateItem(idx, 'edit_supply_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '8px', textAlign: 'center', background: 'transparent' }} />
+                        <select value={it.edit_supply_gst_rate === null ? '' : it.edit_supply_gst_rate} onChange={e => updateItem(idx, 'edit_supply_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '8px', textAlign: 'center', background: 'transparent', cursor: 'pointer' }}>
+                          <option value="18">18%</option>
+                          <option value="5">5%</option>
+                          <option value="12">12%</option>
+
+                        </select>
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.service_qty} value={it.edit_service_qty} onChange={e => updateItem(idx, 'edit_service_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                        <input type="number" step="any" placeholder={it.service_qty} value={it.edit_service_qty === null ? 0 : it.edit_service_qty} onChange={e => updateItem(idx, 'edit_service_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.service_rate} value={it.edit_service_rate} onChange={e => updateItem(idx, 'edit_service_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
+                        <input type="number" step="any" placeholder={it.service_rate} value={it.edit_service_rate === null ? 0 : it.edit_service_rate} onChange={e => updateItem(idx, 'edit_service_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '8px', textAlign: 'right', background: 'transparent' }} />
                       </td>
                       <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="number" placeholder={it.service_gst_rate} value={it.edit_service_gst_rate} onChange={e => updateItem(idx, 'edit_service_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '8px', textAlign: 'center', background: 'transparent' }} />
+                        <select value={it.edit_service_gst_rate === null ? '' : it.edit_service_gst_rate} onChange={e => updateItem(idx, 'edit_service_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '8px', textAlign: 'center', background: 'transparent', cursor: 'pointer' }}>
+                          <option value="18">18%</option>
+                          <option value="5">5%</option>
+                          <option value="12">12%</option>
+
+                        </select>
                       </td>
 
                       {/* AUTO CAL Cells */}
@@ -518,15 +538,15 @@ export default function EditPO() {
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>{it.rev_service_qty}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_service_rate.toLocaleString()}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.rev_service_gst_rate}%</td>
-                      
+
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_taxable_supply.toLocaleString()}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_gst_supply.toLocaleString()}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_total_supply.toLocaleString()}</td>
-                      
+
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_taxable_service.toLocaleString()}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_gst_service.toLocaleString()}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_total_service.toLocaleString()}</td>
-                      
+
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600 }}>₹{it.rev_total_taxable.toLocaleString()}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600 }}>₹{it.rev_total_gst.toLocaleString()}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, color: '#1E40AF' }}>₹{it.rev_total_invoice.toLocaleString()}</td>
