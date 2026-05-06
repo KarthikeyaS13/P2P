@@ -15,11 +15,13 @@ import {
 export default function NewPO() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const fileInputRef = useRef(null);
 
   // Flow State
   const [step, setStep] = useState(1); // 1: Basic, 2: Items Review, 3: Final Summary
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const isRestored = useRef(false);
 
   // Basic State
   const [basicDetails, setBasicDetails] = useState({
@@ -72,21 +74,55 @@ export default function NewPO() {
     fetchCustomers();
   }, []);
 
-  const handleCustomerChange = async (e) => {
+  // Draft Persistence
+  useEffect(() => {
+    const navEntries = window.performance.getEntriesByType('navigation');
+    const navType = navEntries.length > 0 ? navEntries[0].type : '';
+    const isReloadOrBack = navType === 'reload' || navType === 'back_forward';
+
+    const draft = sessionStorage.getItem('new_po_draft');
+    if (draft && (isReloadOrBack || navType === '')) {
+      try {
+        const d = JSON.parse(draft);
+        if (d.step) setStep(d.step);
+        if (d.basicDetails) setBasicDetails(d.basicDetails);
+        if (d.attachmentPaths) setAttachmentPaths(d.attachmentPaths);
+        if (d.items) setItems(d.items);
+        if (d.manualEntryMode !== undefined) setManualEntryMode(d.manualEntryMode);
+      } catch (e) { console.error('Draft restore failed', e); }
+    } else if (!isReloadOrBack && navType !== '') {
+      // Fresh navigation - clear old drafts
+      sessionStorage.removeItem('new_po_draft');
+    }
+    isRestored.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!isRestored.current) return;
+    const draft = { step, basicDetails, attachmentPaths, items, manualEntryMode };
+    sessionStorage.setItem('new_po_draft', JSON.stringify(draft));
+  }, [step, basicDetails, attachmentPaths, items, manualEntryMode]);
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      if (basicDetails.customerId) {
+        try {
+          const token = localStorage.getItem('token');
+          const headers = { Authorization: `Bearer ${token}` };
+          const res = await axios.get(`http://localhost:3000/api/locations?customer_id=${basicDetails.customerId}`, { headers });
+          setLocations(Array.isArray(res.data) ? res.data : []);
+        } catch (err) {
+          console.error('Failed to fetch locations', err);
+        }
+      }
+    };
+    fetchLocations();
+  }, [basicDetails.customerId]);
+
+  const handleCustomerChange = (e) => {
     const val = e.target.value;
     setBasicDetails(prev => ({ ...prev, customerId: val, locationId: '' }));
     setLocations([]);
-
-    if (val) {
-      try {
-        const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get(`http://localhost:3000/api/locations?customer_id=${val}`, { headers });
-        setLocations(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        console.error('Failed to fetch locations', err);
-      }
-    }
   };
 
   const handleBasicChange = (e) => {
@@ -119,85 +155,91 @@ export default function NewPO() {
   const handleDownloadTemplate = async () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('PO Format for UPLOAD');
-    const masterSheet = workbook.addWorksheet('MasterData', { state: 'veryHidden' });
 
-    masterSheet.getCell('A1').value = 'Customers';
-    customers.forEach((c, i) => { masterSheet.getCell(`A${i + 2}`).value = c.name || c.customer_name || String(c); });
-
-    masterSheet.getCell('B1').value = 'Locations';
-    locations.forEach((l, i) => { masterSheet.getCell(`B${i + 2}`).value = l.name || l.location_name || String(l); });
-
-    worksheet.columns = [
-      { width: 15 }, { width: 25 }, { width: 15 }, { width: 15 }, { width: 15 },
-      { width: 15 }, { width: 15 }, { width: 15 }, { width: 30 }
+    // Table Header (Row 1)
+    const headers = [
+      'Sl no (SYS GEN)', 'Ref No', 'Package', 'Heading', 'Sub Heading (if Any)',
+      'Item Name', 'Item Description', 'UOM', 'Supply QTY', 'Supply Rate',
+      'Supply GST', 'Service QTY', 'Service Rate', 'Service GST',
+      '', // Empty column for spacing (O)
+      'Taxable Value of Supply', 'GST on Supply', 'Invoice Value of Supply',
+      'Taxable Value of SERVICE', 'GST on SERVICE', 'Invoice Value of SERVICE',
+      'TOTAL Taxable Value', 'TOTAL GST', 'TOTAL Invoice Value'
     ];
 
-    worksheet.mergeCells('A1:G1');
-    const titleCell = worksheet.getCell('A1');
-    titleCell.value = 'Table for NEW PO';
-    titleCell.font = { size: 20, bold: true, color: { argb: 'FFFF0000' } };
-
-    worksheet.mergeCells('F1:H1');
-    const reviewBtn = worksheet.getCell('F1');
-    reviewBtn.value = 'REVIEW/SUBMIT';
-    reviewBtn.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F81BD' } };
-    reviewBtn.alignment = { horizontal: 'center', vertical: 'middle' };
-    reviewBtn.font = { color: { argb: 'FFFFFFFF' }, bold: true };
-
-    const headerFields = [
-      ['Select Customer', 'Master Selection'],
-      ['Select Location', 'Master Selection'],
-      ['Enter PO No', 'Manual'],
-      ['PO Number Displayed', 'System Generated'],
-      ['PO Date', 'Calendar'],
-      ['Start Date', 'Calendar'],
-      ['Est End Date', 'Calendar']
-    ];
-
-    headerFields.forEach((field, i) => {
-      const rowNum = i + 2;
-      const labelCell = worksheet.getCell(`A${rowNum}`);
-      labelCell.value = field[0];
-      labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF1DE' } };
-      labelCell.font = { bold: true };
-      labelCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-
-      const inputCell = worksheet.getCell(`B${rowNum}`);
-      inputCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
-      inputCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-
-      if (field[0] === 'Select Customer' && customers.length > 0) {
-        inputCell.dataValidation = { type: 'list', allowBlank: true, formulae: [`MasterData!$A$2:$A$${customers.length + 1}`] };
-      }
-      if (field[0] === 'Select Location' && locations.length > 0) {
-        inputCell.dataValidation = { type: 'list', allowBlank: true, formulae: [`MasterData!$B$2:$B$${locations.length + 1}`] };
-      }
-    });
-
-    const tableHeaderRow = worksheet.getRow(11);
-    const headers = ['Sl no', 'Ref No', 'Package', 'Heading', 'Sub Heading', 'Item Name', 'Description', 'UOM', 'Supply QTY', 'Supply Rate', 'Supply GST', 'Service QTY', 'Service Rate', 'Service GST'];
+    const tableHeaderRow = worksheet.getRow(1);
     tableHeaderRow.values = headers;
     tableHeaderRow.eachCell((cell, colNum) => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
-      cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+      const isAutoCal = colNum >= 16;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAutoCal ? 'FF4F81BD' : 'FF0070C0' } };
+      cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 9 };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-      const column = worksheet.getColumn(colNum);
-      if (colNum > 8) column.width = 15;
-      else if (colNum === 6) column.width = 30;
-      else if (colNum === 7) column.width = 40;
-    });
+      cell.border = {
+        top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+      };
 
-    for (let i = 12; i <= 50; i++) {
+      // Set width for table columns
+      const column = worksheet.getColumn(colNum);
+      if (colNum === 1) column.width = 10;
+      else if (colNum >= 2 && colNum <= 5) column.width = 15;
+      else if (colNum === 6) column.width = 25;
+      else if (colNum === 7) column.width = 30;
+      else if (colNum >= 9 && colNum <= 14) column.width = 12;
+      else if (colNum >= 16) column.width = 15;
+      else column.width = 15;
+    });
+    tableHeaderRow.height = 45;
+
+    // Data rows style and Auto-index (Rows 2 to 101)
+    for (let i = 2; i <= 101; i++) {
       const row = worksheet.getRow(i);
-      row.eachCell({ includeEmpty: true }, (cell, colNum) => {
-        if (colNum <= headers.length) {
-          cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-          if (colNum === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+      // Set Sl no (index)
+      row.getCell(1).value = i - 1;
+
+      // Formulas for Auto-calculation
+      // I: Supply QTY, J: Supply Rate, K: Supply GST
+      // L: Service QTY, M: Service Rate, N: Service GST
+
+      // P: Taxable Supply (I*J)
+      row.getCell(16).value = { formula: `I${i}*J${i}` };
+      // Q: GST Supply (P*K/100)
+      row.getCell(17).value = { formula: `P${i}*(K${i}/100)` };
+      // R: Invoice Supply (P+Q)
+      row.getCell(18).value = { formula: `P${i}+Q${i}` };
+
+      // S: Taxable Service (L*M)
+      row.getCell(19).value = { formula: `L${i}*M${i}` };
+      // T: GST Service (S*N/100)
+      row.getCell(20).value = { formula: `S${i}*(N${i}/100)` };
+      // U: Invoice Service (S+T)
+      row.getCell(21).value = { formula: `S${i}+T${i}` };
+
+      // V: Total Taxable (P+S)
+      row.getCell(22).value = { formula: `P${i}+S${i}` };
+      // W: Total GST (Q+T)
+      row.getCell(23).value = { formula: `Q${i}+T${i}` };
+      // X: Total Invoice (V+W)
+      row.getCell(24).value = { formula: `V${i}+W${i}` };
+
+      for (let colNum = 1; colNum <= 24; colNum++) {
+        if (colNum === 15) continue; // Skip empty column O
+
+        const cell = row.getCell(colNum);
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+
+        if (colNum === 1) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+          cell.alignment = { horizontal: 'center' };
+        } else if (colNum >= 16) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }; // Light grey for auto-cal
+          cell.numFmt = '#,##0.00';
         }
-      });
+      }
     }
 
+    // Generate and Save
     const buffer = await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), 'PO_Template.xlsx');
   };
@@ -243,15 +285,15 @@ export default function NewPO() {
       package_name: r.package_name,
       heading: r.heading,
       sub_heading: r.sub_heading,
-      item_name: r.item_name || 'Item',
+      item_name: r.item_name || '',
       description: r.description,
       uom: r.uom,
       supply_qty: cleanNum(r.supply_qty),
       supply_rate: cleanNum(r.supply_rate),
-      supply_gst_rate: cleanNum(r.supply_gst_rate) || 18,
+      supply_gst_rate: cleanNum(r.supply_gst_rate) || 0,
       service_qty: cleanNum(r.service_qty),
       service_rate: cleanNum(r.service_rate),
-      service_gst_rate: cleanNum(r.service_gst_rate) || 18
+      service_gst_rate: cleanNum(r.service_gst_rate) || 0
     }));
 
     setItems(prev => [...prev, ...newItems]);
@@ -290,9 +332,9 @@ export default function NewPO() {
         ref_no: r['Ref No'] || r['ref_no'] || '',
         package_name: r.Package || r['Package Name'] || '',
         heading: r.Heading || '',
-        sub_heading: r['Sub Heading'] || '',
+        sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || '',
         item_name: r['Item Name'] || r.Item || '',
-        description: r.Description || '',
+        description: r['Item Description'] || r.Description || '',
         uom: r.UOM || '',
         supply_qty: r['Supply Qty'] || r['Supply QTY'] || '',
         supply_rate: r['Supply Rate'] || '',
@@ -303,6 +345,63 @@ export default function NewPO() {
       };
     });
     setPasteRows(mapped);
+  };
+
+  const handleDirectExcelUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setLoading(true);
+    try {
+      const raw = await parseExcel(file);
+      const newItems = raw.map((r, idx) => {
+        let data = {};
+        if (r._is_headerless) {
+          const isSlNo = /^\d+$/.test(r.col0) && String(r.col0).length < 4;
+          const offset = isSlNo ? 1 : 0;
+          data = {
+            ref_no: r[`col${0 + offset}`] || '',
+            package_name: r[`col${1 + offset}`] || '',
+            heading: r[`col${2 + offset}`] || '',
+            sub_heading: r[`col${3 + offset}`] || '',
+            item_name: r[`col${4 + offset}`] || '',
+            description: r[`col${5 + offset}`] || '',
+            uom: r[`col${6 + offset}`] || '',
+            supply_qty: cleanNum(r[`col${7 + offset}`]),
+            supply_rate: cleanNum(r[`col${8 + offset}`]),
+            supply_gst_rate: cleanNum(r[`col${9 + offset}`]) || 0,
+            service_qty: cleanNum(r[`col${10 + offset}`]),
+            service_rate: cleanNum(r[`col${11 + offset}`]),
+            service_gst_rate: cleanNum(r[`col${12 + offset}`]) || 0
+          };
+        } else {
+          data = {
+            ref_no: r['Ref No'] || r['ref_no'] || '',
+            package_name: r.Package || r['Package Name'] || '',
+            heading: r.Heading || '',
+            sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || '',
+            item_name: r['Item Name'] || r.Item || '',
+            description: r['Item Description'] || r.Description || '',
+            uom: r.UOM || '',
+            supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY']),
+            supply_rate: cleanNum(r['Supply Rate']),
+            supply_gst_rate: cleanNum(r['Supply GST']) || 0,
+            service_qty: cleanNum(r['Service Qty']),
+            service_rate: cleanNum(r['Service Rate']),
+            service_gst_rate: cleanNum(r['Service GST']) || 0
+          };
+        }
+        return calculateRow({
+          ...data,
+          line_number: idx + 1
+        });
+      });
+      setItems(newItems);
+    } catch (err) {
+      console.error('Direct upload failed', err);
+    } finally {
+      setLoading(false);
+      e.target.value = '';
+    }
   };
 
   const handleExportGrid = async () => {
@@ -404,12 +503,12 @@ export default function NewPO() {
       item_name: row.item_name || '',
       description: row.description || '',
       uom: row.uom || '',
-      supply_qty: s_qty,
-      supply_rate: s_rate,
-      supply_gst_rate: s_gst_pct,
-      service_qty: sv_qty,
-      service_rate: sv_rate,
-      service_gst_rate: sv_gst_pct,
+      supply_qty: row.supply_qty,
+      supply_rate: row.supply_rate,
+      supply_gst_rate: row.supply_gst_rate,
+      service_qty: row.service_qty,
+      service_rate: row.service_rate,
+      service_gst_rate: row.service_gst_rate,
       taxable_supply: taxable_s,
       gst_supply: gst_s,
       total_supply: total_s,
@@ -440,10 +539,10 @@ export default function NewPO() {
       uom: '',
       supply_qty: 0,
       supply_rate: 0,
-      supply_gst_rate: 18,
+      supply_gst_rate: 0,
       service_qty: 0,
       service_rate: 0,
-      service_gst_rate: 18
+      service_gst_rate: 0
     });
     setItems([firstRow]);
     setManualEntryMode(true);
@@ -470,10 +569,10 @@ export default function NewPO() {
       uom: '',
       supply_qty: 0,
       supply_rate: 0,
-      supply_gst_rate: 18,
+      supply_gst_rate: 0,
       service_qty: 0,
       service_rate: 0,
-      service_gst_rate: 18
+      service_gst_rate: 0
     });
     setItems([...items, newRow]);
   };
@@ -512,15 +611,15 @@ export default function NewPO() {
                 package_name: r[`col${1 + offset}`] || '',
                 heading: r[`col${2 + offset}`] || '',
                 sub_heading: r[`col${3 + offset}`] || '',
-                item_name: r[`col${4 + offset}`] || 'Item',
+                item_name: r[`col${4 + offset}`] || '',
                 description: r[`col${5 + offset}`] || '',
                 uom: r[`col${6 + offset}`] || '',
                 supply_qty: cleanNum(r[`col${7 + offset}`]),
                 supply_rate: cleanNum(r[`col${8 + offset}`]),
-                supply_gst_rate: cleanNum(r[`col${9 + offset}`]) || 18,
+                supply_gst_rate: cleanNum(r[`col${9 + offset}`]) || 0,
                 service_qty: cleanNum(r[`col${10 + offset}`]),
                 service_rate: cleanNum(r[`col${11 + offset}`]),
-                service_gst_rate: cleanNum(r[`col${12 + offset}`]) || 18
+                service_gst_rate: cleanNum(r[`col${12 + offset}`]) || 0
               });
             }
             return calculateRow({
@@ -528,16 +627,16 @@ export default function NewPO() {
               ref_no: r['Ref No'] || r['ref_no'] || '',
               package_name: r.Package || r['Package Name'] || '',
               heading: r.Heading || '',
-              sub_heading: r['Sub Heading'] || '',
-              item_name: r['Item Name'] || r.Item || 'Item',
-              description: r.Description || '',
+              sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || '',
+              item_name: r['Item Name'] || r.Item || '',
+              description: r['Item Description'] || r.Description || '',
               uom: r.UOM || '',
               supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY']),
               supply_rate: cleanNum(r['Supply Rate']),
-              supply_gst_rate: cleanNum(r['Supply GST']) || 18,
+              supply_gst_rate: cleanNum(r['Supply GST']) || 0,
               service_qty: cleanNum(r['Service Qty']),
               service_rate: cleanNum(r['Service Rate']),
-              service_gst_rate: cleanNum(r['Service GST']) || 18
+              service_gst_rate: cleanNum(r['Service GST']) || 0
             });
           });
 
@@ -599,6 +698,7 @@ export default function NewPO() {
       };
 
       await axios.post('http://localhost:3000/api/pos', payload, { headers });
+      sessionStorage.removeItem('new_po_draft');
       alert('Purchase Order created successfully!');
       navigate('/dashboard');
     } catch (err) {
@@ -680,10 +780,15 @@ export default function NewPO() {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div style={{ padding: '8px', maxWidth: '100%', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <style>{`
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+      `}</style>
       {renderFileViewer()}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
         <button onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} style={{ padding: '8px 16px', background: '#374151', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>← Back</button>
         <h2 style={{ margin: 0 }}>Purchase Order Ingestion</h2>
       </div>
@@ -698,34 +803,34 @@ export default function NewPO() {
               <div style={{ display: 'grid', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Customer</label>
-                  <select name="customerId" value={basicDetails.customerId} onChange={handleCustomerChange} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB' }}>
+                  <select name="customerId" value={basicDetails.customerId} onChange={handleCustomerChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }}>
                     <option value="">Select Customer</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Location</label>
-                  <select name="locationId" value={basicDetails.locationId} onChange={handleBasicChange} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB' }}>
+                  <select name="locationId" value={basicDetails.locationId} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }}>
                     <option value="">Select Location</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>PO Number</label>
-                  <input name="poNumber" value={basicDetails.poNumber} onChange={handleBasicChange} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB' }} />
+                  <input name="poNumber" value={basicDetails.poNumber} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>PO Date</label>
-                    <input type="date" name="poDate" value={basicDetails.poDate} onChange={handleBasicChange} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB' }} />
+                    <input type="date" name="poDate" value={basicDetails.poDate} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Start Date</label>
-                    <input type="date" name="startDate" value={basicDetails.startDate} onChange={handleBasicChange} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB' }} />
+                    <input type="date" name="startDate" value={basicDetails.startDate} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Est. End Date</label>
-                    <input type="date" name="endDate" value={basicDetails.endDate} onChange={handleBasicChange} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB' }} />
+                    <input type="date" name="endDate" value={basicDetails.endDate} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
                   </div>
                 </div>
               </div>
@@ -760,17 +865,17 @@ export default function NewPO() {
                 ))}
               </div>
 
-              <div style={{ marginTop: '32px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <p style={{ color: '#6B7280', fontSize: '0.9rem', marginBottom: '0' }}>-- OR --</p>
-                <div style={{ display: 'flex', gap: '15px' }}>
-                  <button onClick={handleManualEntry} style={{ flex: 1, padding: '12px', background: '#374151', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
-                    Open Manual Excel Entry
-                  </button>
-                  <button onClick={handleDownloadTemplate} style={{ flex: 1, padding: '12px', background: '#F9FAFB', border: '1px solid #D1D5DB', color: '#374151', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>download</span>
-                    Download Template
-                  </button>
-                </div>
+              <div style={{ marginTop: '32px', textAlign: 'center' }}>
+                <button
+                  onClick={async () => {
+                    await handleDownloadTemplate();
+                    handleManualEntry();
+                  }}
+                  style={{ width: '100%', padding: '12px', background: '#374151', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>download</span>
+                  Download Excel
+                </button>
               </div>
             </div>
 
@@ -801,12 +906,19 @@ export default function NewPO() {
               <h3 style={{ margin: 0 }}>Step 2: Items Review & Calculation</h3>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
-                  onClick={() => setShowPasteModal(true)}
+                  onClick={() => fileInputRef.current.click()}
                   style={{ padding: '8px 16px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>table_chart</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>upload_file</span>
                   Excel Upload
                 </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  accept=".xlsx,.xls"
+                  onChange={handleDirectExcelUpload}
+                />
                 <button onClick={addRow} style={{ padding: '8px 16px', background: '#10B981', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 600 }}>+ Add Row</button>
               </div>
             </div>
@@ -816,17 +928,17 @@ export default function NewPO() {
             </p>
 
             <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '6px', maxHeight: '550px', background: 'white' }}>
-              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.7rem' }}>
+              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.6rem' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 20, background: '#F9FAFB' }}>
                   <tr style={{ whiteSpace: 'nowrap' }}>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '40px' }}>Sl no</th>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '70px' }}>Ref No</th>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '110px' }}>Package</th>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '110px' }}>Heading</th>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '110px' }}>Sub Heading</th>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '140px' }}>Item Name</th>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '160px' }}>Description</th>
-                    <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '50px' }}>UOM</th>
+                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '30px' }}>Sl no</th>
+                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '60px' }}>Ref No</th>
+                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '100px' }}>Package</th>
+                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '100px' }}>Heading</th>
+                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '100px' }}>Sub Heading (if Any)</th>
+                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '130px' }}>Item Name</th>
+                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '150px' }}>Item Description</th>
+                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '40px' }}>UOM</th>
 
                     <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#ECFDF5', textAlign: 'center', fontSize: '0.65rem' }}>Supply Details</th>
                     <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center', fontSize: '0.65rem' }}>Service Details</th>
@@ -861,22 +973,44 @@ export default function NewPO() {
                 <tbody>
                   {items.map((it, idx) => (
                     <tr key={idx}>
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{idx + 1}</td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.ref_no} onChange={(e) => updateItem(idx, 'ref_no', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.package_name} onChange={(e) => updateItem(idx, 'package_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.heading} onChange={(e) => updateItem(idx, 'heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.sub_heading} onChange={(e) => updateItem(idx, 'sub_heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.description} onChange={(e) => updateItem(idx, 'description', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.uom} onChange={(e) => updateItem(idx, 'uom', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
+                      <td style={{ padding: '2px 3px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{idx + 1}</td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.ref_no} onChange={(e) => updateItem(idx, 'ref_no', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.package_name} onChange={(e) => updateItem(idx, 'package_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.heading} onChange={(e) => updateItem(idx, 'heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.sub_heading} onChange={(e) => updateItem(idx, 'sub_heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.description} onChange={(e) => updateItem(idx, 'description', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.uom} onChange={(e) => updateItem(idx, 'uom', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
 
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_qty} onChange={(e) => updateItem(idx, 'supply_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_rate} onChange={(e) => updateItem(idx, 'supply_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_gst_rate} onChange={(e) => updateItem(idx, 'supply_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_qty} onChange={(e) => updateItem(idx, 'supply_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_rate} onChange={(e) => updateItem(idx, 'supply_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}>
+                        <select
+                          value={it.supply_gst_rate || ''}
+                          onChange={(e) => updateItem(idx, 'supply_gst_rate', e.target.value)}
+                          style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent', outline: 'none' }}
+                        >
+                          <option value="">Select GST</option>
+                          <option value="5">5%</option>
+                          <option value="12">12%</option>
+                          <option value="18">18%</option>
+                        </select>
+                      </td>
 
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_qty} onChange={(e) => updateItem(idx, 'service_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_rate} onChange={(e) => updateItem(idx, 'service_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_gst_rate} onChange={(e) => updateItem(idx, 'service_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_qty} onChange={(e) => updateItem(idx, 'service_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_rate} onChange={(e) => updateItem(idx, 'service_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}>
+                        <select
+                          value={it.service_gst_rate || ''}
+                          onChange={(e) => updateItem(idx, 'service_gst_rate', e.target.value)}
+                          style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent', outline: 'none' }}
+                        >
+                          <option value="">Select GST</option>
+                          <option value="5">5%</option>
+                          <option value="12">12%</option>
+                          <option value="18">18%</option>
+                        </select>
+                      </td>
 
                       <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.taxable_supply || 0).toLocaleString()}</td>
                       <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.gst_supply || 0).toLocaleString()}</td>
@@ -967,16 +1101,16 @@ export default function NewPO() {
               <p style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: '16px' }}>Edit cells directly, use <b>Ctrl+V</b> to paste from your desktop Excel, or <b>Load from Excel</b> to import a whole file. Click <b>Save as Excel</b> to export your current work.</p>
 
               <div onPaste={handleGridPaste} style={{ flex: 1, overflow: 'auto', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#F9FAFB' }}>
-                <table style={{ width: 'max-content', borderCollapse: 'collapse', fontSize: '0.75rem', background: 'white' }}>
+                <table style={{ width: 'max-content', borderCollapse: 'collapse', fontSize: '0.65rem', background: 'white' }}>
                   <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F3F4F6' }}>
                     <tr>
                       <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '40px' }}>#</th>
                       <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '100px' }}>Ref No</th>
                       <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '120px' }}>Package</th>
                       <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '120px' }}>Heading</th>
-                      <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '120px' }}>Sub Heading</th>
+                      <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '120px' }}>Sub Heading (if Any)</th>
                       <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '150px' }}>Item Name</th>
-                      <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '200px' }}>Description</th>
+                      <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '200px' }}>Item Description</th>
                       <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '60px' }}>UOM</th>
                       <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '100px', background: '#ECFDF5' }}>Supply Qty</th>
                       <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '110px', background: '#ECFDF5' }}>Supply Rate</th>
@@ -994,16 +1128,33 @@ export default function NewPO() {
                           const isNumeric = ['supply_qty', 'supply_rate', 'supply_gst_rate', 'service_qty', 'service_rate', 'service_gst_rate'].includes(field);
                           return (
                             <td key={field} style={{ padding: 0, border: '1px solid #E5E7EB', background: isNumeric ? '#FDFDEA' : 'white' }}>
-                              <input
-                                type={isNumeric ? "number" : "text"}
-                                value={row[field]}
-                                onChange={(e) => {
-                                  const newRows = [...pasteRows];
-                                  newRows[idx] = { ...newRows[idx], [field]: e.target.value };
-                                  setPasteRows(newRows);
-                                }}
-                                style={{ width: '100%', border: 'none', padding: '6px', fontSize: '0.75rem', outline: 'none', background: 'transparent', textAlign: isNumeric ? 'right' : 'left' }}
-                              />
+                              {['supply_gst_rate', 'service_gst_rate'].includes(field) ? (
+                                <select
+                                  value={row[field] || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...pasteRows];
+                                    newRows[idx] = { ...newRows[idx], [field]: e.target.value };
+                                    setPasteRows(newRows);
+                                  }}
+                                  style={{ width: '100%', border: 'none', padding: '6px', fontSize: '0.75rem', outline: 'none', background: 'transparent' }}
+                                >
+                                  <option value="">Select GST</option>
+                                  <option value="5">5</option>
+                                  <option value="12">12</option>
+                                  <option value="18">18</option>
+                                </select>
+                              ) : (
+                                <input
+                                  type={isNumeric ? "number" : "text"}
+                                  value={row[field]}
+                                  onChange={(e) => {
+                                    const newRows = [...pasteRows];
+                                    newRows[idx] = { ...newRows[idx], [field]: e.target.value };
+                                    setPasteRows(newRows);
+                                  }}
+                                  style={{ width: '100%', border: 'none', padding: '6px', fontSize: '0.75rem', outline: 'none', background: 'transparent', textAlign: isNumeric ? 'right' : 'left' }}
+                                />
+                              )}
                             </td>
                           );
                         })}
@@ -1028,88 +1179,85 @@ export default function NewPO() {
 
 // --- Helper Component: Summary Table using TanStack ---
 function SummaryTable({ data }) {
-  const columns = React.useMemo(() => [
-    {
-      header: 'Item Description',
-      accessorKey: 'item_name',
-      cell: info => (
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-          <span style={{ fontWeight: 600, color: '#111827' }}>{info.row.original.item_name}</span>
-          <span style={{ color: '#6B7280', fontSize: '0.65rem' }}>{info.row.original.description}</span>
-        </div>
-      ),
-    },
-    {
-      header: 'Supply',
-      accessorKey: 'taxable_supply',
-      cell: info => `₹${(info.getValue() || 0).toLocaleString()}`,
-    },
-    {
-      header: 'Service',
-      accessorKey: 'taxable_service',
-      cell: info => `₹${(info.getValue() || 0).toLocaleString()}`,
-    },
-    {
-      header: 'GST',
-      accessorKey: 'total_gst',
-      cell: info => `₹${(info.getValue() || 0).toLocaleString()}`,
-    },
-    {
-      header: 'Total',
-      accessorKey: 'total_invoice',
-      cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>₹{(info.getValue() || 0).toLocaleString()}</span>,
-    }
-  ], []);
-
-  // Manual grouping logic for a "compact" view that looks like the user's request
-  const groupedData = React.useMemo(() => {
-    return data.reduce((acc, it) => {
+  // Summarize data by package
+  const summarizedData = React.useMemo(() => {
+    const summary = data.reduce((acc, it) => {
       const pkg = it.package_name || 'General';
-      if (!acc[pkg]) acc[pkg] = { items: [], total: 0 };
-      acc[pkg].items.push(it);
+      if (!acc[pkg]) {
+        acc[pkg] = { 
+          package_name: pkg, 
+          supply: 0, 
+          service: 0, 
+          gst: 0, 
+          total: 0 
+        };
+      }
+      acc[pkg].supply += (it.taxable_supply || 0);
+      acc[pkg].service += (it.taxable_service || 0);
+      acc[pkg].gst += (it.total_gst || 0);
       acc[pkg].total += (it.total_invoice || 0);
       return acc;
     }, {});
+    return Object.values(summary);
   }, [data]);
+
+  const columns = React.useMemo(() => [
+    {
+      header: 'Package Name',
+      accessorKey: 'package_name',
+      cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue()}</span>,
+    },
+    {
+      header: 'Supply Value',
+      accessorKey: 'supply',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Service Value',
+      accessorKey: 'service',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'GST Amount',
+      accessorKey: 'gst',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Package Total',
+      accessorKey: 'total',
+      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString()}</span>,
+    }
+  ], []);
+
+  const table = useReactTable({
+    data: summarizedData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   return (
     <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '32px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
-        <thead style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', position: 'sticky', top: 0, zIndex: 5 }}>
-          <tr>
-            <th style={{ padding: '8px 12px', textAlign: 'left', color: '#4B5563', fontWeight: 700 }}>Item Description</th>
-            <th style={{ padding: '8px 12px', textAlign: 'right', color: '#4B5563', fontWeight: 700, width: '110px' }}>Supply</th>
-            <th style={{ padding: '8px 12px', textAlign: 'right', color: '#4B5563', fontWeight: 700, width: '110px' }}>Service</th>
-            <th style={{ padding: '8px 12px', textAlign: 'right', color: '#4B5563', fontWeight: 700, width: '90px' }}>GST</th>
-            <th style={{ padding: '8px 12px', textAlign: 'right', color: '#4B5563', fontWeight: 700, width: '110px' }}>Total</th>
-          </tr>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+        <thead style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+          {table.getHeaderGroups().map(headerGroup => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map(header => (
+                <th key={header.id} style={{ padding: '12px', textAlign: 'left', color: '#4B5563', fontWeight: 700 }}>
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                </th>
+              ))}
+            </tr>
+          ))}
         </thead>
         <tbody>
-          {Object.entries(groupedData).map(([pkgName, pkgData]) => (
-            <React.Fragment key={pkgName}>
-              <tr style={{ background: '#F3F4F6' }}>
-                <td colSpan="4" style={{ padding: '4px 12px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #E5E7EB', textAlign: 'left' }}>
-                  {pkgName}
+          {table.getRowModel().rows.map(row => (
+            <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+              {row.getVisibleCells().map(cell => (
+                <td key={cell.id} style={{ padding: '10px 12px' }}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
-                <td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 700, color: '#2563EB', borderBottom: '1px solid #E5E7EB' }}>
-                  ₹{pkgData.total.toLocaleString()}
-                </td>
-              </tr>
-              {pkgData.items.map((it, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                  <td style={{ padding: '6px 12px', paddingLeft: '24px', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                      <span style={{ fontWeight: 600, color: '#111827' }}>{it.item_name}</span>
-                      <span style={{ color: '#6B7280', fontSize: '0.65rem' }}>{it.description}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right', color: '#4B5563' }}>₹{(it.taxable_supply || 0).toLocaleString()}</td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right', color: '#4B5563' }}>₹{(it.taxable_service || 0).toLocaleString()}</td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right', color: '#4B5563' }}>₹{(it.total_gst || 0).toLocaleString()}</td>
-                  <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: '#111827' }}>₹{(it.total_invoice || 0).toLocaleString()}</td>
-                </tr>
               ))}
-            </React.Fragment>
+            </tr>
           ))}
         </tbody>
       </table>

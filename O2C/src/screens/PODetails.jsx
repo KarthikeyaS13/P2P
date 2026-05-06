@@ -88,8 +88,8 @@ export default function PODetails() {
   const handleViewFile = async (path) => {
     const filename = path.split('/').pop();
     const fullUrl = `http://localhost:3000/uploads/${filename}`;
-    const isExcel = filename.toLowerCase().match(/\.(xlsx|xls|xlsm)$/);
-    
+    const isExcel = filename.toLowerCase().match(/\.(xlsx|xls|xlsm|csv)$/);
+
     if (isExcel) {
       setLoadingPreview(true);
       setPreviewPath(filename);
@@ -114,7 +114,7 @@ export default function PODetails() {
 
         const headersRaw = rawData[headerIdx] || [];
         const dataRows = (maxScore < 2) ? rawData : rawData.slice(headerIdx + 1);
-        
+
         const formatted = dataRows.map(row => {
           const obj = {};
           if (maxScore >= 2) {
@@ -142,7 +142,7 @@ export default function PODetails() {
   const renderFileViewer = () => {
     if (!previewPath) return null;
     const allHeaders = previewExcelData ? Array.from(new Set(previewExcelData.flatMap(row => Object.keys(row)))) : [];
-    
+
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)' }}>
         <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '95%', height: '90%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
@@ -150,7 +150,7 @@ export default function PODetails() {
             <h3 style={{ margin: 0 }}>Preview: {previewPath.split('/').pop()}</h3>
             <button onClick={() => { setPreviewPath(null); setPreviewExcelData(null); }} style={{ padding: '8px 16px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Close Preview</button>
           </div>
-          
+
           <div style={{ flex: 1, background: '#F3F4F6', borderRadius: '8px', overflow: 'auto' }}>
             {loadingPreview ? (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -205,9 +205,9 @@ export default function PODetails() {
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>Start Date:</strong> {po.start_date ? new Date(po.start_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <p style={{ margin: '0 0 8px', color: '#4B5563' }}><strong style={{ color: '#111827' }}>End Date:</strong> {po.end_date ? new Date(po.end_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-            {po.po_copy_path && (
+            {/* {po.po_copy_path && (
               <button onClick={() => handleViewFile(po.po_copy_path)} style={{ fontSize: '0.75rem', color: '#3B82F6', background: 'none', border: '1px solid #3B82F6', padding: '4px 10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>View PO Copy</button>
-            )}
+            )} */}
             {po.po_annex_path && (
               <button onClick={() => handleViewFile(po.po_annex_path)} style={{ fontSize: '0.75rem', color: '#10B981', background: 'none', border: '1px solid #10B981', padding: '4px 10px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>View Annex</button>
             )}

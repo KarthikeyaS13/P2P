@@ -28,11 +28,11 @@
   --radius-xl: 0.75rem;
   --space-xs: 4px;
   --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
+  --space-md: 10px;
+  --space-lg: 14px;
   --space-xl: 32px;
   --sidebar-w: 256px;
-  --header-h: 56px;
+  --header-h: 48px;
   --transition: 200ms ease-in-out;
 }
 
@@ -46,7 +46,7 @@
 }
 
 html {
-  font-size: 14px;
+  font-size: 10.5px;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -54,7 +54,21 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   color: var(--on-surface);
   background: #F8F9FA;
-  line-height: 1.5;
+  line-height: 1.4;
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1.1rem; }
+h4 { font-size: 1rem; }
+
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: 0.9rem;
 }
 
 a {
@@ -250,19 +264,19 @@ table {
 .main-content {
   margin-left: var(--sidebar-w);
   margin-top: var(--header-h);
-  padding: var(--space-lg);
+  padding: var(--space-md);
   min-height: calc(100vh - var(--header-h));
   flex: 1;
   transition: margin var(--transition);
 }
 
 .main-content--full {
-  margin-left: 0;
+  margin-left: var(--sidebar-w); /* Force margin even for sales to avoid overlap */
 }
 
 .main-content__inner {
   width: 100%;
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 

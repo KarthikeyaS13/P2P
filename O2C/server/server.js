@@ -70,7 +70,13 @@ const migrations = [
   "ALTER TABLE po_line_items ADD COLUMN total_service REAL",
   "ALTER TABLE po_line_items ADD COLUMN total_taxable REAL",
   "ALTER TABLE po_line_items ADD COLUMN total_gst REAL",
-  "ALTER TABLE po_line_items ADD COLUMN total_invoice REAL"
+  "ALTER TABLE po_line_items ADD COLUMN total_invoice REAL",
+  "ALTER TABLE po_line_items ADD COLUMN edit_supply_qty REAL",
+  "ALTER TABLE po_line_items ADD COLUMN edit_supply_rate REAL",
+  "ALTER TABLE po_line_items ADD COLUMN edit_supply_gst_rate REAL",
+  "ALTER TABLE po_line_items ADD COLUMN edit_service_qty REAL",
+  "ALTER TABLE po_line_items ADD COLUMN edit_service_rate REAL",
+  "ALTER TABLE po_line_items ADD COLUMN edit_service_gst_rate REAL"
 ];
 
 migrations.forEach(sql => {
@@ -561,8 +567,10 @@ app.post('/api/pos', authenticate, (req, res) => {
         service_qty, service_rate, service_gst_rate,
         taxable_supply, gst_supply, total_supply,
         taxable_service, gst_service, total_service,
-        total_taxable, total_gst, total_invoice
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        total_taxable, total_gst, total_invoice,
+        edit_supply_qty, edit_supply_rate, edit_supply_gst_rate,
+        edit_service_qty, edit_service_rate, edit_service_gst_rate
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `);
 
     (items || []).forEach((item, index) => {
@@ -589,7 +597,13 @@ app.post('/api/pos', authenticate, (req, res) => {
         item.total_service || 0,
         item.total_taxable || 0,
         item.total_gst || 0,
-        item.total_invoice || 0
+        item.total_invoice || 0,
+        item.edit_supply_qty || null,
+        item.edit_supply_rate || null,
+        item.edit_supply_gst_rate || null,
+        item.edit_service_qty || null,
+        item.edit_service_rate || null,
+        item.edit_service_gst_rate || null
       );
     });
 
@@ -636,8 +650,10 @@ app.put('/api/pos/:id', requireRole(['sales','admin','accounts','management']), 
           taxable_supply, gst_supply, total_supply,
           taxable_service, gst_service, total_service,
           total_taxable, total_gst, total_invoice,
+          edit_supply_qty, edit_supply_rate, edit_supply_gst_rate,
+          edit_service_qty, edit_service_rate, edit_service_gst_rate,
           created_at, updated_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
       `);
       
       let subtotal=0, gst_total=0;
@@ -668,7 +684,13 @@ app.put('/api/pos/:id', requireRole(['sales','admin','accounts','management']), 
           it.total_service || 0,
           it.total_taxable || 0,
           it.total_gst || 0,
-          it.total_invoice || 0
+          it.total_invoice || 0,
+          it.edit_supply_qty || null,
+          it.edit_supply_rate || null,
+          it.edit_supply_gst_rate || null,
+          it.edit_service_qty || null,
+          it.edit_service_rate || null,
+          it.edit_service_gst_rate || null
         );
       });
       db.prepare(`UPDATE purchase_orders SET subtotal=?, gst_total=?, grand_total=?, total_value=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(subtotal, gst_total, subtotal + gst_total, subtotal + gst_total, req.params.id);

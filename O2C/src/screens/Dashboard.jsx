@@ -26,6 +26,10 @@ export default function Dashboard() {
     };
 
     fetchDashboard();
+
+    // Clear drafts when landing on dashboard to ensure "New PO" starts fresh
+    sessionStorage.removeItem('new_po_draft');
+    sessionStorage.removeItem('new_nt_po_draft');
   }, []);
 
   if (loading) {
