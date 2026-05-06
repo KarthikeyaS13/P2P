@@ -75,9 +75,28 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
 
   const handleSubmit = (e) => {
     if (!form.label) return alert('Location Name is required');
-    if (!form.pincode) return alert('Pincode is required');
-    if (form.gstin && form.gstin.length !== 15) return alert('GSTIN must be 15 characters');
+    if (!form.address_line1) return alert('Address Line 1 is required');
+    if (!form.city) return alert('City is required');
+    if (!form.state) return alert('State is required');
+    if (!form.pincode || form.pincode.length !== 6) return alert('Valid 6-digit Pincode is required');
+    
+    if (form.gst_is_different && (!form.gstin || form.gstin.length !== 15)) {
+      return alert('15-character GSTIN is required when using a different GST for this location');
+    }
+    
+    if (form.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email)) {
+      return alert('Invalid SPOC 1 Email');
+    }
     if (form.contact_phone && form.contact_phone.length !== 10) return alert('Contact phone must be 10 digits');
+
+    if (showSpoc2) {
+      if (form.spoc2_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.spoc2_email)) {
+        return alert('Invalid SPOC 2 Email');
+      }
+      if (form.spoc2_phone && form.spoc2_phone.length !== 10) {
+        return alert('SPOC 2 Phone must be 10 digits');
+      }
+    }
 
     setSubmitting(true);
     const token = localStorage.getItem('token');
@@ -171,17 +190,13 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Pincode *</label>
               <input name="pincode" value={form.pincode} onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
             </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>GST IN (if different)</label>
-              <input name="gstin" value={form.gstin} onChange={handleChange} placeholder="Leave blank if same as corporate GST" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+            <div>
+              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>City *</label>
+              <input name="city" value={form.city} onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>City</label>
-              <input name="city" value={form.city} onChange={handleChange} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>State</label>
-              <input name="state" value={form.state} onChange={handleChange} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>State *</label>
+              <input name="state" value={form.state} onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
             </div>
           </div>
 
@@ -202,15 +217,15 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: showSpoc2 ? '24px' : '32px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Contact Person Name (SPOC 1)</label>
-              <input name="contact_name" value={form.contact_name} onChange={handleChange} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <input name="contact_name" value={form.contact_name} onChange={handleChange} placeholder="Full Name" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Contact Email</label>
-              <input type="email" name="contact_email" value={form.contact_email} onChange={handleChange} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <input type="email" name="contact_email" value={form.contact_email} onChange={handleChange} placeholder="email@example.com" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Contact Phone (10 digits)</label>
-              <input name="contact_phone" value={form.contact_phone} onChange={handleChange} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <input name="contact_phone" value={form.contact_phone} onChange={handleChange} placeholder="9876543210" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
             </div>
           </div>
 

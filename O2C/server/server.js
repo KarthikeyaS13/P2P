@@ -359,7 +359,7 @@ app.post('/api/locations', requireRole(['admin']), (req, res) => {
         address_line3, city, state, pincode, gstin,
         gst_is_different, contact_name, contact_email, contact_phone,
         spoc2_name, spoc2_department, spoc2_email, spoc2_phone
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       customer_id, label, address_line1||'', address_line2||'',
       address_line3||'', city||'', state||'', pincode, gstin||'',

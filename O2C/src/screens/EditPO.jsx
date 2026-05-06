@@ -3,6 +3,11 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+} from '@tanstack/react-table';
 
 export default function EditPO() {
   const navigate = useNavigate();
@@ -359,12 +364,29 @@ export default function EditPO() {
     <div style={{ padding: '24px', maxWidth: '1600px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
       {renderFileViewer()}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-        <button onClick={() => navigate('/dashboard')} style={{ padding: '8px 16px', background: '#374151', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>← Back</button>
-        <h2 style={{ margin: 0 }}>Edit Purchase Order / NT PO</h2>
+      {/* Step Indicator */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', background: 'white', padding: '16px 24px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #E5E7EB' }}>
+        {[
+          { id: 1, title: 'Select PO' },
+          { id: 2, title: 'Edit Items' },
+          { id: 3, title: 'Review Summary' }
+        ].map(s => (
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center', flex: s.id < 3 ? 1 : 'none' }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '50%',
+              background: step === s.id ? '#3B82F6' : step > s.id ? '#10B981' : '#F3F4F6',
+              color: step >= s.id ? 'white' : '#6B7280',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.9rem',
+              border: step === s.id ? 'none' : '1px solid #E5E7EB',
+              transition: 'all 0.3s'
+            }}>{step > s.id ? '✓' : s.id}</div>
+            <span style={{ marginLeft: '12px', fontWeight: step === s.id ? 700 : 500, color: step >= s.id ? '#1F2937' : '#9CA3AF', fontSize: '0.95rem' }}>{s.title}</span>
+            {s.id < 3 && <div style={{ flex: 1, height: '2px', background: step > s.id ? '#10B981' : '#E5E7EB', margin: '0 24px' }} />}
+          </div>
+        ))}
       </div>
 
-      <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+      <div style={{ background: 'white', padding: '32px', borderRadius: '20px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', border: '1px solid #F3F4F6' }}>
 
         {step === 1 && (
           <div>
@@ -600,14 +622,193 @@ export default function EditPO() {
             </div>
 
             <div style={{ marginTop: '32px', display: 'flex', gap: '16px' }}>
-              <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, padding: '18px', background: '#10B981', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 800, fontSize: '1.2rem', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)', transition: 'all 0.2s' }}>
-                {submitting ? 'Processing Revision...' : '✓ Submit Revised Purchase Order'}
+              <button onClick={nextStep} style={{ flex: 1, padding: '18px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 800, fontSize: '1.2rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.3)', transition: 'all 0.2s' }}>
+                Next: Review Revised Summary →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
+              <div>
+                <button onClick={prevStep} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px', padding: 0 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+                  <span style={{ fontWeight: 600 }}>Back to edit items</span>
+                </button>
+                <h3 style={{ margin: 0, fontSize: '1.5rem', color: '#111827' }}>3. Final Review: {newVersionLabel}</h3>
+              </div>
+            </div>
+
+            <div style={{ background: '#F9FAFB', padding: '24px', borderRadius: '12px', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '32px' }}>
+              <div>
+                <p style={{ margin: '0 0 8px' }}><strong>PO Number:</strong> {newVersionLabel}</p>
+                <p style={{ margin: '0 0 8px' }}><strong>Customer:</strong> {customers.find(c => c.id == selectedCustomer)?.name}</p>
+                <p style={{ margin: '0 0 8px' }}><strong>Location:</strong> {locations.find(l => l.id == selectedLocation)?.label}</p>
+                <p style={{ margin: 0 }}><strong>Dates:</strong> {poDetails?.po_date} | {poDetails?.start_date} to {poDetails?.end_date}</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>Overall Revised Subtotal</p>
+                <p style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px', color: '#374151' }}>₹{items.reduce((s, i) => s + (i.rev_total_taxable || 0), 0).toLocaleString()}</p>
+                <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>Overall Revised Grand Total</p>
+                <p style={{ fontSize: '2rem', fontWeight: 900, margin: 0, color: '#10B981' }}>₹{items.reduce((s, i) => s + (i.rev_total_invoice || 0), 0).toLocaleString()}</p>
+              </div>
+            </div>
+
+            <h4 style={{ marginBottom: '16px', color: '#374151' }}>Package-wise Summary</h4>
+            <SummaryTable data={items} />
+
+            {/* <h4 style={{ marginBottom: '16px', color: '#374151', marginTop: '32px' }}>Detailed Review (All Items)</h4>
+            <ReviewDetailTable data={items} /> */}
+
+            <div style={{ marginTop: '40px', display: 'flex', gap: '16px' }}>
+              <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, padding: '20px', background: '#10B981', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 800, fontSize: '1.3rem', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)', transition: 'all 0.2s' }}>
+                {submitting ? 'Processing Revision...' : '✓ Confirm & Submit Revised Purchase Order'}
               </button>
             </div>
           </div>
         )}
 
       </div>
+    </div>
+  );
+}
+
+// --- Helper Components: Summary Tables using TanStack ---
+
+function SummaryTable({ data }) {
+  const summarizedData = React.useMemo(() => {
+    const summary = data.reduce((acc, it) => {
+      const pkg = it.package_name || 'General';
+      if (!acc[pkg]) {
+        acc[pkg] = { package_name: pkg, supply: 0, service: 0, gst: 0, total: 0 };
+      }
+      acc[pkg].supply += (it.rev_taxable_supply || 0);
+      acc[pkg].service += (it.rev_taxable_service || 0);
+      acc[pkg].gst += (it.rev_total_gst || 0);
+      acc[pkg].total += (it.rev_total_invoice || 0);
+      return acc;
+    }, {});
+    return Object.values(summary);
+  }, [data]);
+
+  const columns = React.useMemo(() => [
+    {
+      header: 'Package Name',
+      accessorKey: 'package_name',
+      cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue()}</span>,
+    },
+    {
+      header: 'Supply Value',
+      accessorKey: 'supply',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Service Value',
+      accessorKey: 'service',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'GST Amount',
+      accessorKey: 'gst',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Package Total',
+      accessorKey: 'total',
+      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString()}</span>,
+    }
+  ], []);
+
+  const table = useReactTable({
+    data: summarizedData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  return (
+    <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+        <thead style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+          {table.getHeaderGroups().map(headerGroup => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map(header => (
+                <th key={header.id} style={{ padding: '12px 16px', textAlign: 'left', color: '#4B5563', fontWeight: 700 }}>
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {table.getRowModel().rows.map(row => (
+            <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+              {row.getVisibleCells().map(cell => (
+                <td key={cell.id} style={{ padding: '12px 16px' }}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ReviewDetailTable({ data }) {
+  const columns = React.useMemo(() => [
+    { header: '#', accessorFn: (_, i) => i + 1, size: 40 },
+    { header: 'Ref No', accessorKey: 'ref_no' },
+    { header: 'Package', accessorKey: 'package_name' },
+    { header: 'Heading', accessorKey: 'heading' },
+    { header: 'Sub Heading', accessorKey: 'sub_heading' },
+    { header: 'Item Name', accessorKey: 'item_name' },
+    { header: 'UOM', accessorKey: 'uom' },
+    { header: 'S.Qty', accessorKey: 'rev_supply_qty' },
+    { header: 'S.Rate', accessorKey: 'rev_supply_rate', cell: info => `₹${info.getValue().toLocaleString()}` },
+    { header: 'S.GST%', accessorKey: 'rev_supply_gst_rate', cell: info => `${info.getValue()}%` },
+    { header: 'Sv.Qty', accessorKey: 'rev_service_qty' },
+    { header: 'Sv.Rate', accessorKey: 'rev_service_rate', cell: info => `₹${info.getValue().toLocaleString()}` },
+    { header: 'Sv.GST%', accessorKey: 'rev_service_gst_rate', cell: info => `${info.getValue()}%` },
+    { header: 'Taxable', accessorKey: 'rev_total_taxable', cell: info => `₹${info.getValue().toLocaleString()}` },
+    { header: 'GST', accessorKey: 'rev_total_gst', cell: info => `₹${info.getValue().toLocaleString()}` },
+    { header: 'Invoice', accessorKey: 'rev_total_invoice', cell: info => <span style={{ fontWeight: 700 }}>₹{info.getValue().toLocaleString()}</span> },
+  ], []);
+
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  return (
+    <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'auto', maxHeight: '500px' }}>
+      <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+        <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+          {table.getHeaderGroups().map(headerGroup => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map(header => (
+                <th key={header.id} style={{ padding: '10px 12px', textAlign: 'left', color: '#4B5563', fontWeight: 700, border: '1px solid #E5E7EB' }}>
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {table.getRowModel().rows.map(row => (
+            <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+              {row.getVisibleCells().map(cell => (
+                <td key={cell.id} style={{ padding: '8px 12px', border: '1px solid #E5E7EB' }}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
