@@ -446,7 +446,11 @@ app.get('/api/pos', authenticate, (req, res) => {
         p.customer_id, p.location_id,
         c.name as customer_name,
         cl.label as location_name,
+        cl.address_line1 as location_address,
         cl.city as location_city,
+        cl.state as location_state,
+        cl.pincode as location_pincode,
+        cl.gstin as location_gstin,
         (SELECT COUNT(*) FROM purchase_orders WHERE linked_po_id = p.id) as nt_count
       FROM purchase_orders p
       LEFT JOIN customers c ON p.customer_id = c.id
@@ -486,7 +490,13 @@ app.get('/api/pos/:id', authenticate, (req, res) => {
         c.name as customer_name,
         c.gstin as customer_gst,
         cl.label as location_name,
+        cl.address_line1 as location_address,
+        cl.address_line2 as location_address2,
+        cl.address_line3 as location_address3,
         cl.city as location_city,
+        cl.state as location_state,
+        cl.pincode as location_pincode,
+        cl.gstin as location_gstin,
         cl.contact_name as spoc_name,
         cl.contact_phone as spoc_phone
       FROM purchase_orders p
@@ -621,13 +631,14 @@ app.put('/api/pos/:id/status', authenticate, (req, res) => {
     const { status } = req.body;
     const valid = ['pending','nt_created','accepted','rejected',
                    'dc_raised','invoice_raised','closed'];
-    if (!valid.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    const statusToUpdate = status === 'approved' ? 'accepted' : status;
+    if (!valid.includes(statusToUpdate)) {
+      return res.status(400).json({ error: 'Invalid status: ' + status });
     }
     db.prepare(
       'UPDATE purchase_orders SET status = ? WHERE id = ?'
-    ).run(status, req.params.id);
-    res.json({ success: true, status });
+    ).run(statusToUpdate, req.params.id);
+    res.json({ success: true, status: statusToUpdate });
   } catch (err) {
     console.error('ERROR:', err);
     res.status(500).json({ error: err.message });
@@ -976,6 +987,25 @@ app.put('/api/dc/:id/status', authenticate, (req, res) => {
     const { status } = req.body;
     db.prepare('UPDATE delivery_challans SET status=? WHERE id=?').run(status, req.params.id);
     res.json({ success: true });
+  } catch(err) {
+    console.error('ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/dc-requests/pos', authenticate, (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT 
+        p.id, p.po_number as po, c.name as customer, p.grand_total,
+        cl.label as location_label, cl.city
+      FROM purchase_orders p
+      LEFT JOIN customers c ON p.customer_id = c.id
+      LEFT JOIN customer_locations cl ON p.location_id = cl.id
+      WHERE p.status = 'accepted'
+      ORDER BY p.created_at DESC
+    `).all();
+    res.json(rows);
   } catch(err) {
     console.error('ERROR:', err);
     res.status(500).json({ error: err.message });

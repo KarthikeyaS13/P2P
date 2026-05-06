@@ -874,7 +874,7 @@ export default function NewPO() {
                   style={{ width: '100%', padding: '12px', background: '#374151', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>download</span>
-                  Download Excel
+                  Download Template
                 </button>
               </div>
             </div>
@@ -1184,12 +1184,12 @@ function SummaryTable({ data }) {
     const summary = data.reduce((acc, it) => {
       const pkg = it.package_name || 'General';
       if (!acc[pkg]) {
-        acc[pkg] = { 
-          package_name: pkg, 
-          supply: 0, 
-          service: 0, 
-          gst: 0, 
-          total: 0 
+        acc[pkg] = {
+          package_name: pkg,
+          supply: 0,
+          service: 0,
+          gst: 0,
+          total: 0
         };
       }
       acc[pkg].supply += (it.taxable_supply || 0);

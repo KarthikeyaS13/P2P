@@ -51,7 +51,7 @@ export default function POReview() {
           package_name: it.package_name || '',
           heading: it.heading || '',
           sub_heading: it.sub_heading || '',
-          item_name: it.item_name || '',
+          item_name: it.item_name === 'Item' ? '' : (it.item_name || ''),
           description: it.description || '',
           uom: it.uom || '',
           supply_qty: it.supply_qty || 0,
@@ -234,6 +234,7 @@ export default function POReview() {
                     <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>{new Date(o.po_date || o.created_at).toLocaleDateString()}</span>
                   </div>
                   <p style={{ fontSize: '14px', marginTop: '8px', fontWeight: 500, color: 'var(--surface-on)' }}>{o.customer_name}</p>
+                  <p style={{ fontSize: '12px', color: 'var(--secondary)', marginTop: '2px' }}>{o.location_name || o.location_city || ''}</p>
                   <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>
                     Value: <span style={{ color: 'var(--primary)', fontWeight: 600 }}>₹{Number(o.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </p>
@@ -297,9 +298,11 @@ export default function POReview() {
                           <p style={{ fontSize: '11px', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Customer</p>
                           <p style={{ fontWeight: 600 }}>{poDetails.customer_name}</p>
                         </div>
-                        <div>
-                          <p style={{ fontSize: '11px', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Location</p>
-                          <p style={{ fontWeight: 600 }}>{poDetails.location_label || poDetails.city || "N/A"}</p>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <p style={{ fontSize: '11px', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Delivery Location</p>
+                          <p style={{ fontWeight: 600, margin: 0 }}>{poDetails.location_name} - {poDetails.location_city}, {poDetails.location_state}</p>
+                          <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>{poDetails.location_address}</p>
+                          <p style={{ fontSize: '13px', color: 'var(--secondary)' }}>GSTIN: <span style={{ color: 'var(--surface-on)', fontWeight: 500 }}>{poDetails.location_gstin || 'N/A'}</span></p>
                         </div>
                       </div>
                     </div>
@@ -319,7 +322,7 @@ export default function POReview() {
                         ></textarea>
                       </div>
                       <div style={{ display: 'flex', gap: '12px' }}>
-                        <button className="btn btn-success" style={{ flex: 1 }} onClick={() => updatePOStatus('approved')} disabled={actionLoading}>Approve</button>
+                        <button className="btn btn-success" style={{ flex: 1 }} onClick={() => updatePOStatus('accepted')} disabled={actionLoading}>Approve</button>
                         <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => updatePOStatus('rejected')} disabled={actionLoading}>Reject</button>
                       </div>
                     </div>

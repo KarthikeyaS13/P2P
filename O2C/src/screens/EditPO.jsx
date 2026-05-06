@@ -764,7 +764,7 @@ function ReviewDetailTable({ data }) {
     { header: 'Package', accessorKey: 'package_name' },
     { header: 'Heading', accessorKey: 'heading' },
     { header: 'Sub Heading', accessorKey: 'sub_heading' },
-    { header: 'Item Name', accessorKey: 'item_name' },
+    { header: 'Item Name', accessorKey: 'item_name', cell: info => info.getValue() === 'Item' ? '' : info.getValue() },
     { header: 'UOM', accessorKey: 'uom' },
     { header: 'S.Qty', accessorKey: 'rev_supply_qty' },
     { header: 'S.Rate', accessorKey: 'rev_supply_rate', cell: info => `₹${info.getValue().toLocaleString()}` },
