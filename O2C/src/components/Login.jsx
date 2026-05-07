@@ -35,22 +35,22 @@ export default function Login({ onSuccess }) {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Username</label>
-            <input 
-              type="text" 
-              className="form-control" 
-              required 
-              placeholder="admin or sales1" 
+            <input
+              type="text"
+              className="form-control"
+              required
+              placeholder="admin or sales1"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
           </div>
           <div className="form-group" style={{ marginTop: '16px' }}>
             <label className="form-label">Password</label>
-            <input 
-              type="password" 
-              className="form-control" 
-              required 
-              placeholder="password123" 
+            <input
+              type="password"
+              className="form-control"
+              required
+              placeholder="password123"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -61,9 +61,12 @@ export default function Login({ onSuccess }) {
           </button>
         </form>
         <div style={{ marginTop: '24px', fontSize: '12px', color: 'var(--secondary)', textAlign: 'center' }}>
-          Available test accounts:<br/>
-          admin / password123 (Admin Role)<br/>
-          sales1 / password123 (Sales Role)
+          Available test accounts:<br />
+          admin / password123 (Admin Role)<br />
+          sales1 / password123 (Sales Role)<br />
+          accounts / password123 (Accounts Role)<br />
+          stores / password123 (Stores Role)<br />
+          {/* auditor / password123 (Auditor Role) */}
         </div>
       </div>
     </div>

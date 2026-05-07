@@ -30,7 +30,9 @@ export default function NewPO() {
     poNumber: '',
     poDate: new Date().toISOString().split('T')[0],
     startDate: '',
-    endDate: ''
+    endDate: '',
+    contactName: '',
+    contactPhone: ''
   });
 
   // Attachments State
@@ -63,7 +65,7 @@ export default function NewPO() {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         const res = await axios.get('http://localhost:3000/api/customers', { headers });
         setCustomers(Array.isArray(res.data) ? res.data : []);
@@ -107,7 +109,7 @@ export default function NewPO() {
     const fetchLocations = async () => {
       if (basicDetails.customerId) {
         try {
-          const token = localStorage.getItem('token');
+          const token = sessionStorage.getItem('token');
           const headers = { Authorization: `Bearer ${token}` };
           const res = await axios.get(`http://localhost:3000/api/locations?customer_id=${basicDetails.customerId}`, { headers });
           setLocations(Array.isArray(res.data) ? res.data : []);
@@ -127,7 +129,17 @@ export default function NewPO() {
 
   const handleBasicChange = (e) => {
     const { name, value } = e.target;
-    setBasicDetails(prev => ({ ...prev, [name]: value }));
+    if (name === 'locationId') {
+      const loc = locations.find(l => String(l.id) === String(value));
+      setBasicDetails(prev => ({
+        ...prev,
+        locationId: value,
+        contactName: loc ? (loc.contact_name || '') : '',
+        contactPhone: loc ? (loc.contact_phone || '') : ''
+      }));
+    } else {
+      setBasicDetails(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleFileChange = (type, file) => {
@@ -141,7 +153,7 @@ export default function NewPO() {
     if (attachments.other) formData.append('other', attachments.other);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' };
       const res = await axios.post('http://localhost:3000/api/upload-multi', formData, { headers });
       setAttachmentPaths(res.data);
@@ -589,8 +601,8 @@ export default function NewPO() {
 
   const nextStep = async () => {
     if (step === 1) {
-      if (!basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber) {
-        return alert('Please fill basic details');
+      if (!basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber || !basicDetails.contactName || !basicDetails.contactPhone) {
+        return alert('Please fill all basic details including SPOC contact');
       }
 
       setLoading(true);
@@ -670,7 +682,7 @@ export default function NewPO() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
       if (!basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber) {
@@ -819,6 +831,16 @@ export default function NewPO() {
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>PO Number</label>
                   <input name="poNumber" value={basicDetails.poNumber} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
                 </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>SPOC Name <span style={{ color: 'red' }}>*</span></label>
+                    <input name="contactName" value={basicDetails.contactName} onChange={handleBasicChange} placeholder="Primary Contact Name" style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>SPOC Phone <span style={{ color: 'red' }}>*</span></label>
+                    <input name="contactPhone" value={basicDetails.contactPhone} onChange={handleBasicChange} placeholder="Primary Phone" style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
+                  </div>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>PO Date</label>
@@ -882,10 +904,10 @@ export default function NewPO() {
             <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #E5E7EB', paddingTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={nextStep}
-                disabled={loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber}
+                disabled={loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber || !basicDetails.contactName || !basicDetails.contactPhone}
                 style={{
                   padding: '12px 32px',
-                  background: (loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber) ? '#9CA3AF' : '#3B82F6',
+                  background: (loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber || !basicDetails.contactName || !basicDetails.contactPhone) ? '#9CA3AF' : '#3B82F6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
@@ -893,7 +915,7 @@ export default function NewPO() {
                   cursor: (loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber) ? 'not-allowed' : 'pointer'
                 }}
               >
-                {loading ? 'Uploading...' : 'Next: Review Items →'}
+                {loading ? 'Uploading...' : 'Review'}
               </button>
             </div>
           </div>
@@ -1041,7 +1063,7 @@ export default function NewPO() {
 
             <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
               <button onClick={() => setStep(1)} style={{ padding: '12px 24px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '6px', cursor: 'pointer' }}>← Back</button>
-              <button onClick={nextStep} style={{ padding: '12px 32px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>Next: Final Summary →</button>
+              <button onClick={nextStep} style={{ padding: '12px 32px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>Review</button>
             </div>
           </div>
         )}
@@ -1069,7 +1091,7 @@ export default function NewPO() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
               <button onClick={() => setStep(2)} style={{ padding: '12px 24px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '6px', cursor: 'pointer' }}>← Edit Items</button>
               <button onClick={handleSubmit} disabled={submitting} style={{ padding: '12px 40px', background: '#059669', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}>
-                {submitting ? 'Creating PO...' : '✓ Confirm & Create PO'}
+                {submitting ? 'Creating PO...' : '✓ Confirm & Submit PO'}
               </button>
             </div>
           </div>
@@ -1179,23 +1201,28 @@ export default function NewPO() {
 
 // --- Helper Component: Summary Table using TanStack ---
 function SummaryTable({ data }) {
-  // Summarize data by package
   const summarizedData = React.useMemo(() => {
     const summary = data.reduce((acc, it) => {
       const pkg = it.package_name || 'General';
       if (!acc[pkg]) {
-        acc[pkg] = {
-          package_name: pkg,
-          supply: 0,
-          service: 0,
-          gst: 0,
-          total: 0
+        acc[pkg] = { 
+          package_name: pkg, 
+          supply_taxable: 0, 
+          supply_gst: 0, 
+          service_taxable: 0, 
+          service_gst: 0, 
+          total_taxable: 0, 
+          total_gst: 0, 
+          total_invoice: 0 
         };
       }
-      acc[pkg].supply += (it.taxable_supply || 0);
-      acc[pkg].service += (it.taxable_service || 0);
-      acc[pkg].gst += (it.total_gst || 0);
-      acc[pkg].total += (it.total_invoice || 0);
+      acc[pkg].supply_taxable += (it.taxable_supply || 0);
+      acc[pkg].supply_gst += (it.gst_supply || 0);
+      acc[pkg].service_taxable += (it.taxable_service || 0);
+      acc[pkg].service_gst += (it.gst_service || 0);
+      acc[pkg].total_taxable += (it.total_taxable || 0);
+      acc[pkg].total_gst += (it.total_gst || 0);
+      acc[pkg].total_invoice += (it.total_invoice || 0);
       return acc;
     }, {});
     return Object.values(summary);
@@ -1208,23 +1235,38 @@ function SummaryTable({ data }) {
       cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue()}</span>,
     },
     {
-      header: 'Supply Value',
-      accessorKey: 'supply',
+      header: 'Supply Tax Value',
+      accessorKey: 'supply_taxable',
       cell: info => `₹${info.getValue().toLocaleString()}`,
     },
     {
-      header: 'Service Value',
-      accessorKey: 'service',
+      header: 'Supply GST',
+      accessorKey: 'supply_gst',
       cell: info => `₹${info.getValue().toLocaleString()}`,
     },
     {
-      header: 'GST Amount',
-      accessorKey: 'gst',
+      header: 'Service Tax Value',
+      accessorKey: 'service_taxable',
       cell: info => `₹${info.getValue().toLocaleString()}`,
     },
     {
-      header: 'Package Total',
-      accessorKey: 'total',
+      header: 'Service GST',
+      accessorKey: 'service_gst',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Total Tax Value',
+      accessorKey: 'total_taxable',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total GST',
+      accessorKey: 'total_gst',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total Invoice',
+      accessorKey: 'total_invoice',
       cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString()}</span>,
     }
   ], []);
@@ -1235,32 +1277,63 @@ function SummaryTable({ data }) {
     getCoreRowModel: getCoreRowModel(),
   });
 
+  const grandTotals = summarizedData.reduce((acc, row) => ({
+    supply_taxable: acc.supply_taxable + row.supply_taxable,
+    supply_gst: acc.supply_gst + row.supply_gst,
+    service_taxable: acc.service_taxable + row.service_taxable,
+    service_gst: acc.service_gst + row.service_gst,
+    total_taxable: acc.total_taxable + row.total_taxable,
+    total_gst: acc.total_gst + row.total_gst,
+    total_invoice: acc.total_invoice + row.total_invoice
+  }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
+
   return (
-    <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '32px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-        <thead style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-          {table.getHeaderGroups().map(headerGroup => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
-                <th key={header.id} style={{ padding: '12px', textAlign: 'left', color: '#4B5563', fontWeight: 700 }}>
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
+    <div style={{ marginBottom: '32px' }}>
+      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '16px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+          <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id} style={{ padding: '12px', textAlign: 'left', color: '#4B5563', fontWeight: 700, borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map(row => (
+              <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id} style={{ padding: '10px 12px', borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot style={{ background: '#F9FAFB', fontWeight: 700, borderTop: '2px solid #E5E7EB' }}>
+            <tr>
+              <td style={{ padding: '12px' }}>TOTAL</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.supply_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.supply_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.service_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.service_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.total_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.total_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString()}</td>
             </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
-              {row.getVisibleCells().map(cell => (
-                <td key={cell.id} style={{ padding: '10px 12px' }}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </tfoot>
+        </table>
+      </div>
+      
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
+          <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Final Grand Total</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString()}</p>
+        </div>
+      </div>
     </div>
   );
 }

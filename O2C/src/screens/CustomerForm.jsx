@@ -36,7 +36,7 @@ export default function CustomerForm() {
 
   useEffect(() => {
     if (isEdit) {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       axios.get(`http://localhost:3000/api/customers/${id}`, { headers })
         .then(res => setForm(res.data))
@@ -70,6 +70,8 @@ export default function CustomerForm() {
     if (form.pan && form.pan.length !== 10) errors.push('PAN must be 10 characters');
     if (form.contact_phone && form.contact_phone.length !== 10) errors.push('Contact number must be 10 digits');
     if (!form.pincode?.trim()) errors.push('Pincode required');
+    if (!form.contact_name?.trim()) errors.push('Contact Person Name (SPOC 1) is mandatory');
+    if (!form.contact_phone?.trim()) errors.push('Contact Phone (SPOC 1) is mandatory');
     
     if (errors.length > 0) {
       alert(errors.join('\n'));
@@ -77,7 +79,7 @@ export default function CustomerForm() {
     }
 
     setSubmitting(true);
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
 
     const payload = {
@@ -145,7 +147,7 @@ export default function CustomerForm() {
       <form onSubmit={handleSubmit} style={{ background: 'white', padding: '32px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         
         {/* Section 1 - Basic Info */}
-        <h3 style={sectionTitleStyle}>Section 1 - Basic Info</h3>
+        <h3 style={sectionTitleStyle}>Basic Info</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
           <div>
             <label style={labelStyle}>Customer Name (Internal) *</label>
@@ -170,7 +172,7 @@ export default function CustomerForm() {
         </div>
 
         {/* Section 2 - Corporate Address */}
-        <h3 style={sectionTitleStyle}>Section 2 - Corporate Address</h3>
+        <h3 style={sectionTitleStyle}>Corporate Address</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
           <div>
             <label style={labelStyle}>Address Line 1 *</label>
@@ -199,10 +201,10 @@ export default function CustomerForm() {
         </div>
 
         {/* Section 3 - Contact SPOC 1 */}
-        <h3 style={sectionTitleStyle}>Section 3 - Contact SPOC 1</h3>
+        <h3 style={sectionTitleStyle}>Contact SPOC 1</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
           <div>
-            <label style={labelStyle}>Contact Person Name</label>
+            <label style={labelStyle}>Contact Person Name *</label>
             <input name="contact_name" value={form.contact_name} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
@@ -214,13 +216,13 @@ export default function CustomerForm() {
             <input type="email" name="contact_email" value={form.contact_email} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Official Phone (10 digits)</label>
+            <label style={labelStyle}>Official Phone (10 digits) *</label>
             <input name="contact_phone" value={form.contact_phone} onChange={handleChange} style={inputStyle} />
           </div>
         </div>
 
         {/* Section 4 - Contact SPOC 2 */}
-        <h3 style={sectionTitleStyle}>Section 4 - Contact SPOC 2</h3>
+        <h3 style={sectionTitleStyle}>Contact SPOC 2</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
           <div>
             <label style={labelStyle}>Contact Person Name</label>

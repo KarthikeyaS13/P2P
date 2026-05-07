@@ -159,7 +159,7 @@ export default function NewNTPO() {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         const res = await axios.get('http://localhost:3000/api/customers', { headers });
         setCustomers(Array.isArray(res.data) ? res.data : []);
@@ -214,7 +214,7 @@ export default function NewNTPO() {
     const fetchLocations = async () => {
       if (selectedCustomer) {
         try {
-          const token = localStorage.getItem('token');
+          const token = sessionStorage.getItem('token');
           const headers = { Authorization: `Bearer ${token}` };
           const res = await axios.get(`http://localhost:3000/api/locations?customer_id=${selectedCustomer}`, { headers });
           setLocations(Array.isArray(res.data) ? res.data : []);
@@ -237,7 +237,7 @@ export default function NewNTPO() {
     setHasOriginalPO(hasIt);
     if (hasIt) {
       try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         const res = await axios.get('http://localhost:3000/api/pos?type=original', { headers });
         setOriginalPOs(Array.isArray(res.data) ? res.data : []);
@@ -280,15 +280,14 @@ export default function NewNTPO() {
 
     // Add Top Status Labels (Row 1)
     const statusLabels = [
-      'AUTO', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 
-      'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', '', 
-      'AUTO CAL', 'AUTO CAL', 'AUTO CAL', 'AUTO CAL', 'AUTO CAL', 'AUTO CAL', 
+      'AUTO', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY',
+      'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY', 'ENRTY',
+      'AUTO CAL', 'AUTO CAL', 'AUTO CAL', 'AUTO CAL', 'AUTO CAL', 'AUTO CAL',
       'AUTO CAL', 'AUTO CAL', 'AUTO CAL'
     ];
     const statusRow = worksheet.getRow(1);
     statusRow.values = statusLabels;
     statusRow.eachCell((cell, colNum) => {
-      if (colNum === 15) return;
       cell.font = { bold: true, size: 9, color: { argb: 'FF444444' } };
       cell.alignment = { horizontal: 'center' };
     });
@@ -298,7 +297,6 @@ export default function NewNTPO() {
       'Sl no (SYS GEN)', 'Ref No', 'Package', 'Heading', 'Sub Heading (if Any)',
       'Item Name', 'Item Description', 'UOM', 'Supply QTY', 'Supply Rate',
       'Supply GST', 'Service QTY', 'Service Rate', 'Service GST',
-      '', // Spacing
       'Taxable Value of Supply', 'GST on Supply', 'Invoice Value of Supply',
       'Taxable Value of SERVICE', 'GST on SERVICE', 'Invoice Value of SERVICE',
       'TOTAL Taxable Value', 'TOTAL GST', 'TOTAL Invoice Value'
@@ -307,7 +305,7 @@ export default function NewNTPO() {
     const tableHeaderRow = worksheet.getRow(2);
     tableHeaderRow.values = headers;
     tableHeaderRow.eachCell((cell, colNum) => {
-      const isAutoCal = colNum >= 16;
+      const isAutoCal = colNum >= 15;
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAutoCal ? 'FF4F81BD' : 'FF0070C0' } };
       cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 9 };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -319,7 +317,7 @@ export default function NewNTPO() {
       else if (colNum === 6) column.width = 25;
       else if (colNum === 7) column.width = 30;
       else if (colNum >= 9 && colNum <= 14) column.width = 12;
-      else if (colNum >= 16) column.width = 18;
+      else column.width = 18;
     });
     tableHeaderRow.height = 45;
 
@@ -328,29 +326,28 @@ export default function NewNTPO() {
       const row = worksheet.getRow(i);
       row.getCell(1).value = i - 2;
 
-      // P: Taxable Supply (I*J), Q: GST Supply (P*K/100), R: Invoice Supply (P+Q)
-      row.getCell(16).value = { formula: `I${i}*J${i}` };
-      row.getCell(17).value = { formula: `P${i}*(K${i}/100)` };
-      row.getCell(18).value = { formula: `P${i}+Q${i}` };
+      // O: Taxable Supply (I*J), P: GST Supply (O*K/100), Q: Invoice Supply (O+P)
+      row.getCell(15).value = { formula: `I${i}*J${i}` };
+      row.getCell(16).value = { formula: `O${i}*(K${i}/100)` };
+      row.getCell(17).value = { formula: `O${i}+P${i}` };
 
-      // S: Taxable Service (L*M), T: GST Service (S*N/100), U: Invoice Service (S+T)
-      row.getCell(19).value = { formula: `L${i}*M${i}` };
-      row.getCell(20).value = { formula: `S${i}*(N${i}/100)` };
-      row.getCell(21).value = { formula: `S${i}+T${i}` };
+      // R: Taxable Service (L*M), S: GST Service (R*N/100), T: Invoice Service (R+S)
+      row.getCell(18).value = { formula: `L${i}*M${i}` };
+      row.getCell(19).value = { formula: `R${i}*(N${i}/100)` };
+      row.getCell(20).value = { formula: `R${i}+S${i}` };
 
-      // V: Total Taxable (P+S), W: Total GST (Q+T), X: Total Invoice (V+W)
+      // U: Total Taxable (O+R), V: Total GST (P+S), W: Total Invoice (U+V)
+      row.getCell(21).value = { formula: `O${i}+R${i}` };
       row.getCell(22).value = { formula: `P${i}+S${i}` };
-      row.getCell(23).value = { formula: `Q${i}+T${i}` };
-      row.getCell(24).value = { formula: `V${i}+W${i}` };
+      row.getCell(23).value = { formula: `U${i}+V${i}` };
 
-      for (let colNum = 1; colNum <= 24; colNum++) {
-        if (colNum === 15) continue;
+      for (let colNum = 1; colNum <= 23; colNum++) {
         const cell = row.getCell(colNum);
         cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
         if (colNum === 1) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
           cell.alignment = { horizontal: 'center' };
-        } else if (colNum >= 16) {
+        } else if (colNum >= 15) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
           cell.numFmt = '#,##0.00';
         }
@@ -368,7 +365,7 @@ export default function NewNTPO() {
     if (attachments.other) formData.append('other', attachments.other);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' };
       const res = await axios.post('http://localhost:3000/api/upload-multi', formData, { headers });
       setAttachmentPaths(res.data);
@@ -680,7 +677,7 @@ export default function NewNTPO() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
       const subtotal = items.reduce((acc, it) => acc + (it.total_taxable || 0), 0);
@@ -868,7 +865,7 @@ export default function NewNTPO() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => { handleDownloadTemplate(); nextStep(); }} style={{ marginTop: '30px', width: '100%', padding: '12px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600 }}>{loading ? 'Uploading Files...' : 'Download Template & Continue →'}</button>
+              <button onClick={() => { handleDownloadTemplate(); nextStep(); }} style={{ marginTop: '30px', width: '100%', padding: '12px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600 }}>{loading ? 'Uploading Files...' : 'Download Template'}</button>
             </div>
           </div>
         )}
@@ -1140,7 +1137,7 @@ export default function NewNTPO() {
             <SummaryTable data={items} />
             <div style={{ display: 'flex', gap: '15px', marginTop: '30px' }}>
               <button onClick={() => setStep(4)} style={{ padding: '12px 24px', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '6px', fontWeight: 600 }}>← Edit Items</button>
-              <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, padding: '12px 24px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '1.1rem', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Creating NT PO...' : '✓ Confirm & Create NT PO'}</button>
+              <button onClick={handleSubmit} disabled={submitting} style={{ flex: 1, padding: '12px 24px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '1.1rem', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Creating NT PO...' : '✓ Confirm & Submit NT PO'}</button>
             </div>
           </div>
         )}
@@ -1155,12 +1152,24 @@ function SummaryTable({ data }) {
     const summary = data.reduce((acc, it) => {
       const pkg = it.package_name || 'General';
       if (!acc[pkg]) {
-        acc[pkg] = { package_name: pkg, supply: 0, service: 0, gst: 0, total: 0 };
+        acc[pkg] = { 
+          package_name: pkg, 
+          supply_taxable: 0, 
+          supply_gst: 0, 
+          service_taxable: 0, 
+          service_gst: 0, 
+          total_taxable: 0, 
+          total_gst: 0, 
+          total_invoice: 0 
+        };
       }
-      acc[pkg].supply += (it.total_taxable_supply || it.taxable_supply || 0);
-      acc[pkg].service += (it.total_taxable_service || it.taxable_service || 0);
-      acc[pkg].gst += (it.total_gst || 0);
-      acc[pkg].total += (it.total_invoice || 0);
+      acc[pkg].supply_taxable += (it.taxable_supply || 0);
+      acc[pkg].supply_gst += (it.gst_supply || 0);
+      acc[pkg].service_taxable += (it.taxable_service || 0);
+      acc[pkg].service_gst += (it.gst_service || 0);
+      acc[pkg].total_taxable += (it.total_taxable || 0);
+      acc[pkg].total_gst += (it.total_gst || 0);
+      acc[pkg].total_invoice += (it.total_invoice || 0);
       return acc;
     }, {});
     return Object.values(summary);
@@ -1173,23 +1182,38 @@ function SummaryTable({ data }) {
       cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue()}</span>,
     },
     {
-      header: 'Supply Value',
-      accessorKey: 'supply',
+      header: 'Supply Tax Value',
+      accessorKey: 'supply_taxable',
       cell: info => `₹${info.getValue().toLocaleString()}`,
     },
     {
-      header: 'Service Value',
-      accessorKey: 'service',
+      header: 'Supply GST',
+      accessorKey: 'supply_gst',
       cell: info => `₹${info.getValue().toLocaleString()}`,
     },
     {
-      header: 'GST Amount',
-      accessorKey: 'gst',
+      header: 'Service Tax Value',
+      accessorKey: 'service_taxable',
       cell: info => `₹${info.getValue().toLocaleString()}`,
     },
     {
-      header: 'Package Total',
-      accessorKey: 'total',
+      header: 'Service GST',
+      accessorKey: 'service_gst',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Total Tax Value',
+      accessorKey: 'total_taxable',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total GST',
+      accessorKey: 'total_gst',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total Invoice',
+      accessorKey: 'total_invoice',
       cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString()}</span>,
     }
   ], []);
@@ -1200,32 +1224,63 @@ function SummaryTable({ data }) {
     getCoreRowModel: getCoreRowModel(),
   });
 
+  const grandTotals = summarizedData.reduce((acc, row) => ({
+    supply_taxable: acc.supply_taxable + row.supply_taxable,
+    supply_gst: acc.supply_gst + row.supply_gst,
+    service_taxable: acc.service_taxable + row.service_taxable,
+    service_gst: acc.service_gst + row.service_gst,
+    total_taxable: acc.total_taxable + row.total_taxable,
+    total_gst: acc.total_gst + row.total_gst,
+    total_invoice: acc.total_invoice + row.total_invoice
+  }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
+
   return (
-    <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '32px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-        <thead style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-          {table.getHeaderGroups().map(headerGroup => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
-                <th key={header.id} style={{ padding: '12px', textAlign: 'left', color: '#4B5563', fontWeight: 700 }}>
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
+    <div style={{ marginBottom: '32px' }}>
+      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '16px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+          <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id} style={{ padding: '12px', textAlign: 'left', color: '#4B5563', fontWeight: 700, borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map(row => (
+              <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id} style={{ padding: '10px 12px', borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot style={{ background: '#F9FAFB', fontWeight: 700, borderTop: '2px solid #E5E7EB' }}>
+            <tr>
+              <td style={{ padding: '12px' }}>TOTAL</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.supply_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.supply_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.service_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.service_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.total_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px' }}>₹{grandTotals.total_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString()}</td>
             </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
-              {row.getVisibleCells().map(cell => (
-                <td key={cell.id} style={{ padding: '10px 12px' }}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </tfoot>
+        </table>
+      </div>
+      
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
+          <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Final Grand Total</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString()}</p>
+        </div>
+      </div>
     </div>
   );
 }

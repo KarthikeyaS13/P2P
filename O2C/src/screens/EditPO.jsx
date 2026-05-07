@@ -101,7 +101,7 @@ export default function EditPO() {
   useEffect(() => {
     const fetchInitial = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         const [cRes, pRes] = await Promise.all([
           axios.get('http://localhost:3000/api/customers', { headers }),
@@ -125,7 +125,7 @@ export default function EditPO() {
     setLocations([]);
     if (val) {
       try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         const res = await axios.get(`http://localhost:3000/api/locations?customer_id=${val}`, { headers });
         setLocations(Array.isArray(res.data) ? res.data : []);
@@ -143,7 +143,7 @@ export default function EditPO() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`http://localhost:3000/api/pos/${poId}`, { headers });
       const data = res.data;
@@ -165,7 +165,7 @@ export default function EditPO() {
       setSelectedPO(poId);
 
       // Restore from local storage if exists
-      const savedDraft = localStorage.getItem(`edit_po_draft_${poId}`);
+      const savedDraft = sessionStorage.getItem(`edit_po_draft_${poId}`);
       if (savedDraft) {
         setItems(JSON.parse(savedDraft));
       }
@@ -180,7 +180,7 @@ export default function EditPO() {
   // Save draft to local storage on change
   useEffect(() => {
     if (selectedPO && items.length > 0) {
-      localStorage.setItem(`edit_po_draft_${selectedPO}`, JSON.stringify(items));
+      sessionStorage.setItem(`edit_po_draft_${selectedPO}`, JSON.stringify(items));
     }
   }, [items, selectedPO]);
 
@@ -209,7 +209,7 @@ export default function EditPO() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
       const subtotal = items.reduce((acc, it) => acc + (it.rev_total_taxable || 0), 0);
@@ -252,7 +252,7 @@ export default function EditPO() {
       await axios.put(`http://localhost:3000/api/pos/${poDetails.id}`, payload, { headers });
 
       // Clear draft after successful submission
-      localStorage.removeItem(`edit_po_draft_${poDetails.id}`);
+      sessionStorage.removeItem(`edit_po_draft_${poDetails.id}`);
 
       alert('PO Revised successfully!');
       navigate('/dashboard');
@@ -623,7 +623,7 @@ export default function EditPO() {
 
             <div style={{ marginTop: '32px', display: 'flex', gap: '16px' }}>
               <button onClick={nextStep} style={{ flex: 1, padding: '18px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 800, fontSize: '1.2rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.3)', transition: 'all 0.2s' }}>
-                Next: Review Revised Summary →
+                Review
               </button>
             </div>
           </div>
@@ -682,12 +682,24 @@ function SummaryTable({ data }) {
     const summary = data.reduce((acc, it) => {
       const pkg = it.package_name || 'General';
       if (!acc[pkg]) {
-        acc[pkg] = { package_name: pkg, supply: 0, service: 0, gst: 0, total: 0 };
+        acc[pkg] = { 
+          package_name: pkg, 
+          supply_taxable: 0, 
+          supply_gst: 0, 
+          service_taxable: 0, 
+          service_gst: 0, 
+          total_taxable: 0, 
+          total_gst: 0, 
+          total_invoice: 0 
+        };
       }
-      acc[pkg].supply += (it.rev_taxable_supply || 0);
-      acc[pkg].service += (it.rev_taxable_service || 0);
-      acc[pkg].gst += (it.rev_total_gst || 0);
-      acc[pkg].total += (it.rev_total_invoice || 0);
+      acc[pkg].supply_taxable += (it.rev_taxable_supply || 0);
+      acc[pkg].supply_gst += (it.rev_gst_supply || 0);
+      acc[pkg].service_taxable += (it.rev_taxable_service || 0);
+      acc[pkg].service_gst += (it.rev_gst_service || 0);
+      acc[pkg].total_taxable += (it.rev_total_taxable || 0);
+      acc[pkg].total_gst += (it.rev_total_gst || 0);
+      acc[pkg].total_invoice += (it.rev_total_invoice || 0);
       return acc;
     }, {});
     return Object.values(summary);
@@ -700,23 +712,38 @@ function SummaryTable({ data }) {
       cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue()}</span>,
     },
     {
-      header: 'Supply Value',
-      accessorKey: 'supply',
+      header: 'Supply Tax Value',
+      accessorKey: 'supply_taxable',
       cell: info => `₹${info.getValue().toLocaleString()}`,
     },
     {
-      header: 'Service Value',
-      accessorKey: 'service',
+      header: 'Supply GST',
+      accessorKey: 'supply_gst',
       cell: info => `₹${info.getValue().toLocaleString()}`,
     },
     {
-      header: 'GST Amount',
-      accessorKey: 'gst',
+      header: 'Service Tax Value',
+      accessorKey: 'service_taxable',
       cell: info => `₹${info.getValue().toLocaleString()}`,
     },
     {
-      header: 'Package Total',
-      accessorKey: 'total',
+      header: 'Service GST',
+      accessorKey: 'service_gst',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Total Tax Value',
+      accessorKey: 'total_taxable',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total GST',
+      accessorKey: 'total_gst',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total Invoice',
+      accessorKey: 'total_invoice',
       cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString()}</span>,
     }
   ], []);
@@ -727,32 +754,63 @@ function SummaryTable({ data }) {
     getCoreRowModel: getCoreRowModel(),
   });
 
+  const grandTotals = summarizedData.reduce((acc, row) => ({
+    supply_taxable: acc.supply_taxable + row.supply_taxable,
+    supply_gst: acc.supply_gst + row.supply_gst,
+    service_taxable: acc.service_taxable + row.service_taxable,
+    service_gst: acc.service_gst + row.service_gst,
+    total_taxable: acc.total_taxable + row.total_taxable,
+    total_gst: acc.total_gst + row.total_gst,
+    total_invoice: acc.total_invoice + row.total_invoice
+  }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
+
   return (
-    <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-        <thead style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-          {table.getHeaderGroups().map(headerGroup => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
-                <th key={header.id} style={{ padding: '12px 16px', textAlign: 'left', color: '#4B5563', fontWeight: 700 }}>
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
+    <div style={{ marginBottom: '40px' }}>
+      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '20px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+          <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id} style={{ padding: '12px 16px', textAlign: 'left', color: '#4B5563', fontWeight: 700, borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map(row => (
+              <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id} style={{ padding: '12px 16px', borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot style={{ background: '#F9FAFB', fontWeight: 700, borderTop: '2px solid #E5E7EB' }}>
+            <tr>
+              <td style={{ padding: '12px 16px' }}>TOTAL</td>
+              <td style={{ padding: '12px 16px' }}>₹{grandTotals.supply_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px' }}>₹{grandTotals.supply_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px' }}>₹{grandTotals.service_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px' }}>₹{grandTotals.service_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px' }}>₹{grandTotals.total_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px' }}>₹{grandTotals.total_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString()}</td>
             </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
-              {row.getVisibleCells().map(cell => (
-                <td key={cell.id} style={{ padding: '12px 16px' }}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </tfoot>
+        </table>
+      </div>
+      
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ background: '#F0F9FF', padding: '20px 32px', borderRadius: '16px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '350px' }}>
+          <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase' }}>Revised Grand Total</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '2.5rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString()}</p>
+        </div>
+      </div>
     </div>
   );
 }

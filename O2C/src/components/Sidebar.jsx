@@ -12,26 +12,29 @@ export default function Sidebar() {
     { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   ];
 
+
   if (role === 'admin') {
     routes = routes.concat([
       { path: '/customers', label: 'Customers', icon: 'group' },
-      { path: '/purchase-orders', label: 'Purchase Orders', icon: 'receipt_long' },
-      { path: '/po-review', label: 'PO Review', icon: 'fact_check' },
-      { path: '/dc-request', label: 'DC Requests', icon: 'local_shipping' },
-      { path: '/new-invoice', label: 'Raise Invoice', icon: 'receipt' },
-      { path: '/ar-database', label: 'AR Database', icon: 'account_balance' },
-      { path: '/analytics', label: 'Analytics', icon: 'analytics' },
     ]);
-  } else if (role === 'accounts') {
+  } else if (role === 'sales') {
     routes = routes.concat([
-      { path: '/po-review', label: 'PO Review', icon: 'fact_check' },
-      { path: '/dc-request', label: 'DC Requests', icon: 'local_shipping' },
-      { path: '/new-invoice', label: 'Raise Invoice', icon: 'receipt' },
-      { path: '/ar-database', label: 'AR Database', icon: 'account_balance' },
+      { path: '/new-po', label: 'New PO', icon: 'add_shopping_cart' },
+      { path: '/edit-po', label: 'Edit PO', icon: 'edit_document' },
+      { path: '/invoice-request', label: 'Invoice Req', icon: 'receipt_long' },
+      { path: '/projects', label: 'Project Site', icon: 'location_on' },
     ]);
   } else if (role === 'stores') {
     routes = routes.concat([
       { path: '/dc-request', label: 'DC Requests', icon: 'local_shipping' },
+      { path: '/dispatch-confirmation', label: "Accepted DC's", icon: 'inventory' },
+    ]);
+  } else if (role === 'accounts') {
+    routes = routes.concat([
+      { path: '/po-review', label: 'PO Review', icon: 'rate_review' },
+      { path: '/raise-dc', label: 'Issue DC', icon: 'local_shipping' },
+      { path: '/invoice-approval', label: 'Invoice Approval', icon: 'receipt_long' },
+      { path: '/ar-database', label: 'AR Database', icon: 'payments' },
     ]);
   } else if (role === 'management') {
     routes = routes.concat([
@@ -39,7 +42,7 @@ export default function Sidebar() {
     ]);
   } else if (role === 'auditor') {
     routes = routes.concat([
-      { path: '/analytics', label: 'Audit Logs', icon: 'analytics' }, // Point to audit logs eventually
+      { path: '/analytics', label: 'Audit Logs', icon: 'analytics' },
     ]);
   }
 

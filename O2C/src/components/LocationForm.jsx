@@ -99,7 +99,7 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
     }
 
     setSubmitting(true);
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     const payload = { ...form, customer_id: customerId };
 

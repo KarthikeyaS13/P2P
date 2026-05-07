@@ -8,14 +8,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (token) {
       axios.get('http://localhost:3000/api/me', {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => setUser(res.data))
       .catch(() => {
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
         setUser(null);
       })
       .finally(() => setLoading(false));
@@ -25,12 +25,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = (token, userData) => {
-    localStorage.setItem('token', token);
+    sessionStorage.setItem('token', token);
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     setUser(null);
   };
 

@@ -26,6 +26,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- Migrations ---
 const migrations = [
+  "CREATE TABLE IF NOT EXISTS dc_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, po_id INTEGER, location_id INTEGER, dc_request_no TEXT, dispatch_date TEXT, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, transporter TEXT, special_instructions TEXT)",
+  "CREATE TABLE IF NOT EXISTS dc_request_items (id INTEGER PRIMARY KEY AUTOINCREMENT, dc_request_id INTEGER, line_item_id INTEGER, qty REAL)",
   "ALTER TABLE customers ADD COLUMN legal_name TEXT",
   "ALTER TABLE customers ADD COLUMN pan TEXT",
   "ALTER TABLE customers ADD COLUMN address_line1 TEXT",
@@ -76,12 +78,152 @@ const migrations = [
   "ALTER TABLE po_line_items ADD COLUMN edit_supply_gst_rate REAL",
   "ALTER TABLE po_line_items ADD COLUMN edit_service_qty REAL",
   "ALTER TABLE po_line_items ADD COLUMN edit_service_rate REAL",
-  "ALTER TABLE po_line_items ADD COLUMN edit_service_gst_rate REAL"
+  "ALTER TABLE po_line_items ADD COLUMN edit_service_gst_rate REAL",
+  "ALTER TABLE po_line_items ADD COLUMN qty_delivered REAL DEFAULT 0",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_cust_code ON customers(cust_code)",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_gstin ON customers(gstin)",
+  "ALTER TABLE delivery_challans ADD COLUMN manual_dc_number TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN dc_request_id INTEGER",
+  "ALTER TABLE dc_line_items ADD COLUMN hsn TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN vehicle_no TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN driver_name TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN driver_phone TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN lr_no TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN eway_bill_no TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN dispatch_proof_path TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN logistics_remarks TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN dispatched_at DATETIME",
+  "ALTER TABLE delivery_challans ADD COLUMN delivery_status TEXT DEFAULT 'awaiting_confirmation'",
+  "ALTER TABLE delivery_challans ADD COLUMN received_by TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN receiver_phone TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN receiver_designation TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN site_remarks TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN damage_remarks TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN shortage_remarks TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN pod_path TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN signed_dc_path TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN grn_path TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN site_photos_path TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN delivery_confirmed_at DATETIME",
+  "ALTER TABLE delivery_challans ADD COLUMN vehicle_no TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN driver_name TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN transporter TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN driver_phone TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN lr_no TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN eway_bill_no TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN dispatch_proof_path TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN logistics_remarks TEXT",
+  "ALTER TABLE delivery_challans ADD COLUMN dispatched_at DATETIME",
+  "ALTER TABLE dc_line_items ADD COLUMN received_qty REAL",
+  "ALTER TABLE dc_line_items ADD COLUMN item_condition TEXT DEFAULT 'OK'",
+  "ALTER TABLE dc_requests ADD COLUMN dispatch_from_address1 TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN dispatch_from_address2 TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN dispatch_from_pincode TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN dispatch_from_landmark TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN requested_dc_number TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN is_manual_dc BOOLEAN DEFAULT 0",
+  "ALTER TABLE dc_requests ADD COLUMN proof_path TEXT",
+  "ALTER TABLE dc_requests ADD COLUMN logistics_remarks TEXT",
+  "CREATE TABLE IF NOT EXISTS invoices (id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_number TEXT, po_id INTEGER, dc_id INTEGER, customer_id INTEGER, status TEXT DEFAULT 'raised', invoice_date TEXT, due_date TEXT, notes TEXT, subtotal REAL, gst_total REAL, grand_total REAL, place_of_supply TEXT, payment_terms TEXT, billing_address TEXT, shipping_address TEXT, created_by INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+  "ALTER TABLE invoices ADD COLUMN place_of_supply TEXT",
+  "ALTER TABLE invoices ADD COLUMN payment_terms TEXT",
+  "ALTER TABLE invoices ADD COLUMN billing_address TEXT",
+  "ALTER TABLE invoices ADD COLUMN shipping_address TEXT",
+  "ALTER TABLE invoices ADD COLUMN customer_id INTEGER",
+  "ALTER TABLE invoices ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP",
+  "ALTER TABLE invoices ADD COLUMN signature_data TEXT",
+  "CREATE TABLE IF NOT EXISTS invoice_items (id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER, po_line_item_id INTEGER, dc_line_item_id INTEGER, item_name TEXT, quantity REAL, rate REAL, gst_percent REAL, taxable_value REAL, gst_amount REAL, total_value REAL)",
+  "ALTER TABLE invoice_items ADD COLUMN item_name TEXT",
+  "ALTER TABLE invoice_items ADD COLUMN quantity REAL",
+  "ALTER TABLE invoice_items ADD COLUMN rate REAL",
+  "ALTER TABLE invoice_items ADD COLUMN gst_percent REAL",
+  "ALTER TABLE invoice_items ADD COLUMN taxable_value REAL",
+  "ALTER TABLE invoice_items ADD COLUMN gst_amount REAL",
+  "ALTER TABLE invoice_items ADD COLUMN total_value REAL",
+  "CREATE TABLE IF NOT EXISTS ar_entries (id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER, po_id INTEGER, customer_id INTEGER, amount_due REAL, amount_received REAL DEFAULT 0, balance REAL, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+  "CREATE TABLE IF NOT EXISTS ar_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER, amount REAL, payment_date TEXT, payment_mode TEXT, transaction_ref TEXT, recorded_by INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+  "ALTER TABLE dc_line_items ADD COLUMN invoiced_qty REAL DEFAULT 0",
+  "ALTER TABLE delivery_challans ADD COLUMN invoicing_status TEXT DEFAULT 'pending'"
 ];
 
 migrations.forEach(sql => {
-  try { db.exec(sql); } catch(e) {}
+  try {
+    db.prepare(sql).run();
+  } catch(e) {}
 });
+
+// One-time status migration for legacy data
+try {
+  db.prepare("UPDATE dc_requests SET status = 'dc_requested' WHERE status = 'pending'").run();
+} catch(e) {}
+
+const seed = () => {
+  const rolesCount = db.prepare('SELECT count(*) as count FROM roles').get().count;
+  if (rolesCount === 0) {
+    const r1 = db.prepare('INSERT INTO roles (name) VALUES (?)').run('accounts');
+    const r2 = db.prepare('INSERT INTO roles (name) VALUES (?)').run('stores');
+    const r3 = db.prepare('INSERT INTO roles (name) VALUES (?)').run('projects');
+  }
+};
+// --- Seed Accounts User ---
+try {
+  const accountsUser = db.prepare('SELECT id FROM users WHERE username = ?').get('accounts');
+  if (!accountsUser) {
+    const hash = bcrypt.hashSync('password123', 10);
+    const res = db.prepare('INSERT INTO users (username, full_name, password_hash) VALUES (?,?,?)').run('accounts', 'Accounts Department', hash);
+    const userId = res.lastInsertRowid;
+    
+    let roleId = db.prepare('SELECT id FROM roles WHERE name = ?').get('accounts')?.id;
+    if (!roleId) {
+      const r = db.prepare('INSERT INTO roles (name) VALUES (?)').run('accounts');
+      roleId = r.lastInsertRowid;
+    }
+    db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?,?)').run(userId, roleId);
+    console.log('Seeded accounts user successfully');
+  }
+} catch (err) {
+  console.error('Failed to seed accounts user:', err.message);
+}
+
+// --- Seed Stores User ---
+try {
+  const storesUser = db.prepare('SELECT id FROM users WHERE username = ?').get('stores');
+  if (!storesUser) {
+    const hash = bcrypt.hashSync('password123', 10);
+    const res = db.prepare('INSERT INTO users (username, full_name, password_hash) VALUES (?,?,?)').run('stores', 'Stores Department', hash);
+    const userId = res.lastInsertRowid;
+    
+    let roleId = db.prepare('SELECT id FROM roles WHERE name = ?').get('stores')?.id;
+    if (!roleId) {
+      const r = db.prepare('INSERT INTO roles (name) VALUES (?)').run('stores');
+      roleId = r.lastInsertRowid;
+    }
+    db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?,?)').run(userId, roleId);
+    console.log('Seeded stores user successfully');
+  }
+} catch (err) {
+  console.error('Failed to seed stores user:', err.message);
+}
+
+// --- Seed Projects User ---
+try {
+  const projectsUser = db.prepare('SELECT id FROM users WHERE username = ?').get('projects');
+  if (!projectsUser) {
+    const hash = bcrypt.hashSync('projects123', 10);
+    const res = db.prepare('INSERT INTO users (username, full_name, password_hash) VALUES (?,?,?)').run('projects', 'Projects Team', hash);
+    const userId = res.lastInsertRowid;
+    
+    let roleId = db.prepare('SELECT id FROM roles WHERE name = ?').get('projects')?.id;
+    if (!roleId) {
+      const r = db.prepare('INSERT INTO roles (name) VALUES (?)').run('projects');
+      roleId = r.lastInsertRowid;
+    }
+    db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?,?)').run(userId, roleId);
+    console.log('Seeded projects user successfully');
+  }
+} catch (err) {
+  console.error('Failed to seed projects user:', err.message);
+}
 
 // --- File upload ---
 const uploadDir = path.join(__dirname, 'uploads');
@@ -153,11 +295,20 @@ function auditLog(userId, action, module, recordId, details) {
 // --- Login ---
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-  const user = db.prepare(`SELECT u.id, u.username, u.full_name, u.password_hash, r.name as role
-    FROM users u JOIN user_roles ur ON u.id=ur.user_id JOIN roles r ON ur.role_id=r.id WHERE u.username=?`).get(username);
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
-  const token = jwt.sign({ id: user.id, username: user.username, role: user.role, full_name: user.full_name }, JWT_SECRET, { expiresIn: '1d' });
-  res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role } });
+  try {
+    const user = db.prepare(`SELECT u.id, u.username, u.full_name, u.password_hash, r.name as role
+      FROM users u JOIN user_roles ur ON u.id=ur.user_id JOIN roles r ON ur.role_id=r.id WHERE u.username=?`).get(username);
+    
+    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ id: user.id, username: user.username, role: user.role, full_name: user.full_name }, JWT_SECRET, { expiresIn: '1d' });
+    res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role } });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 app.get('/api/users/me', authenticate, (req, res) => res.json(req.user));
@@ -178,6 +329,7 @@ app.get('/api/dashboard', authenticate, (req, res) => {
       pending_pos: db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE status='pending'`).get().c,
       pending_dcs: db.prepare(`SELECT COUNT(*) as c FROM delivery_challans WHERE status IN ('draft','raised')`).get().c,
       pending_invoices: db.prepare(`SELECT COUNT(*) as c FROM invoices WHERE status IN ('draft','raised')`).get().c,
+      pending_invoice_requests: db.prepare(`SELECT COUNT(*) as c FROM delivery_challans WHERE delivery_status = 'delivery_confirmed'`).get().c,
       pending_ar: db.prepare(`SELECT COUNT(*) as c FROM ar_entries WHERE status IN ('pending','partial')`).get().c,
       total_customers: db.prepare(`SELECT COUNT(*) as c FROM customers`).get().c,
     };
@@ -254,6 +406,9 @@ app.post('/api/customers', requireRole(['admin']), (req, res) => {
     const existingCode = db.prepare('SELECT id FROM customers WHERE cust_code = ?').get(cust_code);
     if (existingCode) return res.status(400).json({ error: 'Customer ID already exists' });
 
+    const existingGST = db.prepare('SELECT id FROM customers WHERE gstin = ?').get(gstin);
+    if (existingGST) return res.status(400).json({ error: 'GSTIN already exists for another customer' });
+
     const result = db.prepare(`
       INSERT INTO customers (
         cust_code, name, legal_name, pan, gstin,
@@ -298,6 +453,12 @@ app.put('/api/customers/:id', requireRole(['admin']), (req, res) => {
     if (!gstin) return res.status(400).json({ error: 'GSTIN is required' });
     if (!pincode) return res.status(400).json({ error: 'Pincode is required' });
     if (!cust_code) return res.status(400).json({ error: 'Customer ID is required' });
+
+    const existingCode = db.prepare('SELECT id FROM customers WHERE cust_code = ? AND id != ?').get(cust_code, req.params.id);
+    if (existingCode) return res.status(400).json({ error: 'Customer ID already exists' });
+
+    const existingGST = db.prepare('SELECT id FROM customers WHERE gstin = ? AND id != ?').get(gstin, req.params.id);
+    if (existingGST) return res.status(400).json({ error: 'GSTIN already exists for another customer' });
 
     db.prepare(`
       UPDATE customers SET
@@ -447,6 +608,8 @@ app.get('/api/pos', authenticate, (req, res) => {
         c.name as customer_name,
         cl.label as location_name,
         cl.address_line1 as location_address,
+        cl.address_line2 as location_address2,
+        cl.address_line3 as location_address3,
         cl.city as location_city,
         cl.state as location_state,
         cl.pincode as location_pincode,
@@ -794,23 +957,99 @@ app.post('/api/parse-po-excel', requireRole(['sales','admin']), upload.single('d
 // --- Invoices & AR ---
 app.post('/api/invoices', authenticate, (req, res) => {
   try {
-    const { po_id, dc_id, customer_id, invoice_date, due_date, notes, subtotal, gst_total, grand_total } = req.body;
-    const invoice_number = 'INV-' + Date.now();
+    const { 
+      po_id, dc_id, customer_id, invoice_date, due_date, notes, 
+      subtotal, gst_total, grand_total, 
+      place_of_supply, payment_terms, billing_address, shipping_address,
+      items 
+    } = req.body;
+    
+    const userRole = req.user.role?.toLowerCase();
+    const isAccountsOrAdmin = userRole === 'accounts' || userRole === 'admin';
+    
+    let invoice_number;
+    let initialStatus;
+
+    if (isAccountsOrAdmin) {
+      // Generate official INV number
+      const lastInv = db.prepare("SELECT invoice_number FROM invoices WHERE status != 'requested' AND invoice_number LIKE 'INV/%' ORDER BY id DESC LIMIT 1").get();
+      let nextNum = 1;
+      if (lastInv && lastInv.invoice_number) {
+        const parts = lastInv.invoice_number.split('/');
+        if (parts.length >= 3) {
+          nextNum = parseInt(parts[2]) + 1;
+        }
+      }
+      invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
+      initialStatus = 'raised';
+    } else {
+      // Generate REQ number
+      invoice_number = 'REQ/' + new Date().getFullYear() + '/' + String(Date.now()).slice(-4);
+      initialStatus = 'requested';
+    }
 
     db.exec('BEGIN');
     const invResult = db.prepare(`
       INSERT INTO invoices (
         invoice_number, po_id, dc_id, customer_id,
         status, invoice_date, due_date, notes,
-        subtotal, gst_total, grand_total, created_by
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        subtotal, gst_total, grand_total, 
+        place_of_supply, payment_terms, billing_address, shipping_address,
+        created_by
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       invoice_number, po_id, dc_id, customer_id,
-      'raised', invoice_date, due_date||null, notes||'',
-      subtotal||0, gst_total||0, grand_total||0, req.user.id
+      initialStatus, invoice_date, due_date||null, notes||'',
+      subtotal||0, gst_total||0, grand_total||0,
+      place_of_supply || '', payment_terms || '', billing_address || '', shipping_address || '',
+      req.user.id
     );
 
     const invoiceId = invResult.lastInsertRowid;
+
+    // Persist Invoice Items and Update DC Item Tracking
+    const itemStmt = db.prepare(`
+      INSERT INTO invoice_items (
+        invoice_id, po_line_item_id, dc_line_item_id, 
+        item_name, quantity, rate, gst_percent, 
+        taxable_value, gst_amount, total_value
+      ) VALUES (?,?,?,?,?,?,?,?,?,?)
+    `);
+
+    const updateDCItemStmt = db.prepare(`
+      UPDATE dc_line_items 
+      SET invoiced_qty = IFNULL(invoiced_qty, 0) + ? 
+      WHERE id = ?
+    `);
+
+    (items || []).forEach(it => {
+      itemStmt.run(
+        invoiceId, it.po_line_item_id, it.dc_line_item_id,
+        it.item_name, it.quantity, it.rate_per_unit, it.gst_percent,
+        it.taxable_value, it.gst_amount, it.total_value
+      );
+      
+      if (it.dc_line_item_id) {
+        updateDCItemStmt.run(it.quantity, it.dc_line_item_id);
+      }
+    });
+
+    // Check DC Invoicing Status
+    if (dc_id) {
+      const dcItems = db.prepare('SELECT quantity_dispatched, invoiced_qty FROM dc_line_items WHERE dc_id = ?').all(dc_id);
+      const isFullyInvoiced = dcItems.every(item => (item.invoiced_qty || 0) >= item.quantity_dispatched);
+      const isPartiallyInvoiced = dcItems.some(item => (item.invoiced_qty || 0) > 0);
+      
+      let invStatus = 'pending';
+      if (isFullyInvoiced) invStatus = 'fully_invoiced';
+      else if (isPartiallyInvoiced) invStatus = 'partially_invoiced';
+
+      db.prepare(`
+        UPDATE delivery_challans 
+        SET status = ?, invoicing_status = ?
+        WHERE id = ?
+      `).run(isFullyInvoiced ? 'fully_invoiced' : 'partially_invoiced', invStatus, dc_id);
+    }
 
     db.prepare(`
       INSERT INTO ar_entries (
@@ -823,13 +1062,8 @@ app.post('/api/invoices', authenticate, (req, res) => {
       grand_total||0, 0, grand_total||0, 'pending'
     );
 
-    db.prepare(`
-      UPDATE delivery_challans 
-      SET status='invoice_raised' WHERE id=?
-    `).run(dc_id);
-
     db.exec('COMMIT');
-    res.json({ success: true, invoice_number });
+    res.json({ success: true, invoice_number, id: invoiceId });
   } catch(err) {
     if (db.inTransaction) db.exec('ROLLBACK');
     console.error('ERROR:', err);
@@ -844,16 +1078,141 @@ app.get('/api/invoices', authenticate, (req, res) => {
         i.*,
         c.name as customer_name,
         p.po_number,
-        d.dc_number
+        d.dc_number,
+        ar.amount_received,
+        ar.balance,
+        ar.status as ar_status
       FROM invoices i
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN purchase_orders p ON i.po_id = p.id
       LEFT JOIN delivery_challans d ON i.dc_id = d.id
+      LEFT JOIN ar_entries ar ON i.id = ar.invoice_id
       ORDER BY i.created_at DESC
     `).all();
     res.json(rows);
   } catch(err) {
     console.error('ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/invoices/:id', authenticate, (req, res) => {
+  try {
+    const invoice = db.prepare(`
+      SELECT 
+        i.*,
+        c.name as customer_name, c.legal_name as customer_legal_name, c.gstin as customer_gstin,
+        c.pan as customer_pan,
+        p.po_number as po_no, p.po_date,
+        d.dc_number as dc_no, d.dispatch_date,
+        ar.amount_received, ar.balance, ar.status as ar_status
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN purchase_orders p ON i.po_id = p.id
+      LEFT JOIN delivery_challans d ON i.dc_id = d.id
+      LEFT JOIN ar_entries ar ON i.id = ar.invoice_id
+      WHERE i.id = ?
+    `).get(req.params.id);
+
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    const items = db.prepare(`SELECT * FROM invoice_items WHERE invoice_id = ?`).all(req.params.id);
+    const payments = db.prepare(`SELECT * FROM ar_payments WHERE invoice_id = ? ORDER BY created_at DESC`).all(req.params.id);
+
+    res.json({ ...invoice, items, payments });
+  } catch(err) {
+    console.error('ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
+  const { id } = req.params;
+  try {
+    const lastInv = db.prepare("SELECT invoice_number FROM invoices WHERE status != 'requested' AND invoice_number LIKE 'INV/%' ORDER BY id DESC LIMIT 1").get();
+    let nextNum = 1;
+    if (lastInv && lastInv.invoice_number) {
+       const parts = lastInv.invoice_number.split('/');
+       if (parts.length >= 3) {
+         nextNum = parseInt(parts[2]) + 1;
+       }
+    }
+    const invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
+    
+    db.prepare("UPDATE invoices SET invoice_number = ?, status = 'raised', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(invoice_number, id);
+    res.json({ success: true, invoice_number });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/invoices/:id/payment', authenticate, (req, res) => {
+  const { amount, payment_date, payment_mode, transaction_ref } = req.body;
+  const invoiceId = req.params.id;
+
+  try {
+    db.exec('BEGIN');
+    
+    // 1. Record payment
+    db.prepare(`
+      INSERT INTO ar_payments (invoice_id, amount, payment_date, payment_mode, transaction_ref, recorded_by)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(invoiceId, amount, payment_date, payment_mode, transaction_ref, req.user.id);
+
+    // 2. Update AR Entry
+    const ar = db.prepare('SELECT * FROM ar_entries WHERE invoice_id = ?').get(invoiceId);
+    if (ar) {
+      const newReceived = (ar.amount_received || 0) + parseFloat(amount);
+      const newBalance = ar.amount_due - newReceived;
+      const newStatus = newBalance <= 0 ? 'paid' : (newReceived > 0 ? 'partial' : 'pending');
+
+      db.prepare(`
+        UPDATE ar_entries 
+        SET amount_received = ?, balance = ?, status = ?
+        WHERE invoice_id = ?
+      `).run(newReceived, newBalance, newStatus, invoiceId);
+
+      // 3. Update Invoice Status
+      db.prepare(`UPDATE invoices SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        .run(newStatus === 'paid' ? 'paid' : (newStatus === 'partial' ? 'partially_paid' : 'sent'), invoiceId);
+    }
+
+    db.exec('COMMIT');
+    res.json({ success: true });
+  } catch(err) {
+    if (db.inTransaction) db.exec('ROLLBACK');
+    console.error('ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/invoices/:id/signature', authenticate, (req, res) => {
+  const { id } = req.params;
+  const { signature_data } = req.body;
+  try {
+    db.prepare('UPDATE invoices SET signature_data = ? WHERE id = ?').run(signature_data, id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/invoices/ar/entries', authenticate, (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT 
+        ar.*,
+        i.invoice_number, i.invoice_date, i.due_date,
+        c.name as customer_name,
+        p.po_number
+      FROM ar_entries ar
+      JOIN invoices i ON ar.invoice_id = i.id
+      JOIN customers c ON ar.customer_id = c.id
+      JOIN purchase_orders p ON ar.po_id = p.id
+      ORDER BY ar.created_at DESC
+    `).all();
+    res.json(rows);
+  } catch(err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -892,12 +1251,16 @@ app.post('/api/dc', authenticate, (req, res) => {
       INSERT INTO delivery_challans (
         dc_number, po_id, customer_id, location_id,
         status, dc_date, vehicle_number,
-        driver_name, notes, created_by
-      ) VALUES (?,?,?,?,?,?,?,?,?,?)
+        driver_name, notes, created_by,
+        dc_request_id, manual_dc_number,
+        delivery_status
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       dc_number, po_id, customer_id, location_id,
-      'raised', dc_date, vehicle_number||'',
-      driver_name||'', notes||'', req.user.id
+      'issued', dc_date, vehicle_number||'',
+      driver_name||'', notes||'', req.user.id,
+      requestId, manualDC || null,
+      'awaiting_confirmation'
     );
 
     const dcId = dcResult.lastInsertRowid;
@@ -935,21 +1298,22 @@ app.get('/api/dc', authenticate, (req, res) => {
   try {
     const rows = db.prepare(`
       SELECT 
-        d.id, d.dc_number, d.status,
-        d.dc_date, d.vehicle_number, d.driver_name,
-        d.created_at,
-        p.po_number,
+        d.*,
+        p.po_number as po_no,
         c.name as customer_name,
-        cl.label as location_name
+        cl.label as location_name,
+        cl.city as location_city,
+        dr.dc_request_no
       FROM delivery_challans d
       LEFT JOIN purchase_orders p ON d.po_id = p.id
       LEFT JOIN customers c ON d.customer_id = c.id
-      LEFT JOIN customer_locations cl ON d.location_id = cl.id
+      LEFT JOIN customer_locations cl ON d.customer_location_id = cl.id
+      LEFT JOIN dc_requests dr ON d.dc_request_id = dr.id
       ORDER BY d.created_at DESC
     `).all();
     res.json(rows);
   } catch(err) {
-    console.error('ERROR:', err);
+    console.error('GET /api/dc ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -959,25 +1323,116 @@ app.get('/api/dc/:id', authenticate, (req, res) => {
     const dc = db.prepare(`
       SELECT 
         d.*,
-        p.po_number, p.grand_total,
-        c.name as customer_name,
-        cl.label as location_name, cl.contact_name as spoc_name
+        dr.dc_request_no,
+        p.po_number, p.po_date, p.grand_total,
+        c.name as customer_name, c.legal_name as customer_legal_name, c.gstin as customer_gstin,
+        c.address_line1 as customer_addr1, c.address_line2 as customer_addr2, c.city as customer_city, c.pincode as customer_pin,
+        cl.label as location_name, cl.address_line1 as loc_addr1, cl.address_line2 as loc_addr2, cl.city as loc_city, cl.pincode as loc_pin
       FROM delivery_challans d
+      LEFT JOIN dc_requests dr ON d.dc_request_id = dr.id
       LEFT JOIN purchase_orders p ON d.po_id = p.id
       LEFT JOIN customers c ON d.customer_id = c.id
-      LEFT JOIN customer_locations cl ON d.location_id = cl.id
+      LEFT JOIN customer_locations cl ON d.customer_location_id = cl.id
       WHERE d.id = ?
     `).get(req.params.id);
 
     if (!dc) return res.status(404).json({ error: 'DC not found' });
 
-    const items = db.prepare(
-      'SELECT * FROM dc_line_items WHERE dc_id = ?'
-    ).all(req.params.id);
+    const items = db.prepare(`
+      SELECT 
+        di.*, 
+        pi.reference_number as ref_no, 
+        pi.package_name as package,
+        pi.heading,
+        pi.sub_heading,
+        pi.item_name,
+        pi.description,
+        pi.uom,
+        pi.supply_rate as unit_price,
+        pi.supply_gst_rate as gst_rate,
+        pi.total_taxable as po_taxable_value,
+        pi.total_gst as po_gst_amount,
+        pi.total_invoice as po_total_amount
+      FROM dc_line_items di
+      LEFT JOIN po_line_items pi ON di.po_line_item_id = pi.id
+      WHERE di.dc_id = ?
+    `).all(req.params.id);
 
     res.json({ ...dc, items });
   } catch(err) {
-    console.error('ERROR:', err);
+    console.error('GET /api/dc/:id ERROR:', err);
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+app.post('/api/dc/:id/confirm-delivery', authenticate, upload.fields([
+  { name: 'pod', maxCount: 1 },
+  { name: 'signed_dc', maxCount: 1 },
+  { name: 'grn', maxCount: 1 },
+  { name: 'photos', maxCount: 5 }
+]), (req, res) => {
+  const dcId = req.params.id;
+  const { 
+    receivedBy, phone, designation, 
+    siteRemarks, damageRemarks, shortageRemarks,
+    items // JSON string of [{id, received_qty, condition}]
+  } = req.body;
+
+  try {
+    const parsedItems = JSON.parse(items || '[]');
+    
+    // Start Transaction
+    const transaction = db.transaction(() => {
+      // 1. Update DC Status and Acknowledgement info
+      db.prepare(`
+        UPDATE delivery_challans 
+        SET 
+          status = 'delivery_confirmed',
+          delivery_status = 'delivery_confirmed',
+          received_by = ?,
+          receiver_phone = ?,
+          receiver_designation = ?,
+          site_remarks = ?,
+          damage_remarks = ?,
+          shortage_remarks = ?,
+          pod_path = ?,
+          signed_dc_path = ?,
+          grn_path = ?,
+          delivery_confirmed_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(
+        receivedBy, phone, designation, 
+        siteRemarks, damageRemarks, shortageRemarks,
+        req.files['pod'] ? `/uploads/${req.files['pod'][0].filename}` : null,
+        req.files['signed_dc'] ? `/uploads/${req.files['signed_dc'][0].filename}` : null,
+        req.files['grn'] ? `/uploads/${req.files['grn'][0].filename}` : null,
+        dcId
+      );
+
+      // 2. Update item-level verification
+      const updateItem = db.prepare(`
+        UPDATE dc_line_items 
+        SET received_qty = ?, item_condition = ?
+        WHERE id = ?
+      `);
+
+      for (const item of parsedItems) {
+        updateItem.run(item.received_qty, item.condition, item.id);
+      }
+    });
+
+    transaction();
+    res.json({ success: true, message: 'Delivery confirmed successfully' });
+  } catch(err) {
+    console.error('CONFIRM DELIVERY ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+app.post('/api/dc/:id/sign', authenticate, (req, res) => {
+  const { signature } = req.body;
+  try {
+    db.prepare('UPDATE delivery_challans SET signature_data = ? WHERE id = ?').run(signature, req.params.id);
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -997,17 +1452,360 @@ app.get('/api/dc-requests/pos', authenticate, (req, res) => {
   try {
     const rows = db.prepare(`
       SELECT 
-        p.id, p.po_number as po, c.name as customer, p.grand_total,
+        p.id, p.po_number as po, c.name as customer, c.cust_code, p.customer_id, p.grand_total,
         cl.label as location_label, cl.city
       FROM purchase_orders p
       LEFT JOIN customers c ON p.customer_id = c.id
       LEFT JOIN customer_locations cl ON p.location_id = cl.id
-      WHERE p.status = 'accepted'
+      WHERE p.status IN ('accepted', 'dc_raised')
+      AND (
+        SELECT SUM(MAX(0, pli.supply_qty - pli.qty_delivered))
+        FROM po_line_items pli
+        WHERE pli.po_id = p.id
+      ) > 0
       ORDER BY p.created_at DESC
     `).all();
     res.json(rows);
   } catch(err) {
     console.error('ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+    // Ensure tables exist with new schema
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS dc_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        po_id INTEGER, 
+        location_id INTEGER,
+        dc_request_no TEXT, 
+        dispatch_date TEXT, 
+        status TEXT DEFAULT 'dc_requested', 
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
+        transporter TEXT, 
+        special_instructions TEXT,
+        vehicle_no TEXT,
+        driver_name TEXT,
+        driver_phone TEXT,
+        dispatch_from_address1 TEXT,
+        dispatch_from_address2 TEXT,
+        dispatch_from_pincode TEXT,
+        dispatch_from_landmark TEXT,
+        requested_dc_number TEXT,
+        is_manual_dc BOOLEAN DEFAULT 0,
+        proof_path TEXT,
+        logistics_remarks TEXT
+      )
+    `);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS dc_request_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        dc_request_id INTEGER, 
+        line_item_id INTEGER, 
+        qty REAL
+      )
+    `);
+
+app.post('/api/dc-requests', authenticate, upload.single('proof'), (req, res) => {
+  try {
+    const { 
+      po_id, location_id, dispatch_date, transporter, special_instructions, items,
+      vehicle_no, driver_name, driver_phone,
+      dispatch_from_line1, dispatch_from_line2, dispatch_from_pin, dispatch_from_landmark,
+      requested_dc_number, is_manual_dc, logistics_remarks
+    } = req.body;
+    
+    // items will be a JSON string if using FormData
+    const parsedItems = typeof items === 'string' ? JSON.parse(items) : items;
+
+    if (!po_id || !location_id || !parsedItems || parsedItems.length === 0) {
+      return res.status(400).json({ error: 'Missing required fields: po_id, location_id, or items' });
+    }
+
+    const lastDCR = db.prepare('SELECT dc_request_no FROM dc_requests ORDER BY id DESC LIMIT 1').get();
+    let nextNum = 1;
+    if (lastDCR && lastDCR.dc_request_no && lastDCR.dc_request_no.startsWith('DCR/')) {
+      const parts = lastDCR.dc_request_no.split('/');
+      nextNum = parseInt(parts[parts.length - 1]) + 1;
+    }
+    const dc_request_no = `DCR/2026/${String(nextNum).padStart(3, '0')}`;
+    const proofPath = req.file ? `/uploads/${req.file.filename}` : null;
+    
+    const result = db.prepare(`
+      INSERT INTO dc_requests (
+        po_id, location_id, dc_request_no, dispatch_date, transporter, 
+        special_instructions, status,
+        vehicle_no, driver_name, driver_phone,
+        dispatch_from_address1, dispatch_from_address2, dispatch_from_pincode, dispatch_from_landmark,
+        requested_dc_number, is_manual_dc, proof_path, logistics_remarks
+      )
+      VALUES (?, ?, ?, ?, ?, ?, 'dc_requested', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      po_id, location_id, dc_request_no, dispatch_date || '', transporter || '', 
+      special_instructions || '',
+      vehicle_no || '', driver_name || '', driver_phone || '',
+      dispatch_from_line1 || '', dispatch_from_line2 || '', dispatch_from_pin || '', dispatch_from_landmark || '',
+      requested_dc_number || '', (is_manual_dc === 'true' || is_manual_dc === true) ? 1 : 0,
+      proofPath, logistics_remarks || ''
+    );
+    
+    const dc_request_id = result.lastInsertRowid;
+    const insertItem = db.prepare(`INSERT INTO dc_request_items (dc_request_id, line_item_id, qty) VALUES (?, ?, ?)`);
+    
+    for (const item of parsedItems) {
+      insertItem.run(dc_request_id, item.line_item_id, item.qty);
+    }
+    
+    res.json({ success: true, dc_request: dc_request_no, id: dc_request_id });
+  } catch(err) {
+    console.error('ERROR IN POST /api/dc-requests:', err);
+    res.status(500).json({ error: 'Server Error: ' + err.message });
+  }
+});
+
+app.get('/api/dc-requests', authenticate, (req, res) => {
+  try {
+    const status = req.query.status;
+    let sql = `
+      SELECT 
+        dr.*,
+        p.po_number as po_no,
+        c.name as customer_name,
+        cl.label as location_name,
+        cl.city as location_city
+      FROM dc_requests dr
+      JOIN purchase_orders p ON dr.po_id = p.id
+      JOIN customers c ON p.customer_id = c.id
+      JOIN customer_locations cl ON dr.location_id = cl.id
+    `;
+    
+    const params = [];
+    if (status) {
+      sql += " WHERE dr.status = ?";
+      params.push(status);
+    }
+    
+    sql += " ORDER BY dr.created_at DESC";
+    
+    const rows = db.prepare(sql).all(...params);
+    res.json(rows);
+  } catch(err) {
+    console.error('ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/dc-requests/:id/confirm-dispatch', authenticate, upload.single('proof'), (req, res) => {
+  const { vehicle_no, driver_name, driver_phone, lr_no, eway_bill_no, remarks, transporter } = req.body;
+  const requestId = req.params.id;
+  const proofPath = req.file ? `/uploads/${req.file.filename}` : null;
+
+  try {
+    db.prepare(`
+      UPDATE delivery_challans 
+      SET 
+        status = 'in_transit',
+        vehicle_no = ?,
+        driver_name = ?,
+        driver_phone = ?,
+        lr_no = ?,
+        eway_bill_no = ?,
+        logistics_remarks = ?,
+        dispatch_proof_path = ?,
+        transporter = ?,
+        dispatched_at = CURRENT_TIMESTAMP
+      WHERE dc_request_id = ?
+    `).run(vehicle_no, driver_name, driver_phone, lr_no, eway_bill_no, remarks, proofPath, transporter, requestId);
+    
+    // Also update request status
+    db.prepare("UPDATE dc_requests SET status = 'dispatched' WHERE id = ?").run(requestId);
+
+    res.json({ success: true, message: 'Shipment confirmed and marked as dispatched' });
+  } catch(err) {
+    console.error('ERROR CONFIRMING DISPATCH:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/dc-requests/:id', authenticate, (req, res) => {
+  try {
+    const request = db.prepare(`
+      SELECT 
+        dr.*,
+        p.po_number,
+        p.start_date as po_date,
+        p.created_at as po_created_at,
+        c.name as customer_name,
+        cl.label as location_name,
+        cl.address_line1 as location_address,
+        cl.address_line2 as location_address2,
+        cl.address_line3 as location_address3,
+        cl.city as location_city,
+        cl.state as location_state,
+        cl.pincode as location_pincode,
+        c.address_line1 as customer_addr1,
+        c.address_line2 as customer_addr2,
+        c.city as customer_city,
+        c.pincode as customer_pin,
+        c.gstin as customer_gstin
+      FROM dc_requests dr
+      JOIN purchase_orders p ON dr.po_id = p.id
+      JOIN customers c ON p.customer_id = c.id
+      JOIN customer_locations cl ON dr.location_id = cl.id
+      WHERE dr.id = ?
+    `).get(req.params.id);
+
+    if (!request) return res.status(404).json({ error: 'Request not found' });
+
+    const items = db.prepare(`
+      SELECT 
+        dri.*,
+        pli.reference_number as ref_no,
+        pli.package_name,
+        pli.heading,
+        pli.sub_heading,
+        pli.item_name,
+        pli.description,
+        pli.uom,
+        pli.supply_qty as total_po_qty,
+        (SELECT SUM(qty) FROM dc_request_items WHERE line_item_id = pli.id AND dc_request_id IN (SELECT id FROM dc_requests WHERE status='approved')) as qty_delivered
+      FROM dc_request_items dri
+      JOIN po_line_items pli ON dri.line_item_id = pli.id
+      WHERE dri.dc_request_id = ?
+    `).all(req.params.id);
+
+    res.json({ ...request, items });
+  } catch(err) {
+    console.error('ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
+  const requestId = req.params.id;
+  const { customDCNo, manualDC, dispatchFrom, itemHSNs, signature } = req.body;
+
+  try {
+    const request = db.prepare('SELECT * FROM dc_requests WHERE id = ?').get(requestId);
+    if (!request) return res.status(404).json({ error: 'DC Request not found' });
+
+    const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(request.po_id);
+    if (!po) return res.status(404).json({ error: 'PO not found' });
+
+    const items = db.prepare('SELECT * FROM dc_request_items WHERE dc_request_id = ?').all(requestId);
+    if (items.length === 0) return res.status(400).json({ error: 'No items in this request' });
+
+    db.exec('BEGIN');
+
+    // Determine Despatch From Address (Fallback to PO location's address)
+    const loc = db.prepare('SELECT address_line1, address_line2, pincode FROM customer_locations WHERE id = ?').get(po.location_id);
+    const df1 = dispatchFrom?.line1 || 'Plot No. 44, Shed No. 3, Phase-I, IDA Balanagar';
+    const df2 = dispatchFrom?.line2 || 'Hyderabad, Telangana';
+    const dfp = dispatchFrom?.pin || '500037';
+
+    const dc_number = customDCNo || request.requested_dc_number || ('DC-' + Date.now());
+
+    const result = db.prepare(`
+      INSERT INTO delivery_challans (
+        dc_number, manual_dc_number, dc_request_id, po_id, customer_id, 
+        customer_location_id, status, dispatch_date,
+        dispatch_from_address1, dispatch_from_address2, dispatch_from_pincode,
+        vehicle_no, driver_name, driver_phone, transporter,
+        created_by, delivery_status, dispatched_at,
+        dispatch_proof_path, logistics_remarks, signature_data
+      ) VALUES (?, ?, ?, ?, ?, ?, 'in_transit', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
+    `).run(
+      dc_number, 
+      manualDC || request.requested_dc_number || null, 
+      requestId, 
+      po.id, 
+      po.customer_id, 
+      request.location_id, 
+      request.dispatch_date,
+      dispatchFrom?.line1 || request.dispatch_from_address1 || df1, 
+      dispatchFrom?.line2 || request.dispatch_from_address2 || df2, 
+      dispatchFrom?.pin || request.dispatch_from_pincode || dfp,
+      request.vehicle_no || '',
+      request.driver_name || '',
+      request.driver_phone || '',
+      request.transporter || '',
+      req.user.id,
+      'awaiting_site_confirmation',
+      request.proof_path || null,
+      request.logistics_remarks || '',
+      signature || null
+    );
+
+    const dcId = result.lastInsertRowid;
+    const insertItem = db.prepare(`
+      INSERT INTO dc_line_items (dc_id, po_line_item_id, item_name, description, quantity_dispatched, uom, hsn)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const item of items) {
+      const poItem = db.prepare('SELECT item_name, description, uom FROM po_line_items WHERE id = ?').get(item.line_item_id);
+      insertItem.run(
+        dcId, 
+        item.line_item_id, 
+        poItem.item_name, 
+        poItem.description || '', 
+        item.qty, 
+        poItem.uom || '',
+        itemHSNs[item.line_item_id] || ''
+      );
+      
+      // Update PO Line Item delivered qty
+      db.prepare('UPDATE po_line_items SET qty_delivered = (qty_delivered + ?) WHERE id = ?').run(item.qty, item.line_item_id);
+    }
+
+    // Update status
+    db.prepare("UPDATE dc_requests SET status = 'dispatched' WHERE id = ?").run(requestId);
+    db.prepare("UPDATE purchase_orders SET status = 'dc_raised' WHERE id = ?").run(po.id);
+
+    db.exec('COMMIT');
+    res.json({ success: true, dc_number, id: dcId });
+  } catch (err) {
+    if (db.inTransaction) db.exec('ROLLBACK');
+    console.error('ERROR RAISING DC:', err);
+    res.status(500).json({ error: 'Server Error: ' + err.message });
+  }
+});
+
+app.get('/api/next-dc-number/:customerId', authenticate, (req, res) => {
+  try {
+    const cust = db.prepare('SELECT cust_code FROM customers WHERE id = ?').get(req.params.customerId);
+    if (!cust) return res.status(404).json({ error: 'Customer not found' });
+    
+    const code = cust.cust_code || 'CUST';
+    const pattern = `DC/${code}/%`;
+    const lastDC = db.prepare(`
+      SELECT dc_number as num FROM delivery_challans 
+      WHERE customer_id = ? AND dc_number LIKE ? 
+      ORDER BY id DESC LIMIT 1
+    `).get(req.params.customerId, pattern);
+
+    const lastReq = db.prepare(`
+      SELECT requested_dc_number as num FROM dc_requests dr
+      JOIN purchase_orders p ON dr.po_id = p.id
+      WHERE p.customer_id = ? AND requested_dc_number LIKE ? 
+      ORDER BY dr.id DESC LIMIT 1
+    `).get(req.params.customerId, pattern);
+
+    let nextNum = 1;
+    const processNum = (val) => {
+      if (!val) return 0;
+      const parts = val.split('/');
+      const seq = parseInt(parts[parts.length - 1]);
+      return isNaN(seq) ? 0 : seq;
+    };
+
+    const dcSeq = processNum(lastDC?.num);
+    const reqSeq = processNum(lastReq?.num);
+    nextNum = Math.max(dcSeq, reqSeq) + 1;
+
+    const nextDC = `DC/${code}/${String(nextNum).padStart(3, '0')}`;
+    res.json({ nextDC });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

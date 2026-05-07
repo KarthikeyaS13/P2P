@@ -28,7 +28,7 @@ export default function PODetails() {
   const [globalFilter, setGlobalFilter] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
 
     axios.get(`http://localhost:3000/api/pos/${id}`, { headers })
@@ -63,7 +63,7 @@ export default function PODetails() {
   };
 
   const handleAccept = () => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     setActionLoading(true);
     axios.put(`http://localhost:3000/api/pos/${id}/status`, { status: 'accepted' }, { headers })
@@ -78,7 +78,7 @@ export default function PODetails() {
   const handleReject = () => {
     const reason = prompt('Reason for rejection (optional):');
     if (reason === null) return; // User cancelled prompt
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     setActionLoading(true);
     axios.put(`http://localhost:3000/api/pos/${id}/status`, { status: 'rejected' }, { headers })
@@ -263,109 +263,9 @@ export default function PODetails() {
         </span>
       </div>
 
-      {/* SECTION 3: Items table */}
-      <div style={{ overflow: 'auto', maxHeight: '70vh', background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-        <table style={{ width: 'max-content', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.7rem' }}>
-          <thead style={{ background: '#F9FAFB', position: 'sticky', top: 0, zIndex: 10 }}>
-            <tr style={{ whiteSpace: 'nowrap' }}>
-              <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '40px', textAlign: 'left' }}>#</th>
-              <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '60px', textAlign: 'left' }}>Ref No</th>
-              <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '80px', textAlign: 'left' }}>Package</th>
-              <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '80px', textAlign: 'left' }}>Heading</th>
-              <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '80px', textAlign: 'left' }}>Sub Heading</th>
-              <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '120px', textAlign: 'left' }}>Item Name</th>
-              <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '150px', textAlign: 'left' }}>Description</th>
-              <th rowSpan="2" style={{ padding: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '50px', textAlign: 'center' }}>UOM</th>
-
-              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#ECFDF5', textAlign: 'center' }}>Supply Details</th>
-              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center' }}>Service Details</th>
-
-              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center' }}>Calculated Supply</th>
-              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center' }}>Calculated Service</th>
-
-              <th colSpan="3" style={{ padding: '4px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'center' }}>TOTALS</th>
-            </tr>
-            <tr style={{ whiteSpace: 'nowrap' }}>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '80px' }}>Qty</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '90px' }}>Rate</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '60px' }}>GST%</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '80px' }}>Qty</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '90px' }}>Rate</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '60px' }}>GST%</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Taxable</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>GST</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Total</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Taxable</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>GST</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Total</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '90px' }}>Taxable</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '90px' }}>GST</th>
-              <th style={{ padding: '4px 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '100px' }}>Invoice</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items
-              .filter(it => {
-                if (!globalFilter) return true;
-                const search = globalFilter.toLowerCase();
-                return (
-                  (it.item_name || '').toLowerCase().includes(search) ||
-                  (it.description || '').toLowerCase().includes(search) ||
-                  (it.ref_no || '').toLowerCase().includes(search) ||
-                  (it.package_name || '').toLowerCase().includes(search) ||
-                  (it.heading || '').toLowerCase().includes(search) ||
-                  (it.sub_heading || '').toLowerCase().includes(search)
-                );
-              })
-              .map((it, idx) => (
-                <tr key={it.id || idx}>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'left', color: '#6B7280' }}>{it.line_number || idx + 1}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB' }}>{it.ref_no || '-'}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB' }}>{it.package_name || '-'}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB' }}>{it.heading || '-'}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', maxWidth: '250px', whiteSpace: 'normal', wordBreak: 'break-word' }}>{it.sub_heading || '-'}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', fontWeight: 600 }}>{it.item_name === 'Item' ? '' : it.item_name}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', color: '#4B5563', maxWidth: '300px', whiteSpace: 'normal', wordBreak: 'break-word' }}>{it.description || '-'}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.uom || '-'}</td>
-
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#ECFDF5' }}>{it.supply_qty || 0}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#ECFDF5' }}>{fmt(it.supply_rate || 0)}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#ECFDF5' }}>{it.supply_gst_rate || 0}%</td>
-
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#EFF6FF' }}>{it.service_qty || 0}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#EFF6FF' }}>{fmt(it.service_rate || 0)}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#EFF6FF' }}>{it.service_gst_rate || 0}%</td>
-
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.taxable_supply || 0)}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.gst_supply || 0)}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.total_supply || 0)}</td>
-
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.taxable_service || 0)}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.gst_service || 0)}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', background: '#F9FAFB' }}>{fmt(it.total_service || 0)}</td>
-
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB' }}>{fmt(it.total_taxable || 0)}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB' }}>{fmt(it.total_gst || 0)}</td>
-                  <td style={{ padding: '4px 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, background: '#FEF3C7' }}>{fmt(it.total_invoice || 0)}</td>
-                </tr>
-              ))}
-            {items.length === 0 && (
-              <tr>
-                <td colSpan="23" style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>No items found</td>
-              </tr>
-            )}
-          </tbody>
-          <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 10, background: '#374151', color: 'white', fontWeight: 700 }}>
-            <tr>
-              <td colSpan="8" style={{ padding: '10px 16px', textAlign: 'right', fontSize: '0.8rem' }}>GRAND TOTALS:</td>
-              <td colSpan="3"></td>
-              <td colSpan="3"></td>
-              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', fontSize: '0.8rem' }}>{fmt(po.subtotal)} <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>(Taxable)</span></td>
-              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', fontSize: '0.8rem' }}>{fmt(po.gst_total)} <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>(GST)</span></td>
-              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 16px', background: '#059669', fontSize: '1rem' }}>{fmt(po.grand_total)}</td>
-            </tr>
-          </tfoot>
-        </table>
+      <div style={{ marginBottom: '32px' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', marginBottom: '16px' }}>Package-wise Financial Summary</h3>
+        <SummaryTable data={items} />
       </div>
 
       {/* SECTION 4: Actions */}
@@ -388,6 +288,145 @@ export default function PODetails() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+// --- Helper Component: Summary Table ---
+function SummaryTable({ data }) {
+  const summarizedData = React.useMemo(() => {
+    const summary = data.reduce((acc, it) => {
+      const pkg = it.package_name || 'General';
+      if (!acc[pkg]) {
+        acc[pkg] = { 
+          package_name: pkg, 
+          supply_taxable: 0, 
+          supply_gst: 0, 
+          service_taxable: 0, 
+          service_gst: 0, 
+          total_taxable: 0, 
+          total_gst: 0, 
+          total_invoice: 0 
+        };
+      }
+      acc[pkg].supply_taxable += (it.taxable_supply || 0);
+      acc[pkg].supply_gst += (it.gst_supply || 0);
+      acc[pkg].service_taxable += (it.taxable_service || 0);
+      acc[pkg].service_gst += (it.gst_service || 0);
+      acc[pkg].total_taxable += (it.total_taxable || 0);
+      acc[pkg].total_gst += (it.total_gst || 0);
+      acc[pkg].total_invoice += (it.total_invoice || 0);
+      return acc;
+    }, {});
+    return Object.values(summary);
+  }, [data]);
+
+  const columns = React.useMemo(() => [
+    {
+      header: 'Package Name',
+      accessorKey: 'package_name',
+      cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue()}</span>,
+    },
+    {
+      header: 'Supply Tax Value',
+      accessorKey: 'supply_taxable',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Supply GST',
+      accessorKey: 'supply_gst',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Service Tax Value',
+      accessorKey: 'service_taxable',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Service GST',
+      accessorKey: 'service_gst',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Total Tax Value',
+      accessorKey: 'total_taxable',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total GST',
+      accessorKey: 'total_gst',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total Invoice',
+      accessorKey: 'total_invoice',
+      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString()}</span>,
+    }
+  ], []);
+
+  const table = useReactTable({
+    data: summarizedData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  const grandTotals = summarizedData.reduce((acc, row) => ({
+    supply_taxable: acc.supply_taxable + row.supply_taxable,
+    supply_gst: acc.supply_gst + row.supply_gst,
+    service_taxable: acc.service_taxable + row.service_taxable,
+    service_gst: acc.service_gst + row.service_gst,
+    total_taxable: acc.total_taxable + row.total_taxable,
+    total_gst: acc.total_gst + row.total_gst,
+    total_invoice: acc.total_invoice + row.total_invoice
+  }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
+
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id} style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em', borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map(row => (
+              <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id} style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#374151', borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot style={{ background: '#F9FAFB', fontWeight: 800, borderTop: '2px solid #E5E7EB', color: '#111827' }}>
+            <tr>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>TOTAL</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
+          <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Final Grand Total</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString()}</p>
+        </div>
+      </div>
     </div>
   );
 }

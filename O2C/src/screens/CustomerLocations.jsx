@@ -18,7 +18,7 @@ export default function CustomerLocations() {
   const [editingLocation, setEditingLocation] = useState(null);
 
   const fetchCustomerData = () => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     axios.get(`http://localhost:3000/api/customers/${id}`, { headers })
       .then(res => {
@@ -35,7 +35,7 @@ export default function CustomerLocations() {
 
   const handleDelete = (locationId) => {
     if (window.confirm('Are you sure you want to delete this location?')) {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       axios.delete(`http://localhost:3000/api/locations/${locationId}`, { headers })
         .then(() => fetchCustomerData())

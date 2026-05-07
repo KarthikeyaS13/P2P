@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { getUser } from '../auth';
 
 export default function ARDatabase() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
   
   // Payment Modal State
   const [selectedEntry, setSelectedEntry] = useState(null);
@@ -23,7 +25,7 @@ export default function ARDatabase() {
 
   const fetchAR = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get('http://localhost:3000/api/invoices/ar/entries', { headers });
       setEntries(res.data);
@@ -39,12 +41,13 @@ export default function ARDatabase() {
     if (!selectedEntry) return;
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.put(`http://localhost:3000/api/invoices/ar/${selectedEntry.id}/payment`, {
-        amount_received: parseFloat(amountReceived),
+      await axios.post(`http://localhost:3000/api/invoices/${selectedEntry.invoice_id}/payment`, {
+        amount: parseFloat(amountReceived),
         payment_date: paymentDate,
-        payment_reference: paymentRef
+        payment_mode: 'NEFT', // Default, could be a dropdown
+        transaction_ref: paymentRef
       }, { headers });
       
       alert('Payment recorded successfully');
@@ -62,9 +65,27 @@ export default function ARDatabase() {
   return (
     <div className="screen-enter">
       <div className="page-header">
-        <div>
-          <h1 className="text-h1 page-header__title">Accounts Receivable</h1>
-          <p className="page-header__subtitle">Track invoice payments and outstanding balances</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="btn-ghost"
+            style={{ 
+              width: '40px', 
+              height: '40px', 
+              borderRadius: '50%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              background: 'white',
+              border: '1px solid var(--outline-variant)'
+            }}
+          >
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1 className="text-h1 page-header__title">Accounts Receivable</h1>
+            <p className="page-header__subtitle">Track invoice payments and outstanding balances</p>
+          </div>
         </div>
       </div>
       

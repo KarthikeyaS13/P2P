@@ -1,14 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  flexRender,
+} from '@tanstack/react-table';
 
 export default function POReview() {
   const [pendingPOs, setPendingPOs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('pending');
   const [selectedPO, setSelectedPO] = useState(null);
   const [poDetails, setPoDetails] = useState(null);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const navigate = useNavigate();
+  const { id } = useParams();
 
   // Local state for inline editing
   const [editableItems, setEditableItems] = useState([]);
@@ -17,33 +30,51 @@ export default function POReview() {
     loadPendingPOs();
   }, []);
 
+  useEffect(() => {
+    if (id) {
+      // Find PO in pending list or fetch directly
+      handleSelectPO({ id });
+    } else {
+      setSelectedPO(null);
+      setPoDetails(null);
+    }
+  }, [id]);
+
   const loadPendingPOs = async () => {
     setLoadingList(true);
+    setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:3000/api/pos?status=pending', { headers });
+      const res = await axios.get('http://localhost:3000/api/pos', { headers });
       setPendingPOs(res.data);
     } catch (err) {
       console.error(err);
     } finally {
       setLoadingList(false);
+      setLoading(false);
     }
   };
 
   const handleSelectPO = async (po) => {
+    if (typeof po === 'object' && po.id && !id) {
+      navigate(`/po-review/${po.id}`);
+      return;
+    }
+
     setSelectedPO(po);
     setPoDetails(null);
     setLoadingDetails(true);
     setRemarks('');
+    setIsRejecting(false);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`http://localhost:3000/api/pos/${po.id}`, { headers });
       const details = res.data;
       setPoDetails(details);
-      
+
       setEditableItems((details.items || []).map((it, i) => {
         return calculateRow({
           ...it,
@@ -73,21 +104,21 @@ export default function POReview() {
     if (!selectedPO) return;
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       await axios.put(`http://localhost:3000/api/pos/${selectedPO.id}/status`, {
         status, remarks
       }, { headers });
 
       alert(`PO successfully ${status}`);
+      navigate('/po-review');
       loadPendingPOs();
-      setSelectedPO(null);
-      setPoDetails(null);
     } catch (err) {
       console.error(err);
       alert('Error updating PO status');
     } finally {
       setActionLoading(false);
+      setIsRejecting(false);
     }
   };
 
@@ -121,149 +152,231 @@ export default function POReview() {
     };
   };
 
-  const handleCellChange = (idx, field, val) => {
-    setEditableItems(prev => {
-      const newItems = [...prev];
-      newItems[idx] = calculateRow({ ...newItems[idx], [field]: val });
-      return newItems;
+  const getStatusBadge = (status) => {
+    const styles = {
+      pending: { background: '#FEF3C7', color: '#92400E', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
+      nt_created: { background: '#DBEAFE', color: '#1E40AF', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
+      accepted: { background: '#D1FAE5', color: '#065F46', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
+      rejected: { background: '#FEE2E2', color: '#991B1B', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
+      dc_raised: { background: '#FED7AA', color: '#92400E', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
+      invoice_raised: { background: '#EDE9FE', color: '#5B21B6', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }
+    };
+    const style = styles[status] || { background: '#F3F4F6', color: '#374151', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 };
+    return <span style={style}>{(status || 'PENDING').replace('_', ' ').toUpperCase()}</span>;
+  };
+
+  const filteredData = useMemo(() => {
+    return pendingPOs.filter(p => {
+      const matchSearch =
+        (p.po_number || '').toLowerCase().includes(search.toLowerCase()) ||
+        (p.customer_name || '').toLowerCase().includes(search.toLowerCase());
+      const matchStatus = filterStatus === 'all' || p.status === filterStatus;
+      return matchSearch && matchStatus;
     });
-  };
+  }, [pendingPOs, search, filterStatus]);
 
-  const addNewItem = (e) => {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    const newItem = calculateRow({
-      line_number: editableItems.length + 1,
-      package_name: '',
-      heading: '',
-      sub_heading: '',
-      item_name: '',
-      description: '',
-      uom: '',
-      supply_qty: 0,
-      supply_rate: 0,
-      supply_gst_rate: 18,
-      service_qty: 0,
-      service_rate: 0,
-      service_gst_rate: 18,
-      id: 'row-' + Date.now()
-    });
-    setEditableItems(prev => [...prev, newItem]);
-  };
-
-  const removeItem = (idx) => {
-    setEditableItems(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const saveAllItems = async () => {
-    if (!poDetails) return;
-    setActionLoading(true);
-    try {
-      const itemsToSave = editableItems.map(it => ({
-        ...it,
-        quantity: parseFloat(it.quantity) || 0,
-        rate_per_unit: parseFloat(it.rate_base) || 0,
-        gst_percent: parseFloat(it.gst_percent) || 0,
-        taxable_value: parseFloat(it.taxable_base) || 0,
-        gst_amount: parseFloat(it.gst_amount_base) || 0,
-        total_value: parseFloat(it.total_base) || 0
-      }));
-
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.put(`http://localhost:3000/api/pos/${poDetails.id}`, { items: itemsToSave }, { headers });
-
-      alert('Line items saved successfully');
-      setSelectedPO(null); // Close the modal
-      loadPendingPOs(); // Refresh the list of cards to show updated values
-    } catch (err) {
-      alert('Error: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setActionLoading(false);
+  const columns = useMemo(() => [
+    {
+      accessorKey: 'po_number',
+      header: 'PO Number',
+      cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue() || info.row.original.order_id}</span>,
+    },
+    {
+      accessorKey: 'customer_name',
+      header: 'Customer',
+    },
+    {
+      accessorKey: 'location_city',
+      header: 'Location',
+      cell: info => <span>{info.getValue() || info.row.original.location_name || 'N/A'}</span>,
+    },
+    {
+      accessorKey: 'grand_total',
+      header: 'Value (Incl. GST)',
+      cell: info => <span style={{ fontWeight: 500 }}>₹{Number(info.getValue() || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>,
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: info => getStatusBadge(info.getValue()),
+    },
+    {
+      accessorKey: 'is_nt_po',
+      header: 'Type',
+      cell: info => (
+        <span style={{
+          background: info.getValue() ? '#EFF6FF' : '#F3F4F6',
+          color: info.getValue() ? '#1D4ED8' : '#6B7280',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          fontSize: '0.7rem',
+          fontWeight: 700
+        }}>
+          {info.getValue() ? 'NT' : 'REGULAR'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Action',
+      cell: ({ row }) => (
+        <button
+          onClick={() => handleSelectPO(row.original)}
+          className="btn btn-sm btn-primary"
+          style={{ padding: '6px 12px', fontSize: '12px' }}
+        >
+          View
+        </button>
+      ),
     }
-  };
+  ], []);
 
-  // Calculate local totals for the Excel-style footer
-  // Taxable Total is the sum of all item taxable values
-  const localTaxableTotal = editableItems.reduce((acc, it) => acc + (it.total_taxable || 0), 0);
-  const localGstTotal = editableItems.reduce((acc, it) => acc + (it.total_gst || 0), 0);
-  const localGrandTotal = editableItems.reduce((acc, it) => acc + (it.total_invoice || 0), 0);
+  const table = useReactTable({
+    data: filteredData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   return (
     <div className="screen-enter">
       <div className="page-header">
-        <div>
-          <h1 className="text-h1 page-header__title">PO Verification Queue</h1>
-          <p className="page-header__subtitle">Review and validate new purchase orders from the Sales team.</p>
-        </div>
-        <div className="page-header__actions">
-          <div className="stat-card" style={{ padding: '12px 20px', margin: 0 }}>
-            <p className="stat-card__label" style={{ marginBottom: '4px' }}>Pending Orders</p>
-            <span className="stat-card__value" style={{ fontSize: '1.25rem' }}>{pendingPOs.length}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="btn-ghost"
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'white',
+              border: '1px solid var(--outline-variant)'
+            }}
+          >
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1 className="text-h1 page-header__title">PO Review</h1>
+            <p className="page-header__subtitle">Review and validate new purchase orders from the Sales team.</p>
           </div>
+        </div>
+
+        <div className="card" style={{ padding: '12px 24px', textAlign: 'center', minWidth: '150px', background: 'white', border: '1px solid var(--outline-variant)' }}>
+          <p style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--secondary)', fontWeight: 600, letterSpacing: '0.5px', margin: '0 0 4px' }}>Active Orders</p>
+          <p style={{ fontSize: '24px', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>{filteredData.length}</p>
         </div>
       </div>
 
-      <div style={{ maxWidth: '900px', margin: '0 auto var(--space-lg)' }}>
-        <div className="card card--padded animate-fade" style={{ background: 'white' }}>
-          <h3 className="text-h3" style={{ marginBottom: 'var(--space-md)' }}>Pending POs</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-            {loadingList ? (
-              <p style={{ color: 'var(--secondary)', fontSize: '14px' }}>Loading pending POs...</p>
-            ) : pendingPOs.length === 0 ? (
-              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '3rem', color: 'var(--outline)', marginBottom: '12px' }}>check_circle_outline</span>
-                <p style={{ color: 'var(--secondary)', fontWeight: 500 }}>No pending POs for review.</p>
-              </div>
-            ) : (
-              pendingPOs.map(o => (
-                <div
-                  key={o.id}
-                  className="card card--padded"
-                  onClick={() => handleSelectPO(o)}
-                  style={{
-                    cursor: 'pointer',
-                    border: '1px solid var(--outline-variant)',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    ':hover': { transform: 'translateY(-2px)', boxShadow: 'var(--shadow-md)' }
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ fontWeight: 600, color: 'var(--primary)', margin: 0 }}>{o.po_number}</h4>
-                    <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>{new Date(o.po_date || o.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <p style={{ fontSize: '14px', marginTop: '8px', fontWeight: 500, color: 'var(--surface-on)' }}>{o.customer_name}</p>
-                  <p style={{ fontSize: '12px', color: 'var(--secondary)', marginTop: '2px' }}>{o.location_name || o.location_city || ''}</p>
-                  <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>
-                    Value: <span style={{ color: 'var(--primary)', fontWeight: 600 }}>₹{Number(o.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </p>
-                  {(o.gst_total || 0) > 0 && (
-                    <p style={{ fontSize: '11px', color: 'var(--success)', marginTop: '2px', fontWeight: 500 }}>
-                      Incl. GST: ₹{Number(o.gst_total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        marginBottom: '24px',
+        background: 'white',
+        padding: '16px',
+        borderRadius: '8px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        border: '1px solid #E5E7EB'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', fontSize: '20px' }}>search</span>
+            <input
+              type="text"
+              placeholder="Search by PO #, Customer..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px 10px 40px',
+                border: '1px solid #D1D5DB',
+                borderRadius: '6px',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
           </div>
-          {!selectedPO && pendingPOs.length > 0 && (
-            <div style={{ marginTop: '32px', textAlign: 'center', borderTop: '1px solid var(--outline-variant)', paddingTop: '24px' }}>
-              <p style={{ color: 'var(--secondary)', fontSize: '14px' }}>Select a purchase order above to begin verification</p>
-            </div>
-          )}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{
+              padding: '10px 16px',
+              border: '1px solid #D1D5DB',
+              borderRadius: '6px',
+              background: 'white',
+              fontSize: '14px',
+              cursor: 'pointer',
+              color: '#374151'
+            }}
+          >
+            <option value="pending">Pending</option>
+            <option value="all">All Statuses</option>
+
+            <option value="nt_created">NT Created</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
+        <div style={{ fontSize: '13px', color: '#6B7280', fontWeight: 500 }}>
+          {filteredData.length} Records Found
+        </div>
+      </div>
+
+      <div style={{
+        background: 'white',
+        borderRadius: '8px',
+        border: '1px solid #E5E7EB',
+        overflow: 'hidden',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id} style={{ padding: '12px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Loading queue...</td></tr>
+            ) : table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map(row => (
+                <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  {row.getVisibleCells().map(cell => (
+                    <td key={cell.id} style={{ padding: '12px 16px', fontSize: '0.85rem', color: '#374151' }}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length} style={{ padding: '48px', textAlign: 'center', color: '#6B7280' }}>
+                  No pending purchase orders found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Full Screen Overlay for Details - PUSHED DOWN from top */}
       {(selectedPO || loadingDetails) && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 24px' }}>
-          <div className="animate-scale-up" style={{ width: '100%', maxWidth: '1200px', height: 'auto', maxHeight: '85vh', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div className="animate-scale-up" style={{ width: '100%', maxWidth: '1400px', height: '100%', maxHeight: '90vh', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}>
 
             {/* Overlay Header */}
             <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <button className="btn-ghost" onClick={() => setSelectedPO(null)} style={{ padding: '4px', borderRadius: '50%' }}>
+                <button className="btn-ghost" onClick={() => navigate('/po-review')} style={{ padding: '4px', borderRadius: '50%' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>arrow_back</span>
                 </button>
                 <div>
@@ -272,10 +385,7 @@ export default function POReview() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
-                {/* <button className="btn btn-primary" onClick={saveAllItems} disabled={actionLoading} style={{ fontSize: '13px', padding: '8px 16px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>save</span> Save Grid Data
-                </button> */}
-                <button className="btn-ghost" onClick={() => setSelectedPO(null)} style={{ padding: '8px', borderRadius: '50%' }}>
+                <button className="btn-ghost" onClick={() => navigate('/po-review')} style={{ padding: '8px', borderRadius: '50%' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>close</span>
                 </button>
               </div>
@@ -307,115 +417,221 @@ export default function POReview() {
                       </div>
                     </div>
 
-                    <div className="card card--padded" style={{ background: 'white' }}>
-                      <h4 className="text-h4" style={{ marginBottom: '12px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="material-symbols-outlined">fact_check</span> Decision
+                    <div className="card card--padded" style={{ background: 'white', border: isRejecting ? '2px solid #EF4444' : '1px solid var(--outline-variant)' }}>
+                      <h4 className="text-h4" style={{ marginBottom: '12px', color: isRejecting ? '#EF4444' : 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="material-symbols-outlined">{isRejecting ? 'report' : 'fact_check'}</span>
+                        {isRejecting ? 'Reason for Denial' : 'Decision'}
                       </h4>
-                      <div className="form-group" style={{ marginBottom: '12px' }}>
-                        <textarea
-                          className="form-input"
-                          rows="1"
-                          placeholder="Verification notes..."
-                          value={remarks}
-                          onChange={e => setRemarks(e.target.value)}
-                          style={{ fontSize: '13px' }}
-                        ></textarea>
-                      </div>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <button className="btn btn-success" style={{ flex: 1 }} onClick={() => updatePOStatus('accepted')} disabled={actionLoading}>Approve</button>
-                        <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => updatePOStatus('rejected')} disabled={actionLoading}>Reject</button>
-                      </div>
+
+                      {!isRejecting ? (
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                          <button
+                            className="btn btn-success"
+                            style={{ flex: 1, height: '48px', fontWeight: 700, fontSize: '15px' }}
+                            onClick={() => updatePOStatus('accepted')}
+                            disabled={actionLoading}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            style={{ flex: 1, height: '48px', fontWeight: 700, fontSize: '15px' }}
+                            onClick={() => setIsRejecting(true)}
+                            disabled={actionLoading}
+                          >
+                            Deny
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="animate-fade-in">
+                          <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '8px' }}>Please specify the reason for denying this Purchase Order. This will be visible to the Sales team.</p>
+                          <div className="form-group" style={{ marginBottom: '16px' }}>
+                            <textarea
+                              className="form-input"
+                              rows="4"
+                              placeholder="Type rejection reason here..."
+                              value={remarks}
+                              onChange={e => setRemarks(e.target.value)}
+                              autoFocus
+                              style={{
+                                fontSize: '14px',
+                                borderColor: '#FCA5A5',
+                                background: '#FFF7F7'
+                              }}
+                            ></textarea>
+                          </div>
+                          <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                              className="btn btn-danger"
+                              style={{ flex: 2, height: '42px', fontWeight: 700 }}
+                              onClick={() => {
+                                if (!remarks.trim()) return alert('Please enter a reason for denial');
+                                updatePOStatus('rejected');
+                              }}
+                              disabled={actionLoading}
+                            >
+                              Confirm Rejection
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              style={{ flex: 1, height: '42px', border: '1px solid #D1D5DB' }}
+                              onClick={() => setIsRejecting(false)}
+                              disabled={actionLoading}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                    <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white' }}>
-                      <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.7rem' }}>
-                        <thead style={{ position: 'sticky', top: 0, zIndex: 20, background: '#F9FAFB' }}>
-                          <tr style={{ whiteSpace: 'nowrap' }}>
-                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '40px' }}>Sl no</th>
-                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '70px' }}>Ref No</th>
-                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '110px' }}>Package</th>
-                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '110px' }}>Heading</th>
-                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '110px' }}>Sub Heading</th>
-                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '140px' }}>Item Name</th>
-                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '160px' }}>Description</th>
-                            <th rowSpan="2" style={{ padding: '4px 6px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '50px' }}>UOM</th>
-                            
-                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#ECFDF5', textAlign: 'center', fontSize: '0.65rem' }}>Supply Details</th>
-                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center', fontSize: '0.65rem' }}>Service Details</th>
-                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center', fontSize: '0.65rem' }}>Calc. Supply</th>
-                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center', fontSize: '0.65rem' }}>Calc. Service</th>
-                            <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'center', fontSize: '0.65rem' }}>TOTALS</th>
-                          </tr>
-                          <tr style={{ whiteSpace: 'nowrap' }}>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '70px' }}>Qty</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '80px' }}>Rate</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '50px' }}>GST%</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '70px' }}>Qty</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '80px' }}>Rate</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '50px' }}>GST%</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Taxable</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>GST</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Total</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Taxable</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>GST</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Total</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '80px' }}>Taxable</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '80px' }}>GST</th>
-                            <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '90px' }}>Invoice</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {editableItems.map((it, idx) => (
-                            <tr key={it.id || idx}>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{idx + 1}</td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.ref_no} onChange={e => handleCellChange(idx, 'ref_no', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.package_name} onChange={e => handleCellChange(idx, 'package_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.heading} onChange={e => handleCellChange(idx, 'heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.sub_heading} onChange={e => handleCellChange(idx, 'sub_heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.item_name} onChange={e => handleCellChange(idx, 'item_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.description} onChange={e => handleCellChange(idx, 'description', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.uom} onChange={e => handleCellChange(idx, 'uom', e.target.value)} style={{ width: '100%', border: 'none', padding: '3px 5px', fontSize: '0.7rem' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_qty} onChange={e => handleCellChange(idx, 'supply_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_rate} onChange={e => handleCellChange(idx, 'supply_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_gst_rate} onChange={e => handleCellChange(idx, 'supply_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_qty} onChange={e => handleCellChange(idx, 'service_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_rate} onChange={e => handleCellChange(idx, 'service_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_gst_rate} onChange={e => handleCellChange(idx, 'service_gst_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '3px 5px', fontSize: '0.7rem', background: 'transparent' }} /></td>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.taxable_supply || 0).toLocaleString()}</td>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.gst_supply || 0).toLocaleString()}</td>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.total_supply || 0).toLocaleString()}</td>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.taxable_service || 0).toLocaleString()}</td>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.gst_service || 0).toLocaleString()}</td>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.total_service || 0).toLocaleString()}</td>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB', fontSize: '0.65rem' }}>₹{(it.total_taxable || 0).toLocaleString()}</td>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB', fontSize: '0.65rem' }}>₹{(it.total_gst || 0).toLocaleString()}</td>
-                              <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, background: '#FEF3C7', fontSize: '0.7rem' }}>₹{(it.total_invoice || 0).toLocaleString()}</td>
-                              <td style={{ padding: '1px', border: '1px solid #E5E7EB', textAlign: 'center' }}>
-                                <button onClick={() => removeItem(idx)} style={{ color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span></button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 20, background: '#374151', color: 'white', fontWeight: 700 }}>
-                          <tr>
-                            <td colSpan="8" style={{ padding: '4px 10px', textAlign: 'right', fontSize: '0.7rem' }}>GRAND TOTALS:</td>
-                            <td colSpan="3"></td>
-                            <td colSpan="3"></td>
-                            <td colSpan="3" style={{ textAlign: 'right', padding: '4px 10px', fontSize: '0.7rem' }}>₹{localTaxableTotal.toLocaleString()} <span style={{fontSize: '0.55rem', opacity: 0.8}}>(Taxable)</span></td>
-                            <td colSpan="3" style={{ textAlign: 'right', padding: '4px 10px', fontSize: '0.7rem' }}>₹{localGstTotal.toLocaleString()} <span style={{fontSize: '0.55rem', opacity: 0.8}}>(GST)</span></td>
-                            <td colSpan="3" style={{ textAlign: 'right', padding: '4px 10px', background: '#059669', fontSize: '0.8rem' }}>₹{localGrandTotal.toLocaleString()}</td>
-                            <td></td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  </div>
+                  <SummaryTable data={editableItems} />
+                </div>
               ) : null}
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// --- Helper Component: Summary Table ---
+function SummaryTable({ data }) {
+  const summarizedData = React.useMemo(() => {
+    const summary = data.reduce((acc, it) => {
+      const pkg = it.package_name || 'General';
+      if (!acc[pkg]) {
+        acc[pkg] = {
+          package_name: pkg,
+          supply_taxable: 0,
+          supply_gst: 0,
+          service_taxable: 0,
+          service_gst: 0,
+          total_taxable: 0,
+          total_gst: 0,
+          total_invoice: 0
+        };
+      }
+      acc[pkg].supply_taxable += (it.taxable_supply || 0);
+      acc[pkg].supply_gst += (it.gst_supply || 0);
+      acc[pkg].service_taxable += (it.taxable_service || 0);
+      acc[pkg].service_gst += (it.gst_service || 0);
+      acc[pkg].total_taxable += (it.total_taxable || 0);
+      acc[pkg].total_gst += (it.total_gst || 0);
+      acc[pkg].total_invoice += (it.total_invoice || 0);
+      return acc;
+    }, {});
+    return Object.values(summary);
+  }, [data]);
+
+  const columns = React.useMemo(() => [
+    {
+      header: 'Package Name',
+      accessorKey: 'package_name',
+      cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue()}</span>,
+    },
+    {
+      header: 'Supply Tax Value',
+      accessorKey: 'supply_taxable',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Supply GST',
+      accessorKey: 'supply_gst',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Service Tax Value',
+      accessorKey: 'service_taxable',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Service GST',
+      accessorKey: 'service_gst',
+      cell: info => `₹${info.getValue().toLocaleString()}`,
+    },
+    {
+      header: 'Total Tax Value',
+      accessorKey: 'total_taxable',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total GST',
+      accessorKey: 'total_gst',
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+    },
+    {
+      header: 'Total Invoice',
+      accessorKey: 'total_invoice',
+      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString()}</span>,
+    }
+  ], []);
+
+  const table = useReactTable({
+    data: summarizedData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  const grandTotals = summarizedData.reduce((acc, row) => ({
+    supply_taxable: acc.supply_taxable + row.supply_taxable,
+    supply_gst: acc.supply_gst + row.supply_gst,
+    service_taxable: acc.service_taxable + row.service_taxable,
+    service_gst: acc.service_gst + row.service_gst,
+    total_taxable: acc.total_taxable + row.total_taxable,
+    total_gst: acc.total_gst + row.total_gst,
+    total_invoice: acc.total_invoice + row.total_invoice
+  }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
+
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflowX: 'auto', marginBottom: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id} style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em', borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map(row => (
+              <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id} style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#374151', borderRight: '1px solid #F3F4F6' }}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot style={{ background: '#F9FAFB', fontWeight: 800, borderTop: '2px solid #E5E7EB', color: '#111827' }}>
+            <tr>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>TOTAL</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_taxable.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_gst.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
+          <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Grand Total Value</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString()}</p>
+        </div>
+      </div>
     </div>
   );
 }

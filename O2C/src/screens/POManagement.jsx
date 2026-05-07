@@ -11,7 +11,7 @@ export default function POManagement() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
 
     axios.get('http://localhost:3000/api/pos', { headers })
