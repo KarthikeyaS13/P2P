@@ -21,6 +21,12 @@ export default function InvoiceApproval() {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [globalFilter, setGlobalFilter] = useState('');
 
+  const [verificationState, setVerificationState] = useState({
+    gstin: false, address: false, dc: false, po: false,
+    taxable: false, gst: false, total: false, qty: false
+  });
+  const [draftNotes, setDraftNotes] = useState('');
+
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
@@ -64,6 +70,17 @@ export default function InvoiceApproval() {
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`http://localhost:3000/api/invoices/${invId}`, { headers });
       setSelectedInvoice(res.data);
+      if (res.data.verification_state) {
+        try {
+          setVerificationState(JSON.parse(res.data.verification_state));
+        } catch(e) {}
+      } else {
+        setVerificationState({
+          gstin: false, address: false, dc: false, po: false,
+          taxable: false, gst: false, total: false, qty: false
+        });
+      }
+      setDraftNotes(res.data.notes || '');
     } catch (err) {
       console.error('Invoice detail error:', err);
       navigate('/invoice-approval');
@@ -127,6 +144,36 @@ export default function InvoiceApproval() {
       alert("Invoice Approved Successfully!");
     } catch (err) {
       alert(err.response?.data?.error || "Approval Failed");
+    }
+  };
+
+  const handleReject = async () => {
+    if (!window.confirm("Are you sure you want to reject this request?")) return;
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.post(`http://localhost:3000/api/invoices/${selectedInvoice.id}/reject`, {}, { headers });
+      fetchInvoiceDetails(selectedInvoice.id);
+      fetchData();
+      alert("Request Rejected.");
+    } catch (err) {
+      alert(err.response?.data?.error || "Rejection Failed");
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.put(`http://localhost:3000/api/invoices/${selectedInvoice.id}/draft`, {
+        verification_state: verificationState,
+        notes: draftNotes
+      }, { headers });
+      fetchInvoiceDetails(selectedInvoice.id);
+      fetchData();
+      alert("Draft saved successfully!");
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to save draft");
     }
   };
 
@@ -242,23 +289,34 @@ export default function InvoiceApproval() {
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
             </button>
             <div>
-              <h1 className="text-h1 page-header__title">Accounts Billing & Approval</h1>
-              <p className="page-header__subtitle">{inv.invoice_number} • {inv.customer_name}</p>
+              <h1 className="text-h1 page-header__title">
+                {inv.status === 'requested' ? 'Accounts Billing & Approval' : 'Official Tax Invoice'}
+              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <p className="page-header__subtitle" style={{ margin: 0 }}>{inv.invoice_number} • {inv.customer_name}</p>
+                {inv.status !== 'requested' && <span className="status-pill" style={{ background: '#DCFCE7', color: '#166534', fontSize: '10px' }}>GENERATED</span>}
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
             <button className="btn btn-outline no-print" onClick={handleDownloadPDF}>
               <span className="material-symbols-outlined">download</span> Download PDF
             </button>
-            {inv.status === 'requested' && (
-              <button className="btn btn-primary no-print" onClick={handleApprove} style={{ background: 'var(--success)' }}>
-                <span className="material-symbols-outlined">verified</span> Approve & Generate Invoice
-              </button>
-            )}
-            {inv.status !== 'requested' && !selectedInvoice.signature_data && (
-              <button className="btn btn-primary no-print" onClick={() => setShowSignatureModal(true)}>
-                <span className="material-symbols-outlined">edit_square</span> Sign Invoice
-              </button>
+            {inv.status !== 'requested' && (
+              <>
+                <button className="btn btn-outline no-print" onClick={() => setDetailsTab('timeline')}>
+                  <span className="material-symbols-outlined">payments</span> Record Payment
+                </button>
+                {!selectedInvoice.signature_data ? (
+                  <button className="btn btn-primary no-print" onClick={() => setShowSignatureModal(true)}>
+                    <span className="material-symbols-outlined">edit_square</span> Sign Invoice
+                  </button>
+                ) : (
+                  <button className="btn btn-primary no-print" onClick={() => alert("Invoice Sent to Customer successfully!")}>
+                    <span className="material-symbols-outlined">send</span> Send to Customer
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -273,10 +331,72 @@ export default function InvoiceApproval() {
         </div>
 
         {detailsTab === 'preview' ? (
-          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {inv.status === 'requested' && (
+              <div className="card shadow-sm animate-fade" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ padding: '24px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                  <h3 className="text-h3" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>fact_check</span>
+                    Accounts Verification Checklist
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748B' }}>Please verify the following details against the physical Delivery Challan before approving.</p>
+                </div>
+                <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                   {Object.entries({
+                     gstin: 'Customer GSTIN', address: 'Billing Address', dc: 'DC Number', po: 'PO Number',
+                     taxable: 'Taxable Amount', gst: 'GST %', total: 'Final Total', qty: 'Quantity match with DC'
+                   }).map(([k, label]) => (
+                     <label key={k} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', background: verificationState[k] ? '#F0FDF4' : '#F8FAFC', padding: '12px', borderRadius: '8px', border: `1px solid ${verificationState[k] ? '#BBF7D0' : '#E2E8F0'}`, transition: 'all 0.2s' }}>
+                       <input type="checkbox" checked={verificationState[k]} onChange={(e) => setVerificationState({...verificationState, [k]: e.target.checked})} style={{ marginTop: '2px' }} />
+                       <span style={{ fontSize: '13px', fontWeight: 600, color: verificationState[k] ? '#166534' : '#334155' }}>{label}</span>
+                     </label>
+                   ))}
+                </div>
+                <div style={{ padding: '0 24px 24px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Internal Notes / Discrepancies (Optional)</label>
+                  <textarea className="form-input" value={draftNotes} onChange={e => setDraftNotes(e.target.value)} placeholder="Add any notes here..." style={{ minHeight: '80px', width: '100%', resize: 'vertical' }}></textarea>
+                </div>
+                <div style={{ padding: '16px 24px', background: '#F8FAFC', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                   <button className="btn btn-outline" style={{ borderColor: '#EF4444', color: '#EF4444' }} onClick={handleReject}>
+                     <span className="material-symbols-outlined">cancel</span> Reject Request
+                   </button>
+                   <div style={{ display: 'flex', gap: '12px' }}>
+                     <button className="btn btn-secondary" onClick={handleSaveDraft}>
+                       <span className="material-symbols-outlined">save</span> Save Draft
+                     </button>
+                      <button 
+                        className="btn" 
+                        onClick={handleApprove} 
+                        style={{ 
+                          background: Object.values(verificationState).every(Boolean) ? '#10B981' : '#F1F5F9', 
+                          color: Object.values(verificationState).every(Boolean) ? 'white' : '#94A3B8',
+                          border: 'none',
+                          fontWeight: 700,
+                          cursor: Object.values(verificationState).every(Boolean) ? 'pointer' : 'not-allowed',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '10px 20px',
+                          borderRadius: '8px',
+                          transition: 'all 0.2s'
+                        }} 
+                        disabled={!Object.values(verificationState).every(Boolean)}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>verified</span> 
+                        Approve & Generate Invoice
+                      </button>
+                   </div>
+                </div>
+              </div>
+            )}
             <div className="card shadow-lg animate-fade" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
-              <div id="tax-invoice-printable" style={{ padding: '48px', background: 'white', color: '#1E293B' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
+              <div id="tax-invoice-printable" style={{ padding: '48px', background: 'white', color: '#1E293B', position: 'relative' }}>
+                {inv.status !== 'requested' && (
+                  <div style={{ position: 'absolute', top: '250px', left: '50%', transform: 'translate(-50%, -50%) rotate(-15deg)', border: '6px solid #166534', color: '#166534', padding: '16px 48px', fontSize: '64px', fontWeight: 900, textTransform: 'uppercase', opacity: 0.08, pointerEvents: 'none', letterSpacing: '8px', zIndex: 0, borderRadius: '16px' }}>
+                    APPROVED
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px', position: 'relative', zIndex: 1 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'inline-block', padding: '6px 12px', background: '#F1F5F9', borderRadius: '4px', fontSize: '10px', fontWeight: 900, color: '#475569', letterSpacing: '0.1em', marginBottom: '16px' }}>TAX INVOICE</div>
                     <h2 style={{ fontSize: '42px', fontWeight: 900, margin: 0, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1 }}>{inv.invoice_number}</h2>

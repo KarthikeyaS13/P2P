@@ -143,7 +143,8 @@ const migrations = [
   "CREATE TABLE IF NOT EXISTS ar_entries (id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER, po_id INTEGER, customer_id INTEGER, amount_due REAL, amount_received REAL DEFAULT 0, balance REAL, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
   "CREATE TABLE IF NOT EXISTS ar_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER, amount REAL, payment_date TEXT, payment_mode TEXT, transaction_ref TEXT, recorded_by INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
   "ALTER TABLE dc_line_items ADD COLUMN invoiced_qty REAL DEFAULT 0",
-  "ALTER TABLE delivery_challans ADD COLUMN invoicing_status TEXT DEFAULT 'pending'"
+  "ALTER TABLE delivery_challans ADD COLUMN invoicing_status TEXT DEFAULT 'pending'",
+  "ALTER TABLE invoices ADD COLUMN verification_state TEXT"
 ];
 
 migrations.forEach(sql => {
@@ -1129,6 +1130,7 @@ app.get('/api/invoices/:id', authenticate, (req, res) => {
 app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
   const { id } = req.params;
   try {
+    db.exec('BEGIN');
     const lastInv = db.prepare("SELECT invoice_number FROM invoices WHERE status != 'requested' AND invoice_number LIKE 'INV/%' ORDER BY id DESC LIMIT 1").get();
     let nextNum = 1;
     if (lastInv && lastInv.invoice_number) {
@@ -1140,7 +1142,39 @@ app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
     const invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
     
     db.prepare("UPDATE invoices SET invoice_number = ?, status = 'raised', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(invoice_number, id);
+    
+    // Insert into AR database
+    const invData = db.prepare("SELECT po_id, customer_id, grand_total FROM invoices WHERE id = ?").get(id);
+    if (invData) {
+      db.prepare("INSERT INTO ar_entries (invoice_id, po_id, customer_id, amount_due, amount_received, balance, status) VALUES (?,?,?,?,?,?,?)").run(
+        id, invData.po_id, invData.customer_id, invData.grand_total, 0, invData.grand_total, 'pending'
+      );
+    }
+    
+    db.exec('COMMIT');
     res.json({ success: true, invoice_number });
+  } catch (err) {
+    if (db.inTransaction) db.exec('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/invoices/:id/reject', authenticate, (req, res) => {
+  const { id } = req.params;
+  try {
+    db.prepare("UPDATE invoices SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/invoices/:id/draft', authenticate, (req, res) => {
+  const { id } = req.params;
+  const { verification_state, notes } = req.body;
+  try {
+    db.prepare("UPDATE invoices SET verification_state = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(verification_state ? JSON.stringify(verification_state) : null, notes, id);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
