@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import LocationForm from '../components/LocationForm';
 import { useAuth } from '../context/AuthContext';
 
@@ -33,13 +34,27 @@ export default function CustomerLocations() {
     fetchCustomerData();
   }, [id]);
 
-  const handleDelete = (locationId) => {
-    if (window.confirm('Are you sure you want to delete this location?')) {
-      const token = sessionStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      axios.delete(`http://localhost:3000/api/locations/${locationId}`, { headers })
-        .then(() => fetchCustomerData())
-        .catch(err => alert(err.response?.data?.error || 'Cannot delete location'));
+  const handleDelete = async (locationId) => {
+    const result = await Swal.fire({
+      title: 'Delete Location?',
+      text: "Are you sure you want to delete this location?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const token = sessionStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        await axios.delete(`http://localhost:3000/api/locations/${locationId}`, { headers });
+        fetchCustomerData();
+        Swal.fire({ icon: 'success', title: 'Deleted!', text: 'Location has been deleted.', timer: 2000, showConfirmButton: false });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Cannot delete location' });
+      }
     }
   };
 
@@ -49,31 +64,35 @@ export default function CustomerLocations() {
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button 
             onClick={() => navigate('/customers')}
-            style={{ padding: '8px 16px', background: '#374151', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            className="btn-ghost btn-back"
+            style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            ← Back
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
           </button>
           <h2 style={{ margin: 0, color: '#111827' }}>{customer.name} - Locations</h2>
         </div>
         {role === 'admin' && (
-          <button
-            onClick={() => { setEditingLocation(null); setShowForm(true); }}
-            style={{
-              background: '#059669',
-              color: 'white',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            + Add New Location
-          </button>
+          <div className="page-header__actions">
+            <button
+              onClick={() => { setEditingLocation(null); setShowForm(true); }}
+              className="btn btn-primary"
+              style={{
+                background: '#059669',
+                color: 'white',
+                padding: '10px 20px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              + Add New Location
+            </button>
+          </div>
         )}
       </div>
 

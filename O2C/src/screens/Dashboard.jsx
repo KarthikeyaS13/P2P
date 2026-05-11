@@ -13,6 +13,40 @@ export default function Dashboard() {
   const isSales = user?.role?.toLowerCase() === 'sales';
   const isAccounts = user?.role?.toLowerCase() === 'accounts';
   const isStores = user?.role?.toLowerCase() === 'stores';
+  const [summaryConfig, setSummaryConfig] = useState(null);
+  const [summaryData, setSummaryData] = useState([]);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  const handleCardClick = async (type, title) => {
+    setSummaryConfig({ type, title });
+    setSummaryLoading(true);
+    setSummaryData([]);
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      let res;
+      if (type === 'active_pos') {
+        res = await axios.get('http://localhost:3000/api/pos', { headers });
+        setSummaryData(res.data.filter(p => !['rejected', 'invoice_closed'].includes(p.status)));
+      } else if (type === 'pending_pos') {
+        res = await axios.get('http://localhost:3000/api/pos?status=pending', { headers });
+        setSummaryData(res.data);
+      } else if (type === 'pending_dcs') {
+        res = await axios.get('http://localhost:3000/api/dc', { headers });
+        setSummaryData(res.data.filter(d => ['draft', 'raised'].includes(d.status)));
+      } else if (type === 'pending_invoice_requests') {
+        res = await axios.get('http://localhost:3000/api/dc', { headers });
+        setSummaryData(res.data.filter(d => d.delivery_status === 'delivery_confirmed'));
+      } else if (type === 'total_customers') {
+        res = await axios.get('http://localhost:3000/api/customers', { headers });
+        setSummaryData(res.data);
+      }
+    } catch (err) {
+      console.error('Error fetching summary:', err);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -249,34 +283,34 @@ export default function Dashboard() {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card animate-fade animate-stagger-1">
+        <div className="stat-card animate-fade animate-stagger-1" onClick={() => handleCardClick('active_pos', 'Active Purchase Orders')} style={{ cursor: 'pointer' }}>
           <p className="stat-card__label">Active POs</p>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
             <span className="stat-card__value">{data.stats.active_pos}</span>
           </div>
         </div>
-        <div className="stat-card animate-fade animate-stagger-2">
+        <div className="stat-card animate-fade animate-stagger-2" onClick={() => handleCardClick('pending_pos', 'Pending PO Review')} style={{ cursor: 'pointer' }}>
           <p className="stat-card__label">Pending PO Review</p>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
             <span className="stat-card__value">{data.stats.pending_pos}</span>
             {data.stats.pending_pos > 0 && <span className="stat-card__trend stat-card__trend--warn">Needs Attention</span>}
           </div>
         </div>
-        <div className="stat-card animate-fade animate-stagger-3">
+        <div className="stat-card animate-fade animate-stagger-3" onClick={() => handleCardClick('pending_dcs', 'Pending DC Requests')} style={{ cursor: 'pointer' }}>
           <p className="stat-card__label">Pending DC Requests</p>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
             <span className="stat-card__value">{data.stats.pending_dcs}</span>
             {data.stats.pending_dcs > 0 && <span className="stat-card__trend stat-card__trend--warn">Needs Dispatch</span>}
           </div>
         </div>
-        <div className="stat-card animate-fade animate-stagger-4">
+        <div className="stat-card animate-fade animate-stagger-4" onClick={() => handleCardClick('pending_invoice_requests', 'Pending Invoice Requests')} style={{ cursor: 'pointer' }}>
           <p className="stat-card__label">Pending Invoice Requests</p>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
             <span className="stat-card__value">{data.stats.pending_invoice_requests || 0}</span>
             {data.stats.pending_invoice_requests > 0 && <span className="stat-card__trend stat-card__trend--success">Ready to Invoice</span>}
           </div>
         </div>
-        <div className="stat-card animate-fade animate-stagger-5">
+        <div className="stat-card animate-fade animate-stagger-5" onClick={() => handleCardClick('total_customers', 'Registered Customers')} style={{ cursor: 'pointer' }}>
           <p className="stat-card__label">Total Customers</p>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
             <span className="stat-card__value">{data.stats.total_customers}</span>
@@ -284,84 +318,142 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid-2-1" style={{ marginBottom: 'var(--space-lg)' }}>
-        <div className="card card--padded animate-fade animate-stagger-2">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
-            <h3 className="text-h3">Recent Purchase Orders</h3>
-          </div>
-          {data.recent_pos.length === 0 ? (
-            <p style={{ color: 'var(--secondary)' }}>No recent POs.</p>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr><th>PO Number</th><th>Customer</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {data.recent_pos.map((po, idx) => (
-                  <tr key={idx}>
-                    <td style={{ fontWeight: 500, color: 'var(--primary)' }}>{po.po_number || '-'}</td>
-                    <td>{po.customer_name}</td>
-                    <td>
-                      <span className={`badge badge--${po.status.replace('_', '-')}`}>
-                        <span className="badge__dot"></span>{po.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-        <div className="card card--dark card--padded animate-fade animate-stagger-3" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div className="card__circle"></div>
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <h3 className="text-h3" style={{ color: '#fff', marginBottom: '8px' }}>System Health</h3>
-            <p style={{ fontSize: '0.9286rem', opacity: 0.8, marginBottom: 'var(--space-lg)' }}>All O2C modules operational. 99.7% uptime this month.</p>
-            <p style={{ fontSize: '0.9286rem', opacity: 0.8, marginBottom: 'var(--space-lg)' }}>
-              <strong>{data.stats.pending_pos}</strong> POs pending review.<br />
-              <strong>{data.stats.pending_dcs}</strong> DC requests pending dispatch.
-            </p>
-          </div>
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <button className="btn btn-white btn-sm" style={{ width: '100%' }} onClick={() => navigate('/po-review')}>
-              Review PO Queue →
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {!isStores && !isSales && (
-        <div className="card data-table-wrapper animate-fade animate-stagger-4">
-          <div className="data-table-header">
-            <h3 className="text-h3">Recent DC Requests & Tracking</h3>
+      {summaryConfig && (
+        <div className="summary-modal-overlay" onClick={() => setSummaryConfig(null)}>
+          <div className="summary-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="summary-modal-header">
+              <h2 className="text-h2" style={{ margin: 0 }}>{summaryConfig.title}</h2>
+              <button className="btn-ghost" onClick={() => setSummaryConfig(null)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="summary-modal-body">
+              {summaryLoading ? (
+                <div style={{ padding: '40px', textAlign: 'center' }}>
+                  <p>Loading summary data...</p>
+                </div>
+              ) : summaryData.length === 0 ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--secondary)' }}>
+                  <p>No items found in this category.</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="data-table">
+                    <thead>
+                      {summaryConfig.type.includes('pos') && (
+                        <tr><th>PO Number</th><th>Customer</th><th>Status</th><th className="text-right">Total</th></tr>
+                      )}
+                      {summaryConfig.type === 'pending_dcs' && (
+                        <tr><th>DC Number</th><th>PO Number</th><th>Status</th><th>Date</th></tr>
+                      )}
+                      {summaryConfig.type === 'pending_invoice_requests' && (
+                        <tr><th>DC Number</th><th>Customer</th><th>PO Number</th><th>Date</th></tr>
+                      )}
+                      {summaryConfig.type === 'total_customers' && (
+                        <tr><th>Customer Name</th><th>Code</th><th>Location Count</th></tr>
+                      )}
+                    </thead>
+                    <tbody>
+                      {summaryData.map((item, idx) => (
+                        <tr key={idx}>
+                          {summaryConfig.type.includes('pos') && (
+                            <>
+                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.po_number}</td>
+                              <td>{item.customer_name}</td>
+                              <td>
+                                <span className={`badge badge--${item.status?.replace('_', '-')}`}>
+                                  <span className="badge__dot"></span>{item.status}
+                                </span>
+                              </td>
+                              <td className="text-right" style={{ fontWeight: 600 }}>₹{item.grand_total?.toLocaleString('en-IN')}</td>
+                            </>
+                          )}
+                          {summaryConfig.type === 'pending_dcs' && (
+                            <>
+                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.dc_number || item.requested_dc_number || '-'}</td>
+                              <td>{item.po_no || '-'}</td>
+                              <td>
+                                <span className={`badge badge--${item.status?.replace('_', '-')}`}>
+                                  <span className="badge__dot"></span>{item.status}
+                                </span>
+                              </td>
+                              <td>{new Date(item.created_at).toLocaleDateString()}</td>
+                            </>
+                          )}
+                          {summaryConfig.type === 'pending_invoice_requests' && (
+                            <>
+                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.dc_number}</td>
+                              <td>{item.customer_name}</td>
+                              <td>{item.po_no}</td>
+                              <td>{new Date(item.created_at).toLocaleDateString()}</td>
+                            </>
+                          )}
+                          {summaryConfig.type === 'total_customers' && (
+                            <>
+                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.name}</td>
+                              <td>{item.cust_code}</td>
+                              <td>{item.location_count || 0} Locations</td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
-          {data.recent_dcs.length === 0 ? (
-            <p style={{ color: 'var(--secondary)', padding: '16px' }}>No recent dispatch requests.</p>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Request #</th><th>PO Number</th><th>Date</th><th className="text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recent_dcs.map((dc, idx) => (
-                  <tr key={idx}>
-                    <td style={{ fontWeight: 500, color: 'var(--primary)' }}>{dc.request_number}</td>
-                    <td>{dc.po_number || '-'}</td>
-                    <td>{new Date(dc.updated_at).toLocaleDateString()}</td>
-                    <td className="text-right">
-                      <span className={`badge badge--${dc.status.replace('_', '-')}`}>
-                        <span className="badge__dot"></span>{dc.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
         </div>
       )}
+
+      <style>{`
+        .summary-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2000;
+          backdrop-filter: blur(4px);
+          animation: fadeIn 0.2s ease-out;
+        }
+        .summary-modal-content {
+          background: white;
+          width: 90%;
+          max-width: 900px;
+          max-height: 85vh;
+          border-radius: var(--radius-xl);
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          animation: scaleIn 0.2s ease-out;
+        }
+        .summary-modal-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid var(--outline-variant);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .summary-modal-body {
+          padding: 24px;
+          overflow-y: auto;
+          flex: 1;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -24,13 +24,14 @@ import InvoiceRequest from './screens/InvoiceRequest';
 import InvoiceApproval from './screens/InvoiceApproval';
 import DispatchConfirmation from './screens/DispatchConfirmation';
 import ProjectsModule from './screens/ProjectsModule';
+import MasterAddress from './screens/MasterAddress';
 
 import { useAuth } from './context/AuthContext';
 
 function RoleGate({ allowedRoles, children }) {
   const { user } = useAuth();
   const userRole = user?.role?.toLowerCase();
-  
+
   if (allowedRoles.includes(userRole) || userRole === 'admin') {
     return children;
   }
@@ -40,7 +41,7 @@ function RoleGate({ allowedRoles, children }) {
 function App() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isSales = user?.role?.toLowerCase() === 'sales';
+  // const isSales = user?.role?.toLowerCase() === 'sales';
 
   if (!user) {
     return <Login onSuccess={() => navigate('/')} />;
@@ -48,18 +49,22 @@ function App() {
 
   return (
     <>
-      <Header />
       <div className="app-layout">
         <Sidebar />
-        <main className={`main-content ${isSales ? 'main-content--full' : ''}`} id="main-content">
+
+        <main className="main-content" id="main-content">
+          <Header />
+
           <div className="main-content__inner">
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              
+              <Route path="/master-address" element={<MasterAddress />} />
+
               {/* Sales / Admin */}
               <Route path="/customers" element={<RoleGate allowedRoles={['sales']}><Customers /></RoleGate>} />
               <Route path="/customers/new" element={<RoleGate allowedRoles={['sales']}><CustomerForm /></RoleGate>} />
+              <Route path="/customers/:id" element={<RoleGate allowedRoles={['sales']}><CustomerForm /></RoleGate>} />
               <Route path="/customers/:id/edit" element={<RoleGate allowedRoles={['sales']}><CustomerForm /></RoleGate>} />
               <Route path="/customers/:id/locations" element={<RoleGate allowedRoles={['sales']}><CustomerLocations /></RoleGate>} />
               <Route path="/new-po" element={<RoleGate allowedRoles={['sales']}><NewPO /></RoleGate>} />
@@ -86,7 +91,7 @@ function App() {
               <Route path="/dc-request" element={<RoleGate allowedRoles={['stores']}><DCRequest /></RoleGate>} />
               <Route path="/dispatch-confirmation" element={<RoleGate allowedRoles={['stores']}><DispatchConfirmation /></RoleGate>} />
               <Route path="/dispatch-confirmation/:id" element={<RoleGate allowedRoles={['stores']}><DispatchConfirmation /></RoleGate>} />
-              
+
               {/* Projects */}
               <Route path="/projects" element={<RoleGate allowedRoles={['projects', 'sales']}><ProjectsModule /></RoleGate>} />
 

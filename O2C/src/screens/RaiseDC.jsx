@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import {
   useReactTable,
   getCoreRowModel,
@@ -154,17 +155,21 @@ export default function RaiseDC() {
   const handleInsertSignature = () => {
     const canvas = sigCanvas.current;
     if (!canvas) return;
-    
-    // Check if canvas is empty (simplified check)
+
+    // Check if canvas is empty
     const ctx = canvas.getContext('2d');
     const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     const isCanvasEmpty = !pixelData.some(p => p !== 0);
-    
+
     if (isCanvasEmpty) {
-      alert('Please provide a signature first.');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Signature Required',
+        text: 'Please provide a signature first.'
+      });
       return;
     }
-    
+
     const data = canvas.toDataURL('image/png');
     setSignatureImage(data);
   };
@@ -231,7 +236,7 @@ export default function RaiseDC() {
         // Hide UI elements in the PDF
         const toolbar = clonedDoc.getElementById('pdf-toolbar');
         if (toolbar) toolbar.style.display = 'none';
-        
+
         const clearBtn = clonedDoc.getElementById('pdf-signature-clear');
         if (clearBtn) clearBtn.style.display = 'none';
 
@@ -246,10 +251,10 @@ export default function RaiseDC() {
 
     const imgData = canvas.toDataURL('image/png', 1.0);
     const pdf = new jsPDF('p', 'mm', 'a4');
-    
+
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
+
     // Multi-page or long-page support
     if (pdfHeight > 297) {
       // If it's very long, create a custom sized PDF to keep it in one piece
@@ -264,8 +269,13 @@ export default function RaiseDC() {
 
   const finalizeRaiseDC = async () => {
     if (!details) return;
+
     if (!signatureImage) {
-      alert('Please provide and insert an authorized signature first.');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Signature Required',
+        text: 'Please provide and insert an authorized signature first.'
+      });
       return;
     }
 
@@ -286,13 +296,13 @@ export default function RaiseDC() {
 
       const res = await axios.post(`http://localhost:3000/api/dc-requests/${details.id}/raise`, payload, { headers });
 
-      alert(`Delivery Challan ${res.data.dc_number} raised successfully!`);
+      Swal.fire({ icon: 'success', title: 'DC Raised', text: `Delivery Challan ${res.data.dc_number} raised successfully!`, timer: 2000, showConfirmButton: false });
       setShowPreview(false);
       navigate('/raise-dc');
       fetchData();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.error || 'Failed to raise Delivery Challan');
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to raise Delivery Challan' });
     } finally {
       setSubmitting(false);
     }
@@ -301,30 +311,30 @@ export default function RaiseDC() {
   const columns = useMemo(() => [
     {
       header: 'Sl no',
-      cell: info => <span style={{ color: '#6B7280', fontSize: '11px' }}>{info.row.index + 1}</span>,
+      cell: info => <span style={{ color: '#6B7280', fontSize: '13px' }}>{info.row.index + 1}</span>,
     },
     {
       header: 'PO NO',
       accessorKey: 'po_no',
-      cell: info => <span style={{ fontWeight: 700, color: '#111827', fontSize: '11px' }}>{info.getValue()}</span>,
+      cell: info => <span style={{ fontWeight: 700, color: '#111827', fontSize: '13px' }}>{info.getValue()}</span>,
     },
     {
       header: 'DC REG NO',
       accessorKey: 'dc_request_no',
-      cell: info => <span style={{ color: '#2563EB', fontWeight: 600, fontSize: '10px' }}>{info.getValue()}</span>,
+      cell: info => <span style={{ color: '#2563EB', fontWeight: 600, fontSize: '12px' }}>{info.getValue()}</span>,
     },
     {
       header: 'CUSTOMER',
       accessorKey: 'customer_name',
-      cell: info => <span style={{ fontSize: '11px' }}>{info.getValue()}</span>,
+      cell: info => <span style={{ fontSize: '13px' }}>{info.getValue()}</span>,
     },
     {
       header: 'LOCATION',
       accessorKey: 'location_name',
       cell: info => (
         <div>
-          <div style={{ fontWeight: 500, fontSize: '11px' }}>{info.getValue()}</div>
-          <div style={{ fontSize: '10px', color: '#6B7280' }}>{info.row.original.location_city}</div>
+          <div style={{ fontWeight: 500, fontSize: '13px' }}>{info.getValue()}</div>
+          <div style={{ fontSize: '12px', color: '#6B7280' }}>{info.row.original.location_city}</div>
         </div>
       ),
     },
@@ -342,7 +352,7 @@ export default function RaiseDC() {
           <span style={{
             padding: '2px 10px',
             borderRadius: '12px',
-            fontSize: '9px',
+            fontSize: '11px',
             fontWeight: 800,
             background: s.bg,
             color: s.text,
@@ -371,17 +381,17 @@ export default function RaiseDC() {
     {
       header: 'DC NO',
       accessorKey: 'dc_number',
-      cell: info => <span style={{ fontWeight: 700, color: '#111827', fontSize: '11px' }}>{info.getValue()}</span>,
+      cell: info => <span style={{ fontWeight: 700, color: '#111827', fontSize: '13px' }}>{info.getValue()}</span>,
     },
     {
       header: 'PO NO',
       accessorKey: 'po_no',
-      cell: info => <span style={{ color: '#4B5563', fontSize: '11px' }}>{info.getValue()}</span>,
+      cell: info => <span style={{ color: '#4B5563', fontSize: '13px' }}>{info.getValue()}</span>,
     },
     {
       header: 'CUSTOMER',
       accessorKey: 'customer_name',
-      cell: info => <span style={{ fontSize: '11px' }}>{info.getValue()}</span>,
+      cell: info => <span style={{ fontSize: '13px' }}>{info.getValue()}</span>,
     },
     {
       header: 'STATUS',
@@ -399,7 +409,7 @@ export default function RaiseDC() {
         if (delStatus === 'delivery_confirmed') { bg = '#D1FAE5'; text = '#065F46'; label = 'DELIVERED'; }
 
         return (
-          <span style={{ padding: '2px 10px', borderRadius: '12px', fontSize: '9px', fontWeight: 800, background: bg, color: text }}>
+          <span style={{ padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, background: bg, color: text }}>
             {label}
           </span>
         );
@@ -412,7 +422,7 @@ export default function RaiseDC() {
         const d = info.row.original;
         if (!d.vehicle_no) return <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>Pending Dispatch</span>;
         return (
-          <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
+          <div style={{ fontSize: '12px', lineHeight: '1.4' }}>
             <div style={{ fontWeight: 700, color: '#065F46' }}>{d.vehicle_no}</div>
             <div style={{ color: '#4B5563' }}>{d.driver_name} | {d.driver_phone}</div>
           </div>
@@ -447,21 +457,21 @@ export default function RaiseDC() {
       <div className="page-container screen-enter">
         <div className="page-header" style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => navigate('/raise-dc')} className="btn-ghost" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #E5E7EB' }}>
+            <button onClick={() => navigate('/raise-dc')} className="btn-ghost btn-back" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
             </button>
-            <h1 className="text-h2" style={{ fontSize: '15px' }}>Raise Delivery Challan</h1>
+            <h1 className="text-h2" style={{ fontSize: '17px' }}>Raise Delivery Challan</h1>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ fontSize: '10px', color: '#64748B' }}>Request:</span>
-            <span style={{ padding: '2px 8px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '12px', fontSize: '10px', fontWeight: 700, color: '#475569' }}>
+            <span style={{ fontSize: '12px', color: '#64748B' }}>Request:</span>
+            <span style={{ padding: '2px 8px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}>
               {details?.dc_request_no || '...'}
             </span>
           </div>
         </div>
 
         {loadingDetails ? (
-          <div className="card" style={{ padding: '40px', textAlign: 'center', fontSize: '13px' }}>Loading request details...</div>
+          <div className="card" style={{ padding: '40px', textAlign: 'center', fontSize: '15px' }}>Loading request details...</div>
         ) : details && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
@@ -519,8 +529,8 @@ export default function RaiseDC() {
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{step.active ? 'check' : step.icon}</span>
                     </div>
                     <div style={{ marginTop: '8px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 700, color: step.active ? '#111827' : '#9CA3AF' }}>{step.label}</div>
-                      <div style={{ fontSize: '9px', color: '#6B7280' }}>{step.sub}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: step.active ? '#111827' : '#9CA3AF' }}>{step.label}</div>
+                      <div style={{ fontSize: '11px', color: '#6B7280' }}>{step.sub}</div>
                     </div>
                   </div>
                 ))}
@@ -530,28 +540,28 @@ export default function RaiseDC() {
             {/* Logistics & Dispatch Settings (Provided by Stores) */}
             <div className="card animate-slide-up" style={{ padding: '16px 20px', border: '1px solid #E5E7EB', background: '#F8FAFC' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h4 style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Logistics & Dispatch Information</h4>
+                <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Logistics & Dispatch Information</h4>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#64748B' }}>Requested DC No:</span>
-                  <span style={{ fontSize: '9px', fontWeight: 800, color: '#1E40AF' }}>{details.requested_dc_number || 'Auto-Generate'}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>Requested DC No:</span>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E40AF' }}>{details.requested_dc_number || 'Auto-Generate'}</span>
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: '20px' }}>
                 <div className="info-block">
-                  <label style={{ fontSize: '8px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Vehicle No</label>
-                  <div style={{ fontSize: '11px', fontWeight: 600 }}>{details.vehicle_no || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
+                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Vehicle No</label>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.vehicle_no || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
                 </div>
                 <div className="info-block">
-                  <label style={{ fontSize: '8px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Driver Name</label>
-                  <div style={{ fontSize: '11px', fontWeight: 600 }}>{details.driver_name || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
+                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Driver Name</label>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.driver_name || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
                 </div>
                 <div className="info-block">
-                  <label style={{ fontSize: '8px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Driver Phone</label>
-                  <div style={{ fontSize: '11px', fontWeight: 600 }}>{details.driver_phone || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
+                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Driver Phone</label>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.driver_phone || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
                 </div>
                 <div className="info-block">
-                  <label style={{ fontSize: '8px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Delivery Location Address</label>
-                  <div style={{ fontSize: '10px', lineHeight: '1.4', color: 'var(--primary)', fontWeight: 600 }}>
+                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Delivery Location Address</label>
+                  <div style={{ fontSize: '12px', lineHeight: '1.4', color: 'var(--primary)', fontWeight: 600 }}>
                     {details.dispatch_from_address1 ? (
                       <>
                         <div style={{ fontWeight: 700 }}>{details.dispatch_from_address1}</div>
@@ -575,19 +585,19 @@ export default function RaiseDC() {
               {/* Added Proof & Remarks */}
               <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #E2E8F0', display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
                 <div className="info-block">
-                  <label style={{ fontSize: '8px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Dispatch Proof</label>
+                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Dispatch Proof</label>
                   {details.proof_path ? (
                     <a href={`http://localhost:3000${details.proof_path}`} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid #E2E8F0', borderRadius: '4px', overflow: 'hidden', background: 'white' }}>
                       <img src={`http://localhost:3000${details.proof_path}`} alt="Proof" style={{ width: '100%', height: '60px', objectFit: 'cover' }} />
-                      <div style={{ fontSize: '8px', textAlign: 'center', padding: '2px', background: '#F1F5F9', color: '#2563EB', fontWeight: 700 }}>VIEW FULL PHOTO</div>
+                      <div style={{ fontSize: '10px', textAlign: 'center', padding: '2px', background: '#F1F5F9', color: '#2563EB', fontWeight: 700 }}>VIEW FULL PHOTO</div>
                     </a>
                   ) : (
-                    <div style={{ fontSize: '10px', color: '#94A3B8', fontStyle: 'italic', padding: '10px', border: '1px dashed #CBD5E1', borderRadius: '4px', textAlign: 'center' }}>No proof uploaded</div>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', fontStyle: 'italic', padding: '10px', border: '1px dashed #CBD5E1', borderRadius: '4px', textAlign: 'center' }}>No proof uploaded</div>
                   )}
                 </div>
                 <div className="info-block">
-                  <label style={{ fontSize: '8px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Stores Remarks</label>
-                  <div style={{ fontSize: '11px', color: '#334155', background: 'white', padding: '8px', borderRadius: '4px', border: '1px solid #E2E8F0', minHeight: '60px' }}>
+                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Stores Remarks</label>
+                  <div style={{ fontSize: '13px', color: '#334155', background: 'white', padding: '8px', borderRadius: '4px', border: '1px solid #E2E8F0', minHeight: '60px' }}>
                     {details.logistics_remarks || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>No remarks provided.</span>}
                   </div>
                 </div>
@@ -597,7 +607,7 @@ export default function RaiseDC() {
             {details.status === 'dc_requested' ? (
               <div className="card" style={{ padding: '20px', textAlign: 'center', background: '#ECFDF5', border: '1px solid #10B981' }}>
                 <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px', color: '#10B981' }}>verified_user</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#065F46' }}>Ready for Authorization: Please verify HSN and Items before generating official DC.</span>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: '#065F46' }}>Ready for Authorization: Please verify HSN and Items before generating official DC.</span>
               </div>
             ) : (
               <div className="card" style={{
@@ -609,7 +619,7 @@ export default function RaiseDC() {
                 <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px', color: details.status === 'delivery_confirmed' ? '#10B981' : '#3B82F6' }}>
                   {details.status === 'delivery_confirmed' ? 'task_alt' : 'local_shipping'}
                 </span>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: details.status === 'delivery_confirmed' ? '#065F46' : '#1E40AF' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: details.status === 'delivery_confirmed' ? '#065F46' : '#1E40AF' }}>
                   {details.status === 'delivery_confirmed' ? 'Shipment Fully Delivered & Confirmed at Project Site.' :
                     details.status === 'in_transit' ? 'Shipment is currently In Transit to Destination.' : 'DC Authorized & Ready for Dispatch.'}
                 </span>
@@ -619,18 +629,18 @@ export default function RaiseDC() {
             {/* DISPATCH CONFIGURATION */}
             {details.status === 'dc_requested' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="card" style={{ padding: '16px', background: 'white', border: '1px solid #E5E7EB' }}>
-                  <h3 style={{ margin: '0 0 12px 0', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569' }}>Dispatch From (Origin)</h3>
+                {/* <div className="card" style={{ padding: '16px', background: 'white', border: '1px solid #E5E7EB' }}>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', color: '#475569' }}>Dispatch From (Origin)</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     <input className="input-field" placeholder="Addr Line 1" style={{ gridColumn: 'span 2' }} value={dispatchFrom.line1} onChange={e => setDispatchFrom({ ...dispatchFrom, line1: e.target.value })} />
                     <input className="input-field" placeholder="Addr Line 2" value={dispatchFrom.line2} onChange={e => setDispatchFrom({ ...dispatchFrom, line2: e.target.value })} />
                     <input className="input-field" placeholder="Pincode" value={dispatchFrom.pin} onChange={e => setDispatchFrom({ ...dispatchFrom, pin: e.target.value })} />
                   </div>
-                </div>
+                </div> */}
                 <div className="card" style={{ padding: '16px', background: 'white', border: '1px solid #E5E7EB' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '12px' }}>
                     <input type="checkbox" checked={dispatchTo.enabled} onChange={e => setDispatchTo({ ...dispatchTo, enabled: e.target.checked })} />
-                    <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#475569' }}>Manual Site Address</span>
+                    <span style={{ fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', color: '#475569' }}>Manual Site Address</span>
                   </label>
                   {dispatchTo.enabled ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -641,7 +651,7 @@ export default function RaiseDC() {
                       <input className="input-field" placeholder="Pincode" value={dispatchTo.pin} onChange={e => setDispatchTo({ ...dispatchTo, pin: e.target.value })} />
                     </div>
                   ) : (
-                    <div style={{ padding: '10px', background: '#F8FAFC', borderRadius: '4px', border: '1px solid #E2E8F0', fontSize: '10px', color: '#64748B' }}>
+                    <div style={{ padding: '10px', background: '#F8FAFC', borderRadius: '4px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#64748B' }}>
                       <div style={{ fontWeight: 700, color: '#475569' }}>Destination Site (from PO):</div>
                       <div>{details.location_name}</div>
                       <div>{details.location_address}, {details.location_city}</div>
@@ -654,7 +664,7 @@ export default function RaiseDC() {
             {/* Items Table Card */}
             <div className="card animate-slide-up" style={{ padding: '0', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
               <div style={{ overflow: 'auto' }}>
-                <table className="data-table" style={{ fontSize: '10px', whiteSpace: 'nowrap' }}>
+                <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
                   <thead style={{ background: '#3B82F6', color: 'white' }}>
                     <tr>
                       <th style={{ padding: '6px 12px' }}>SL NO</th>
@@ -679,16 +689,16 @@ export default function RaiseDC() {
                             placeholder="Optional HSN"
                             value={itemHSNs[it.line_item_id] || ''}
                             onChange={e => handleHSNChange(it.line_item_id, e.target.value)}
-                            style={{ height: '22px', fontSize: '9px', width: '90px' }}
+                            style={{ height: '22px', fontSize: '11px', width: '90px' }}
                           />
                         </td>
                         <td
                           style={{ padding: '6px 12px', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1F2937', cursor: 'pointer' }}
-                          onClick={() => alert(it.description)}
+                          onClick={() => Swal.fire({ title: 'Item Description', text: it.description, icon: 'info' })}
                         >
                           {it.description}
                         </td>
-                        <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 800, color: '#2563EB', fontSize: '11px' }}>{it.qty}</td>
+                        <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 800, color: '#2563EB', fontSize: '13px' }}>{it.qty}</td>
                         <td style={{ padding: '6px 12px' }}>{it.uom}</td>
                       </tr>
                     ))}
@@ -697,12 +707,12 @@ export default function RaiseDC() {
               </div>
 
               <div style={{ padding: '8px 20px', background: '#F9FAFB', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button className="btn btn-ghost" onClick={() => navigate('/raise-dc')} style={{ height: '28px', fontSize: '11px' }} disabled={submitting}>Cancel</button>
+                <button className="btn btn-ghost" onClick={() => navigate('/raise-dc')} style={{ height: '28px', fontSize: '13px' }} disabled={submitting}>Cancel</button>
                 <button
                   className="btn btn-danger"
                   style={{
                     height: '28px',
-                    fontSize: '11px',
+                    fontSize: '13px',
                     padding: '0 12px',
                     opacity: details.status === 'dc_requested' ? 1 : 0.5,
                     cursor: details.status === 'dc_requested' ? 'pointer' : 'not-allowed'
@@ -718,7 +728,7 @@ export default function RaiseDC() {
                   style={{
                     background: details.status === 'dc_requested' ? '#10B981' : '#9CA3AF',
                     height: '28px',
-                    fontSize: '11px',
+                    fontSize: '13px',
                     padding: '0 20px',
                     fontWeight: 700,
                     cursor: details.status === 'dc_requested' ? 'pointer' : 'not-allowed'
@@ -753,7 +763,7 @@ export default function RaiseDC() {
             }}>
               {/* Toolbar */}
               <div id="pdf-toolbar" style={{ padding: '12px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700 }}>Authorized DC Summary</h3>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Authorized DC Summary</h3>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button className="btn btn-ghost" onClick={() => setShowPreview(false)} style={{ height: '32px' }}>Back to Edit</button>
                   <button className="btn btn-ghost" onClick={downloadPDF} style={{ height: '32px', border: '1px solid #CBD5E1', opacity: signatureImage ? 1 : 0.5 }} disabled={!signatureImage}>
@@ -782,11 +792,11 @@ export default function RaiseDC() {
                   {/* Header Block */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
                     <div>
-                      <img src="/logo.png" alt="Idha" style={{ height: '50px' }} />
+                      <img src="/logo.png" alt="Sudha Analyticals" style={{ height: '60px' }} />
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <h1 style={{ margin: '0 0 10px 0', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', color: '#0F172A' }}>DELIVERY CHALLAN</h1>
-                      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '5px', fontSize: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '5px', fontSize: '14px' }}>
                         <span style={{ fontWeight: 700 }}>DC NO :</span> <span style={{ fontWeight: 800 }}>{customDCNo || details.requested_dc_number || 'AUTO'}</span>
                         <span style={{ fontWeight: 700 }}>Date :</span> <span>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                         <span style={{ fontWeight: 700 }}>PO Ref :</span> <span>{details.po_number}</span>
@@ -798,8 +808,8 @@ export default function RaiseDC() {
                   {/* 2x2 Grid for Addresses */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0', border: '1px solid #000', marginBottom: '30px' }}>
                     <div style={{ padding: '15px', borderRight: '1px solid #000', borderBottom: '1px solid #000' }}>
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Billing By</h4>
-                      <div style={{ fontSize: '11px', lineHeight: '1.5' }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Billing By</h4>
+                      <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
                         <div style={{ fontWeight: 800 }}>Sudha Analyticals</div>
                         <div>Plot 18A, Sy No 118</div>
                         <div>IDA Balanagar, Hyderabad 500037</div>
@@ -807,8 +817,8 @@ export default function RaiseDC() {
                       </div>
                     </div>
                     <div style={{ padding: '15px', borderBottom: '1px solid #000' }}>
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Despatch From</h4>
-                      <div style={{ fontSize: '11px', lineHeight: '1.5' }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Despatch From</h4>
+                      <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
                         {dispatchFrom?.line1 || details.dispatch_from_address1 ? (
                           <>
                             <div style={{ fontWeight: 700 }}>{dispatchFrom?.line1 || details.dispatch_from_address1}</div>
@@ -825,8 +835,8 @@ export default function RaiseDC() {
                       </div>
                     </div>
                     <div style={{ padding: '15px', borderRight: '1px solid #000' }}>
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Billing To</h4>
-                      <div style={{ fontSize: '11px', lineHeight: '1.5' }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Billing To</h4>
+                      <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
                         <div style={{ fontWeight: 800 }}>{details.customer_name}</div>
                         <div>{details.customer_addr1}</div>
                         <div>{details.customer_addr2} | {details.customer_city}</div>
@@ -834,8 +844,8 @@ export default function RaiseDC() {
                       </div>
                     </div>
                     <div style={{ padding: '15px' }}>
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Despatch To</h4>
-                      <div style={{ fontSize: '11px', lineHeight: '1.5' }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Despatch To</h4>
+                      <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
                         {dispatchTo.enabled ? (
                           <>
                             <div style={{ fontWeight: 800 }}>{dispatchTo.name}</div>
@@ -859,25 +869,25 @@ export default function RaiseDC() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '40px', border: '1px solid #000' }}>
                     <thead>
                       <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #000' }}>
-                        <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>SI no</th>
-                        <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Reference from PO</th>
-                        <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Package</th>
-                        <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>HSN</th>
-                        <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Description</th>
-                        <th style={{ padding: '8px', fontSize: '11px', textAlign: 'right', borderRight: '1px solid #000' }}>Qty</th>
-                        <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left' }}>UoM</th>
+                        <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>SI no</th>
+                        <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>Reference from PO</th>
+                        <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>Package</th>
+                        <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>HSN</th>
+                        <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>Description</th>
+                        <th style={{ padding: '8px', fontSize: '13px', textAlign: 'right', borderRight: '1px solid #000' }}>Qty</th>
+                        <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left' }}>UoM</th>
                       </tr>
                     </thead>
                     <tbody>
                       {details.items.map((it, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid #000' }}>
-                          <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{idx + 1}</td>
-                          <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{it.ref_no}</td>
-                          <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{it.package_name}</td>
-                          <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{itemHSNs[it.line_item_id] || '-'}</td>
-                          <td style={{ padding: '8px', fontSize: '10px', borderRight: '1px solid #000', maxWidth: '300px' }}>{it.description}</td>
-                          <td style={{ padding: '8px', fontSize: '11px', textAlign: 'right', borderRight: '1px solid #000', fontWeight: 700 }}>{it.qty}</td>
-                          <td style={{ padding: '8px', fontSize: '11px' }}>{it.uom}</td>
+                          <td style={{ padding: '8px', fontSize: '13px', borderRight: '1px solid #000' }}>{idx + 1}</td>
+                          <td style={{ padding: '8px', fontSize: '13px', borderRight: '1px solid #000' }}>{it.ref_no}</td>
+                          <td style={{ padding: '8px', fontSize: '13px', borderRight: '1px solid #000' }}>{it.package_name}</td>
+                          <td style={{ padding: '8px', fontSize: '13px', borderRight: '1px solid #000' }}>{itemHSNs[it.line_item_id] || '-'}</td>
+                          <td style={{ padding: '8px', fontSize: '12px', borderRight: '1px solid #000', maxWidth: '300px' }}>{it.description}</td>
+                          <td style={{ padding: '8px', fontSize: '13px', textAlign: 'right', borderRight: '1px solid #000', fontWeight: 700 }}>{it.qty}</td>
+                          <td style={{ padding: '8px', fontSize: '13px' }}>{it.uom}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -901,11 +911,11 @@ export default function RaiseDC() {
                             onTouchEnd={stopDrawing}
                             style={{ background: 'white', cursor: 'crosshair', display: 'block', margin: '0 auto', border: '1px solid #E2E8F0' }}
                           />
-                          <div id="pdf-signature-hint" style={{ fontSize: '8px', color: '#94A3B8', marginTop: '2px', marginBottom: '5px' }}>Sign above for authorization</div>
-                          <button 
-                            className="btn btn-primary" 
-                            onClick={handleInsertSignature} 
-                            style={{ width: '100%', height: '24px', fontSize: '10px', background: '#2563EB' }}
+                          <div id="pdf-signature-hint" style={{ fontSize: '10px', color: '#94A3B8', marginTop: '2px', marginBottom: '5px' }}>Sign above for authorization</div>
+                          <button
+                            className="btn btn-primary"
+                            onClick={handleInsertSignature}
+                            style={{ width: '100%', height: '24px', fontSize: '12px', background: '#2563EB' }}
                           >
                             Insert Signature
                           </button>
@@ -913,16 +923,16 @@ export default function RaiseDC() {
                       ) : (
                         <div style={{ marginBottom: '10px', position: 'relative' }}>
                           <img src={signatureImage} alt="Authorized Signature" style={{ height: '80px', display: 'block', margin: '0 auto' }} />
-                          <button 
-                            onClick={handleClearSignature} 
-                            style={{ position: 'absolute', top: '-10px', right: '-10px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', fontSize: '12px' }}
+                          <button
+                            onClick={handleClearSignature}
+                            style={{ position: 'absolute', top: '-10px', right: '-10px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', fontSize: '14px' }}
                             id="pdf-signature-clear"
                           >
                             ×
                           </button>
                         </div>
                       )}
-                      <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: '#0F172A' }}>Authorised Signatory</div>
+                      <div style={{ fontSize: '14px', fontWeight: 900, textTransform: 'uppercase', color: '#0F172A' }}>Authorised Signatory</div>
                     </div>
                   </div>
 
@@ -942,7 +952,7 @@ export default function RaiseDC() {
       <div className="page-header" style={{ marginBottom: '16px' }}>
         <div>
           <h1 className="text-h2" style={{ fontSize: '18px' }}>Raise Delivery Challan</h1>
-          <p className="text-p" style={{ fontSize: '12px' }}>Review and formally issue Delivery Challans for pending store requests.</p>
+          <p className="text-p" style={{ fontSize: '14px' }}>Review and formally issue Delivery Challans for pending store requests.</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <div className="search-bar" style={{ width: '280px', background: 'white', height: '36px' }}>
@@ -952,10 +962,10 @@ export default function RaiseDC() {
               placeholder="Search by PO, Customer or DC Reg..."
               value={globalFilter}
               onChange={e => setGlobalFilter(e.target.value)}
-              style={{ fontSize: '12px' }}
+              style={{ fontSize: '14px' }}
             />
           </div>
-          <button className="btn btn-ghost" onClick={() => navigate('/dashboard')} style={{ height: '36px', fontSize: '12px' }}>
+          <button className="btn btn-ghost" onClick={() => navigate('/dashboard')} style={{ height: '36px', fontSize: '14px' }}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>dashboard</span>
             Dashboard
           </button>
@@ -968,7 +978,7 @@ export default function RaiseDC() {
           style={{
             padding: '8px 16px',
             borderRadius: '8px',
-            fontSize: '12px',
+            fontSize: '14px',
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.2s',
@@ -985,7 +995,7 @@ export default function RaiseDC() {
           style={{
             padding: '8px 16px',
             borderRadius: '8px',
-            fontSize: '12px',
+            fontSize: '14px',
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.2s',
@@ -1000,7 +1010,7 @@ export default function RaiseDC() {
       </div>
 
       <div className="card" style={{ padding: '0', overflowX: 'auto' }}>
-        <table className="data-table" style={{ fontSize: '11px' }}>
+        <table className="data-table" style={{ fontSize: '13px' }}>
           <thead style={{ background: '#F9FAFB' }}>
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
@@ -1034,3 +1044,4 @@ export default function RaiseDC() {
     </div>
   );
 }
+

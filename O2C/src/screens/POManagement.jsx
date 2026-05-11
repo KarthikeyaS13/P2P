@@ -47,26 +47,33 @@ export default function POManagement() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <button onClick={() => navigate('/dashboard')} style={{ padding: '8px 16px', background: '#374151', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          ← Back to Dashboard
-        </button>
-        <h2 style={{ margin: 0, color: '#111827' }}>Active Purchase Orders</h2>
-        <div style={{ visibility: 'hidden' }}>Placeholder</div>
+      <div className="page-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="btn-ghost btn-back"
+            style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+          </button>
+          <h2 style={{ margin: 0, color: '#111827' }}>Active Purchase Orders</h2>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '20px', gap: '15px' }}>
         <input 
           type="text" 
           placeholder="Search PO, customer..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: '10px', width: '300px', border: '1px solid #D1D5DB', borderRadius: '4px' }}
+          className="form-input"
+          style={{ width: '100%' }}
         />
         <select 
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          style={{ padding: '10px', border: '1px solid #D1D5DB', borderRadius: '4px' }}
+          className="form-input"
+          style={{ width: '100%' }}
         >
           <option value="all">All</option>
           <option value="pending">Pending</option>
@@ -89,7 +96,7 @@ export default function POManagement() {
           No purchase orders found
         </div>
       ) : (
-        <div style={{ overflowX: 'auto', background: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div className="table-wrapper">
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead style={{ background: '#F3F4F6' }}>
               <tr>

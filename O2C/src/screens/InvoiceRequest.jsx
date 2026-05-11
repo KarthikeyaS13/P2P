@@ -134,7 +134,7 @@ export default function InvoiceRequest() {
       <div className="screen-enter">
         <div className="page-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => navigate('/invoice-request')} className="btn-ghost" style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #E5E7EB' }}>
+            <button onClick={() => navigate('/invoice-request')} className="btn-ghost btn-back" style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
             </button>
             <div>

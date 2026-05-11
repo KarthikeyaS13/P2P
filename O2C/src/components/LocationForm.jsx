@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 export default function LocationForm({ customerId, corporateGST, location, onClose, onRefresh }) {
   const isEdit = !!location;
@@ -74,27 +75,27 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
   };
 
   const handleSubmit = (e) => {
-    if (!form.label) return alert('Location Name is required');
-    if (!form.address_line1) return alert('Address Line 1 is required');
-    if (!form.city) return alert('City is required');
-    if (!form.state) return alert('State is required');
-    if (!form.pincode || form.pincode.length !== 6) return alert('Valid 6-digit Pincode is required');
+    if (!form.label) return Swal.fire({ icon: 'error', title: 'Required', text: 'Location Name is required' });
+    if (!form.address_line1) return Swal.fire({ icon: 'error', title: 'Required', text: 'Address Line 1 is required' });
+    if (!form.city) return Swal.fire({ icon: 'error', title: 'Required', text: 'City is required' });
+    if (!form.state) return Swal.fire({ icon: 'error', title: 'Required', text: 'State is required' });
+    if (!form.pincode || form.pincode.length !== 6) return Swal.fire({ icon: 'error', title: 'Invalid Pincode', text: 'Valid 6-digit Pincode is required' });
     
     if (form.gst_is_different && (!form.gstin || form.gstin.length !== 15)) {
-      return alert('15-character GSTIN is required when using a different GST for this location');
+      return Swal.fire({ icon: 'error', title: 'Invalid GSTIN', text: '15-character GSTIN is required when using a different GST for this location' });
     }
     
     if (form.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email)) {
-      return alert('Invalid SPOC 1 Email');
+      return Swal.fire({ icon: 'error', title: 'Invalid Email', text: 'Invalid SPOC 1 Email' });
     }
-    if (form.contact_phone && form.contact_phone.length !== 10) return alert('Contact phone must be 10 digits');
+    if (form.contact_phone && form.contact_phone.length !== 10) return Swal.fire({ icon: 'error', title: 'Invalid Phone', text: 'Contact phone must be 10 digits' });
 
     if (showSpoc2) {
       if (form.spoc2_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.spoc2_email)) {
-        return alert('Invalid SPOC 2 Email');
+        return Swal.fire({ icon: 'error', title: 'Invalid Email', text: 'Invalid SPOC 2 Email' });
       }
       if (form.spoc2_phone && form.spoc2_phone.length !== 10) {
-        return alert('SPOC 2 Phone must be 10 digits');
+        return Swal.fire({ icon: 'error', title: 'Invalid Phone', text: 'SPOC 2 Phone must be 10 digits' });
       }
     }
 
@@ -106,20 +107,20 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
     if (isEdit) {
       axios.put(`http://localhost:3000/api/locations/${location.id}`, payload, { headers })
         .then(() => {
-          alert('Location updated');
+          Swal.fire({ icon: 'success', title: 'Updated', text: 'Location updated', timer: 2000, showConfirmButton: false });
           onRefresh();
           onClose();
         })
-        .catch(err => alert(err.response?.data?.error || 'Failed to update location'))
+        .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to update location' }))
         .finally(() => setSubmitting(false));
     } else {
       axios.post('http://localhost:3000/api/locations', payload, { headers })
         .then(() => {
-          alert('Location added');
+          Swal.fire({ icon: 'success', title: 'Success', text: 'Location added', timer: 2000, showConfirmButton: false });
           onRefresh();
           onClose();
         })
-        .catch(err => alert(err.response?.data?.error || 'Failed to add location'))
+        .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to add location' }))
         .finally(() => setSubmitting(false));
     }
   };
@@ -136,7 +137,7 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
         <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
           
           <h3 style={{ color: '#1F2937', marginTop: 0, borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>Location Details</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+          <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '32px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Location Name / Project Name *</label>
               <input name="label" value={form.label} onChange={handleChange} placeholder="e.g. Hyderabad Site, Chennai Factory" required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
@@ -173,7 +174,7 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
           </div>
 
           <h3 style={{ color: '#1F2937', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>Address</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+          <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '32px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 1 *</label>
               <input name="address_line1" value={form.address_line1} onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import {
   useReactTable,
   getCoreRowModel,
@@ -82,7 +83,7 @@ export default function ProjectsModule() {
 
   const handleConfirmDelivery = async () => {
     if (!receivedBy || !phone) {
-      alert('Receiver name and phone are mandatory.');
+      Swal.fire({ icon: 'warning', title: 'Missing Info', text: 'Receiver name and phone are mandatory.' });
       return;
     }
 
@@ -113,11 +114,11 @@ export default function ProjectsModule() {
 
       await axios.post(`http://localhost:3000/api/dc/${details.id}/confirm-delivery`, formData, { headers });
       
-      alert(`Delivery for DC ${details.dc_number} confirmed successfully! Proceeding to Invoice Request.`);
+      Swal.fire({ icon: 'success', title: 'Confirmed', text: `Delivery for DC ${details.dc_number} confirmed successfully! Proceeding to Invoice Request.`, timer: 3000, showConfirmButton: false });
       navigate('/invoice-request');
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.error || 'Failed to confirm delivery');
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to confirm delivery' });
     } finally {
       setSubmitting(false);
     }
@@ -152,7 +153,7 @@ export default function ProjectsModule() {
       <div className="page-container screen-enter">
         <div className="page-header" style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => setView('list')} className="btn-ghost" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #E5E7EB' }}>
+            <button onClick={() => setView('list')} className="btn-ghost btn-back" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
             </button>
             <h1 className="text-h2" style={{ fontSize: '15px' }}>Project Site Delivery Verification</h1>
@@ -220,54 +221,56 @@ export default function ProjectsModule() {
             {/* SECTION 2: MATERIAL VERIFICATION */}
             <div className="card animate-slide-up" style={{ padding: '0', overflow: 'hidden' }}>
               <div style={{ padding: '12px 20px', background: '#3B82F6', color: 'white', fontWeight: 700, fontSize: '12px' }}>Material Verification Table</div>
-              <table className="data-table" style={{ fontSize: '11px' }}>
-                <thead style={{ background: '#F9FAFB' }}>
-                  <tr>
-                    <th>SL</th>
-                    <th>ITEM DESCRIPTION</th>
-                    <th style={{ textAlign: 'right' }}>SENT QTY</th>
-                    <th style={{ textAlign: 'right', background: '#FEF3C7' }}>RECEIVED QTY</th>
-                    <th style={{ textAlign: 'center' }}>STATUS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {details.items.map((it, idx) => (
-                    <tr key={it.id}>
-                      <td>{idx + 1}</td>
-                      <td style={{ fontWeight: 600 }}>{it.item_name || it.description}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>{it.quantity_dispatched}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <input 
-                          type="number" 
-                          className="input-field"
-                          value={itemStates[it.id]?.received_qty || 0}
-                          onChange={e => setItemStates({...itemStates, [it.id]: { ...itemStates[it.id], received_qty: e.target.value }})}
-                          style={{ width: '80px', height: '24px', textAlign: 'right' }}
-                        />
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <select 
-                          className="input-field"
-                          value={itemStates[it.id]?.condition || 'OK'}
-                          onChange={e => setItemStates({...itemStates, [it.id]: { ...itemStates[it.id], condition: e.target.value }})}
-                          style={{ height: '24px', padding: '0 4px', fontSize: '10px' }}
-                        >
-                          <option value="OK">OK</option>
-                          <option value="Damaged">Damaged</option>
-                          <option value="Shortage">Shortage</option>
-                        </select>
-                      </td>
+              <div className="table-wrapper">
+                <table className="data-table" style={{ fontSize: '11px' }}>
+                  <thead style={{ background: '#F9FAFB' }}>
+                    <tr>
+                      <th>SL</th>
+                      <th>ITEM DESCRIPTION</th>
+                      <th style={{ textAlign: 'right' }}>SENT QTY</th>
+                      <th style={{ textAlign: 'right', background: '#FEF3C7' }}>RECEIVED QTY</th>
+                      <th style={{ textAlign: 'center' }}>STATUS</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {details.items.map((it, idx) => (
+                      <tr key={it.id}>
+                        <td>{idx + 1}</td>
+                        <td style={{ fontWeight: 600 }}>{it.item_name || it.description}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{it.quantity_dispatched}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <input 
+                            type="number" 
+                            className="input-field"
+                            value={itemStates[it.id]?.received_qty || 0}
+                            onChange={e => setItemStates({...itemStates, [it.id]: { ...itemStates[it.id], received_qty: e.target.value }})}
+                            style={{ width: '80px', height: '24px', textAlign: 'right' }}
+                          />
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <select 
+                            className="input-field"
+                            value={itemStates[it.id]?.condition || 'OK'}
+                            onChange={e => setItemStates({...itemStates, [it.id]: { ...itemStates[it.id], condition: e.target.value }})}
+                            style={{ height: '24px', padding: '0 4px', fontSize: '10px' }}
+                          >
+                            <option value="OK">OK</option>
+                            <option value="Damaged">Damaged</option>
+                            <option value="Shortage">Shortage</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* SECTION 3 & 4: ACKNOWLEDGEMENT & UPLOADS */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '16px' }}>
+            <div className="responsive-grid responsive-grid--2" style={{ gap: '16px' }}>
               <div className="card animate-slide-up" style={{ padding: '20px' }}>
                 <h4 style={{ marginBottom: '16px', fontSize: '12px', fontWeight: 700 }}>Site Acknowledgement</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="responsive-grid responsive-grid--2" style={{ gap: '16px' }}>
                   <div className="form-group">
                     <label className="form-label">Received By *</label>
                     <input className="form-input" value={receivedBy} onChange={e => setReceivedBy(e.target.value)} placeholder="Full Name" />

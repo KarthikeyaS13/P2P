@@ -144,7 +144,9 @@ const migrations = [
   "CREATE TABLE IF NOT EXISTS ar_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, invoice_id INTEGER, amount REAL, payment_date TEXT, payment_mode TEXT, transaction_ref TEXT, recorded_by INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
   "ALTER TABLE dc_line_items ADD COLUMN invoiced_qty REAL DEFAULT 0",
   "ALTER TABLE delivery_challans ADD COLUMN invoicing_status TEXT DEFAULT 'pending'",
-  "ALTER TABLE invoices ADD COLUMN verification_state TEXT"
+  "ALTER TABLE invoices ADD COLUMN verification_state TEXT",
+  "ALTER TABLE purchase_orders ADD COLUMN nt_count INTEGER DEFAULT 0",
+  "CREATE TABLE IF NOT EXISTS master_addresses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, addr_line1 TEXT, addr_line2 TEXT, city TEXT, state TEXT, pincode TEXT, landmark TEXT, is_default BOOLEAN DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
 ];
 
 migrations.forEach(sql => {
@@ -152,6 +154,8 @@ migrations.forEach(sql => {
     db.prepare(sql).run();
   } catch(e) {}
 });
+
+// --- Routes ---
 
 // One-time status migration for legacy data
 try {
@@ -293,6 +297,40 @@ function auditLog(userId, action, module, recordId, details) {
   } catch(e) { console.error('[Audit]', e.message); }
 }
 
+// --- Master Addresses API ---
+app.get('/api/master-addresses', authenticate, (req, res) => {
+  try {
+    const addresses = db.prepare("SELECT * FROM master_addresses ORDER BY created_at DESC").all();
+    res.json(addresses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/master-addresses', requireRole(['admin']), (req, res) => {
+  console.log('POST /api/master-addresses hit by', req.user.username);
+  const { name, addr_line1, addr_line2, city, state, pincode, landmark, is_default } = req.body;
+  try {
+    if (is_default) {
+      db.prepare("UPDATE master_addresses SET is_default = 0").run();
+    }
+    const info = db.prepare("INSERT INTO master_addresses (name, addr_line1, addr_line2, city, state, pincode, landmark, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(name, addr_line1, addr_line2, city, state, pincode, landmark, is_default ? 1 : 0);
+    res.json({ id: info.lastInsertRowid });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/master-addresses/:id', requireRole(['admin']), (req, res) => {
+  try {
+    db.prepare("DELETE FROM master_addresses WHERE id = ?").run(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Login ---
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
@@ -313,6 +351,44 @@ app.post('/api/login', (req, res) => {
 });
 
 app.get('/api/users/me', authenticate, (req, res) => res.json(req.user));
+
+// --- Global Search ---
+app.get('/api/search', authenticate, (req, res) => {
+  const { q } = req.query;
+  if (!q || q.length < 2) return res.json([]);
+  
+  try {
+    const searchVal = `%${q}%`;
+    
+    // Search Purchase Orders
+    const pos = db.prepare(`
+      SELECT id, po_number as title, 'Purchase Order' as type, '/pos/' || id as link
+      FROM purchase_orders 
+      WHERE po_number LIKE ? 
+      LIMIT 5
+    `).all(searchVal);
+    
+    // Search Customers
+    const customers = db.prepare(`
+      SELECT id, name as title, 'Customer' as type, '/customers/' || id || '/edit' as link
+      FROM customers
+      WHERE name LIKE ? OR cust_code LIKE ?
+      LIMIT 5
+    `).all(searchVal, searchVal);
+
+    // Search DC Requests
+    const dcRequests = db.prepare(`
+      SELECT id, requested_dc_number as title, 'DC Request' as type, '/dc-request' as link
+      FROM dc_requests
+      WHERE requested_dc_number LIKE ?
+      LIMIT 5
+    `).all(searchVal);
+
+    res.json([...pos, ...customers, ...dcRequests]);
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // --- Audit log ---
 app.get('/api/audit-log', requireRole(['admin','auditor','management']), (req, res) => {
@@ -438,6 +514,84 @@ app.post('/api/customers', requireRole(['admin']), (req, res) => {
   }
 });
 
+app.delete('/api/customers/:id', requireRole(['admin']), (req, res) => {
+  console.log('DELETE REQUEST FOR CUSTOMER:', req.params.id);
+  const customerId = req.params.id;
+  try {
+    const deleteTx = db.transaction(() => {
+      const poIds = db.prepare('SELECT id FROM purchase_orders WHERE customer_id = ?').all(customerId).map(r => r.id);
+      const dcIds = db.prepare('SELECT id FROM delivery_challans WHERE customer_id = ?').all(customerId).map(r => r.id);
+      const invoiceIds = db.prepare('SELECT id FROM invoices WHERE customer_id = ?').all(customerId).map(r => r.id);
+      const invoiceReqIds = poIds.length > 0 ? db.prepare(`SELECT id FROM invoice_requests WHERE po_id IN (${poIds.map(()=>'?').join(',')})`).all(...poIds).map(r => r.id) : [];
+      const dcReqIds = poIds.length > 0 ? db.prepare(`SELECT id FROM dc_requests WHERE po_id IN (${poIds.map(()=>'?').join(',')})`).all(...poIds).map(r => r.id) : [];
+
+      // 1. Finance / AR (Top of the chain)
+      if (invoiceIds.length > 0) {
+        const placeholders = invoiceIds.map(() => '?').join(',');
+        try { db.prepare(`DELETE FROM ar_receipts WHERE invoice_id IN (${placeholders})`).run(...invoiceIds); } catch(e){}
+        try { db.prepare(`DELETE FROM ar_payments WHERE invoice_id IN (${placeholders})`).run(...invoiceIds); } catch(e){}
+        try { db.prepare(`DELETE FROM ar_entries WHERE invoice_id IN (${placeholders})`).run(...invoiceIds); } catch(e){}
+        try { db.prepare(`DELETE FROM invoice_items WHERE invoice_id IN (${placeholders})`).run(...invoiceIds); } catch(e){}
+      }
+      try { db.prepare('DELETE FROM ar_entries WHERE customer_id = ?').run(customerId); } catch(e){}
+      try { db.prepare('DELETE FROM ar_receipts WHERE customer_id = ?').run(customerId); } catch(e){}
+
+      // 2. Invoices & Requests
+      if (invoiceReqIds.length > 0) {
+        const placeholders = invoiceReqIds.map(() => '?').join(',');
+        try { db.prepare(`DELETE FROM invoice_request_dcs WHERE invoice_request_id IN (${placeholders})`).run(...invoiceReqIds); } catch(e){}
+      }
+      if (dcIds.length > 0) {
+        const placeholders = dcIds.map(() => '?').join(',');
+        try { db.prepare(`DELETE FROM invoice_request_dcs WHERE dc_id IN (${placeholders})`).run(...dcIds); } catch(e){}
+      }
+      db.prepare('DELETE FROM invoices WHERE customer_id = ?').run(customerId);
+      if (poIds.length > 0) {
+        const placeholders = poIds.map(() => '?').join(',');
+        try { db.prepare(`DELETE FROM invoice_requests WHERE po_id IN (${placeholders})`).run(...poIds); } catch(e){}
+      }
+
+      // 3. Logistics / DC
+      if (dcIds.length > 0) {
+        const placeholders = dcIds.map(() => '?').join(',');
+        try { db.prepare(`DELETE FROM dc_line_items WHERE dc_id IN (${placeholders})`).run(...dcIds); } catch(e){}
+        try { db.prepare(`DELETE FROM delivery_challan_items WHERE dc_id IN (${placeholders})`).run(...dcIds); } catch(e){}
+      }
+      db.prepare('DELETE FROM delivery_challans WHERE customer_id = ?').run(customerId);
+
+      if (dcReqIds.length > 0) {
+        const placeholders = dcReqIds.map(() => '?').join(',');
+        try { db.prepare(`DELETE FROM dc_request_items WHERE dc_request_id IN (${placeholders})`).run(...dcReqIds); } catch(e){}
+        try { db.prepare(`DELETE FROM dc_requests WHERE id IN (${placeholders})`).run(...dcReqIds); } catch(e){}
+      }
+
+      // 4. Orders / PO
+      if (poIds.length > 0) {
+        const placeholders = poIds.map(() => '?').join(',');
+        try { db.prepare(`DELETE FROM po_version_history WHERE po_id IN (${placeholders})`).run(...poIds); } catch(e){}
+        try { db.prepare(`DELETE FROM po_line_items WHERE po_id IN (${placeholders})`).run(...poIds); } catch(e){}
+        
+        // Break all self-references
+        db.prepare('UPDATE purchase_orders SET parent_po_id = NULL, linked_po_id = NULL WHERE customer_id = ?').run(customerId);
+        db.prepare(`DELETE FROM purchase_orders WHERE id IN (${placeholders})`).run(...poIds);
+      }
+
+      // 5. Master Data
+      db.prepare('DELETE FROM customer_locations WHERE customer_id = ?').run(customerId);
+      db.prepare('DELETE FROM customers WHERE id = ?').run(customerId);
+      
+      return true;
+    });
+
+    deleteTx();
+    auditLog(req.user.id, 'DELETE', 'customers', customerId, { note: 'Hard delete (cascading)' });
+    res.json({ success: true, message: 'Customer deleted' });
+  } catch (err) {
+    console.error('DELETE ERROR:', err);
+    res.status(500).json({ error: 'Failed: ' + err.message });
+  }
+});
+
 app.put('/api/customers/:id', requireRole(['admin']), (req, res) => {
   try {
     const {
@@ -488,6 +642,9 @@ app.put('/api/customers/:id', requireRole(['admin']), (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
+
 
 // --- Locations ---
 app.get('/api/locations', authenticate, (req, res) => {
@@ -1131,16 +1288,25 @@ app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
   const { id } = req.params;
   try {
     db.exec('BEGIN');
-    const lastInv = db.prepare("SELECT invoice_number FROM invoices WHERE status != 'requested' AND invoice_number LIKE 'INV/%' ORDER BY id DESC LIMIT 1").get();
-    let nextNum = 1;
-    if (lastInv && lastInv.invoice_number) {
-       const parts = lastInv.invoice_number.split('/');
-       if (parts.length >= 3) {
-         nextNum = parseInt(parts[2]) + 1;
-       }
+    // Robust Next Number Logic
+    const allInvs = db.prepare("SELECT invoice_number FROM invoices WHERE invoice_number LIKE 'INV/%'").all();
+    let maxNum = 0;
+    allInvs.forEach(inv => {
+      const parts = inv.invoice_number.split('/');
+      const numPart = parts[parts.length - 1];
+      const n = parseInt(numPart);
+      if (!isNaN(n) && n > maxNum) maxNum = n;
+    });
+
+    let nextNum = maxNum + 1;
+    let invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
+
+    // Collision check loop (safety belt)
+    while (db.prepare("SELECT id FROM invoices WHERE invoice_number = ?").get(invoice_number)) {
+      nextNum++;
+      invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
     }
-    const invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
-    
+
     db.prepare("UPDATE invoices SET invoice_number = ?, status = 'raised', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(invoice_number, id);
     
     // Insert into AR database
@@ -1845,4 +2011,4 @@ app.get('/api/next-dc-number/:customerId', authenticate, (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`O2C Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`O2C Server V2 running on port ${PORT}`));

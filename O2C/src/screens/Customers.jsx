@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
 import {
   useReactTable,
@@ -29,6 +30,41 @@ export default function Customers() {
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDelete = async (id, name) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      html: `You are about to delete <b>${name}</b>.<br/><br/><span style="color: #EF4444; font-weight: 700;">WARNING:</span> This will permanently delete all related Purchase Orders, Delivery Challans, and Invoices.<br/><br/>This action is irreversible.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'Yes, delete completely!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const token = sessionStorage.getItem('token');
+        await axios.delete(`http://localhost:3000/api/customers/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        Swal.fire({
+          title: 'Deleted!',
+          text: 'Customer and all historical records have been purged.',
+          icon: 'success',
+          confirmButtonColor: '#3B82F6'
+        });
+        setCustomers(prev => prev.filter(c => c.id !== id));
+      } catch (err) {
+        Swal.fire({
+          title: 'Error!',
+          text: err.response?.data?.error || 'Failed to delete customer',
+          icon: 'error',
+          confirmButtonColor: '#3B82F6'
+        });
+      }
+    }
+  };
 
   const columns = useMemo(() => [
     {
@@ -91,6 +127,22 @@ export default function Customers() {
               <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>add_circle</span>
             </button>
           )}
+          {role === 'admin' && (
+            <button 
+              onClick={() => handleDelete(row.original.id, row.original.name)}
+              title="Delete Customer & All Data"
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                cursor: 'pointer', 
+                color: '#EF4444',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>delete</span>
+            </button>
+          )}
         </div>
       ),
     }
@@ -110,13 +162,15 @@ export default function Customers() {
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Loading customers...</div>;
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+    <div style={{ padding: '16px 24px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
         <button 
           onClick={() => navigate('/dashboard')}
-          style={{ padding: '8px 16px', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
+          className="btn-back"
+          style={{ border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 16px', borderRadius: '4px', fontWeight: 600 }}
         >
-          ← Back
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+          Back
         </button>
         <div>
           <h2 style={{ margin: 0, color: '#111827' }}>Customer Management</h2>
@@ -129,9 +183,9 @@ export default function Customers() {
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '12px',
-        marginBottom: '24px',
+        marginBottom: '16px',
         background: 'white',
-        padding: '16px',
+        padding: '10px 16px',
         borderRadius: '8px',
         boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
         border: '1px solid #E5E7EB'
@@ -159,11 +213,11 @@ export default function Customers() {
             style={{
               background: '#1E40AF',
               color: 'white',
-              padding: '10px 20px',
+              padding: '8px 16px',
               borderRadius: '6px',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '14px',
+              fontSize: '13px',
               fontWeight: '600',
               display: 'flex',
               alignItems: 'center',

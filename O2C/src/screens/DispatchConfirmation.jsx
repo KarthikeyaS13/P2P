@@ -140,7 +140,7 @@ export default function DispatchConfirmation() {
       <div className="page-container screen-enter">
         <div className="page-header" style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => navigate('/dispatch-confirmation')} className="btn-ghost" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid #E5E7EB' }}>
+            <button onClick={() => navigate('/dispatch-confirmation')} className="btn-ghost btn-back" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
             </button>
             <h1 className="text-h2" style={{ fontSize: '15px' }}>Dispatch Confirmation</h1>
@@ -195,7 +195,7 @@ export default function DispatchConfirmation() {
             <div className="card" style={{ padding: '24px', background: 'white', border: '1px solid #E5E7EB' }}>
               <h3 className="text-h3" style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--primary)', borderBottom: '2px solid #F3F4F6', paddingBottom: '8px' }}>Logistics & Shipment Evidence</h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+              <div className="responsive-grid responsive-grid--3" style={{ marginBottom: '24px' }}>
                 <div className="info-block">
                   <label style={{ fontSize: '9px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 800 }}>Vehicle Number</label>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>{details.vehicle_no || 'N/A'}</div>
@@ -211,7 +211,7 @@ export default function DispatchConfirmation() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', borderTop: '1px solid #F3F4F6', paddingTop: '20px' }}>
+              <div className="responsive-grid responsive-grid--2" style={{ gap: '24px', borderTop: '1px solid #F3F4F6', paddingTop: '20px' }}>
                 <div className="info-block">
                   <label style={{ fontSize: '9px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px', display: 'block' }}>Dispatch Proof</label>
                   {details.dispatch_proof_path ? (
@@ -236,7 +236,7 @@ export default function DispatchConfirmation() {
               <div style={{ padding: '12px 20px', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
                 <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: '#374151' }}>Manifest (Shipped Items)</h4>
               </div>
-              <div style={{ overflow: 'auto' }}>
+              <div className="table-wrapper">
                 <table className="data-table" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
                   <thead style={{ background: '#F3F4F6' }}>
                     <tr>
@@ -329,7 +329,7 @@ export default function DispatchConfirmation() {
         </button>
       </div>
 
-      <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+      <div className="table-wrapper" style={{ padding: '0' }}>
         <table className="data-table" style={{ fontSize: '11px' }}>
           <thead style={{ background: '#F9FAFB' }}>
             {table.getHeaderGroups().map(headerGroup => (

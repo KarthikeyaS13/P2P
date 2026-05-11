@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { getUser } from '../auth';
 
 export default function ARDatabase() {
@@ -16,7 +19,9 @@ export default function ARDatabase() {
   const [paymentRef, setPaymentRef] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
+  const [statusFilter, setStatusFilter] = useState('all');
   const user = getUser();
+
   const isAccounts = user?.role === 'accounts' || user?.role === 'admin';
 
   useEffect(() => {
@@ -50,17 +55,44 @@ export default function ARDatabase() {
         transaction_ref: paymentRef
       }, { headers });
       
-      alert('Payment recorded successfully');
+      Swal.fire({ icon: 'success', title: 'Payment Recorded', text: 'Payment recorded successfully', timer: 2000, showConfirmButton: false });
       setSelectedEntry(null);
       fetchAR();
     } catch (err) {
-      alert(err.response?.data?.error || err.message);
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || err.message });
     } finally {
       setSubmitting(false);
     }
   };
 
+  const getStatusDisplay = (entry) => {
+    if (entry.status === 'paid') return { text: 'PAID', className: 'badge--verified' };
+    
+    const dueDate = new Date(entry.due_date);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    dueDate.setHours(0,0,0,0);
+    
+    if (today <= dueDate) {
+      return { text: 'NOT DUE', className: 'badge--pending' };
+    } else {
+      const diffTime = Math.abs(today - dueDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return { text: `DUE (${diffDays} DAYS)`, className: 'badge--rejected' };
+    }
+  };
+
   if (loading) return <div className="screen-enter"><p>Loading AR Database...</p></div>;
+
+
+  const filteredEntries = entries.filter(e => {
+    if (statusFilter === 'all') return true;
+    const status = getStatusDisplay(e);
+    if (statusFilter === 'due') return status.text.startsWith('DUE');
+    if (statusFilter === 'not_due') return status.text === 'NOT DUE';
+    if (statusFilter === 'paid') return status.text === 'PAID';
+    return true;
+  });
 
   return (
     <div className="screen-enter">
@@ -68,16 +100,14 @@ export default function ARDatabase() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button 
             onClick={() => navigate('/dashboard')}
-            className="btn-ghost"
+            className="btn-ghost btn-back"
             style={{ 
               width: '40px', 
               height: '40px', 
               borderRadius: '50%', 
               display: 'flex', 
               alignItems: 'center', 
-              justifyContent: 'center',
-              background: 'white',
-              border: '1px solid var(--outline-variant)'
+              justifyContent: 'center'
             }}
           >
             <span className="material-symbols-outlined">arrow_back</span>
@@ -87,7 +117,23 @@ export default function ARDatabase() {
             <p className="page-header__subtitle">Track invoice payments and outstanding balances</p>
           </div>
         </div>
+        <div className="no-print" style={{ display: 'flex', gap: '12px' }}>
+          <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
+            <select 
+              className="form-input" 
+              value={statusFilter} 
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ padding: '8px 12px', height: '42px' }}
+            >
+              <option value="all">All Status</option>
+              <option value="due">Due</option>
+              <option value="not_due">Not Due</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+        </div>
       </div>
+
       
       {error && <div style={{ color: 'var(--error)', marginBottom: '16px' }}>{error}</div>}
 
@@ -108,7 +154,7 @@ export default function ARDatabase() {
               </tr>
             </thead>
             <tbody>
-              {entries.map(e => (
+              {filteredEntries.map(e => (
                 <tr key={e.id}>
                   <td className="font-medium">{e.invoice_number}</td>
                   <td>{e.customer_name}</td>
@@ -120,10 +166,15 @@ export default function ARDatabase() {
                     ₹{e.balance?.toLocaleString('en-IN', {minimumFractionDigits:2})}
                   </td>
                   <td>
-                    <span className={`badge ${e.status === 'paid' ? 'badge--verified' : e.status === 'partial' ? 'badge--pending' : 'badge--rejected'}`}>
-                      <span className="badge__dot"></span>
-                      {e.status.toUpperCase()}
-                    </span>
+                    {(() => {
+                      const status = getStatusDisplay(e);
+                      return (
+                        <span className={`badge ${status.className}`} style={{ whiteSpace: 'nowrap' }}>
+                          <span className="badge__dot"></span>
+                          {status.text}
+                        </span>
+                      );
+                    })()}
                   </td>
                   {isAccounts && (
                     <td className="text-right">
@@ -138,7 +189,7 @@ export default function ARDatabase() {
                   )}
                 </tr>
               ))}
-              {entries.length === 0 && (
+              {filteredEntries.length === 0 && (
                 <tr>
                   <td colSpan={isAccounts ? 9 : 8} className="text-center" style={{ padding: '24px' }}>No AR entries found</td>
                 </tr>
@@ -163,7 +214,17 @@ export default function ARDatabase() {
               </div>
               <div className="form-group">
                 <label className="form-label">Payment Date</label>
-                <input type="date" className="form-input" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} required />
+                <div className="date-picker-container">
+                  <DatePicker
+                    selected={paymentDate ? new Date(paymentDate) : null}
+                    onChange={(date) => setPaymentDate(date ? date.toISOString().split('T')[0] : '')}
+                    dateFormat="dd/MM/yyyy"
+                    className="form-input"
+                    placeholderText="DD/MM/YYYY"
+                    required
+                  />
+                  <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Reference (UTR/Cheque)</label>

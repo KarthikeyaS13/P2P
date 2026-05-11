@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { useParams, useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
 import {
   useReactTable,
@@ -68,25 +69,36 @@ export default function PODetails() {
     setActionLoading(true);
     axios.put(`http://localhost:3000/api/pos/${id}/status`, { status: 'accepted' }, { headers })
       .then(() => {
-        alert('PO Accepted successfully');
+        Swal.fire({ icon: 'success', title: 'PO Accepted', text: 'PO Accepted successfully', timer: 2000, showConfirmButton: false });
         navigate('/purchase-orders');
       })
-      .catch(err => alert('Failed: ' + (err.response?.data?.error || err.message)))
+      .catch(err => Swal.fire({ icon: 'error', title: 'Failed', text: (err.response?.data?.error || err.message) }))
       .finally(() => setActionLoading(false));
   };
 
-  const handleReject = () => {
-    const reason = prompt('Reason for rejection (optional):');
-    if (reason === null) return; // User cancelled prompt
+  const handleReject = async () => {
+    const { value: reason } = await Swal.fire({
+      title: 'Reject PO',
+      input: 'text',
+      inputLabel: 'Reason for rejection (optional):',
+      inputPlaceholder: 'Enter reason...',
+      showCancelButton: true,
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'Reject PO'
+    });
+
+    if (reason === undefined) return; // User cancelled
+
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     setActionLoading(true);
-    axios.put(`http://localhost:3000/api/pos/${id}/status`, { status: 'rejected' }, { headers })
+    axios.put(`http://localhost:3000/api/pos/${id}/status`, { status: 'rejected', remarks: reason }, { headers })
       .then(() => {
-        alert('PO Rejected');
+        Swal.fire({ icon: 'success', title: 'PO Rejected', text: 'PO Rejected successfully', timer: 2000, showConfirmButton: false });
         navigate('/purchase-orders');
       })
-      .catch(err => alert('Failed: ' + (err.response?.data?.error || err.message)))
+      .catch(err => Swal.fire({ icon: 'error', title: 'Failed', text: (err.response?.data?.error || err.message) }))
       .finally(() => setActionLoading(false));
   };
 
@@ -135,7 +147,7 @@ export default function PODetails() {
         setPreviewExcelData(formatted);
       } catch (err) {
         console.error("Preview failed", err);
-        alert("Could not preview Excel file.");
+        Swal.fire({ icon: 'error', title: 'Preview Failed', text: "Could not preview Excel file." });
         setPreviewPath(null);
       } finally {
         setLoadingPreview(false);
@@ -193,8 +205,12 @@ export default function PODetails() {
 
       {/* SECTION 1: Header card */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '15px' }}>
-        <button onClick={() => navigate(-1)} style={{ padding: '8px 16px', background: '#374151', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          ← Back
+        <button 
+          onClick={() => navigate(-1)}
+          className="btn-ghost btn-back"
+          style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
         </button>
         <h2 style={{ margin: 0, color: '#111827' }}>PO Details</h2>
         {getStatusBadge(po.status)}

@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { useAuth } from '../context/AuthContext';
 import {
   useReactTable,
@@ -142,6 +145,13 @@ export default function NewPO() {
     }
   };
 
+  const handleDateChange = (name, date) => {
+    setBasicDetails(prev => ({
+      ...prev,
+      [name]: date ? date.toISOString().split('T')[0] : ''
+    }));
+  };
+
   const handleFileChange = (type, file) => {
     setAttachments(prev => ({ ...prev, [type]: file }));
   };
@@ -173,7 +183,6 @@ export default function NewPO() {
       'Sl no (SYS GEN)', 'Ref No', 'Package', 'Heading', 'Sub Heading (if Any)',
       'Item Name', 'Item Description', 'UOM', 'Supply QTY', 'Supply Rate',
       'Supply GST', 'Service QTY', 'Service Rate', 'Service GST',
-      '', // Empty column for spacing (O)
       'Taxable Value of Supply', 'GST on Supply', 'Invoice Value of Supply',
       'Taxable Value of SERVICE', 'GST on SERVICE', 'Invoice Value of SERVICE',
       'TOTAL Taxable Value', 'TOTAL GST', 'TOTAL Invoice Value'
@@ -182,7 +191,7 @@ export default function NewPO() {
     const tableHeaderRow = worksheet.getRow(1);
     tableHeaderRow.values = headers;
     tableHeaderRow.eachCell((cell, colNum) => {
-      const isAutoCal = colNum >= 16;
+      const isAutoCal = colNum >= 15;
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAutoCal ? 'FF4F81BD' : 'FF0070C0' } };
       cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 9 };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -197,8 +206,7 @@ export default function NewPO() {
       else if (colNum === 6) column.width = 25;
       else if (colNum === 7) column.width = 30;
       else if (colNum >= 9 && colNum <= 14) column.width = 12;
-      else if (colNum >= 16) column.width = 15;
-      else column.width = 15;
+      else column.width = 18;
     });
     tableHeaderRow.height = 45;
 
@@ -212,30 +220,28 @@ export default function NewPO() {
       // I: Supply QTY, J: Supply Rate, K: Supply GST
       // L: Service QTY, M: Service Rate, N: Service GST
 
-      // P: Taxable Supply (I*J)
-      row.getCell(16).value = { formula: `I${i}*J${i}` };
-      // Q: GST Supply (P*K/100)
-      row.getCell(17).value = { formula: `P${i}*(K${i}/100)` };
-      // R: Invoice Supply (P+Q)
-      row.getCell(18).value = { formula: `P${i}+Q${i}` };
+      // O: Taxable Supply (I*J)
+      row.getCell(15).value = { formula: `I${i}*J${i}` };
+      // P: GST Supply (O*K/100)
+      row.getCell(16).value = { formula: `O${i}*(K${i}/100)` };
+      // Q: Invoice Supply (O+P)
+      row.getCell(17).value = { formula: `O${i}+P${i}` };
 
-      // S: Taxable Service (L*M)
-      row.getCell(19).value = { formula: `L${i}*M${i}` };
-      // T: GST Service (S*N/100)
-      row.getCell(20).value = { formula: `S${i}*(N${i}/100)` };
-      // U: Invoice Service (S+T)
-      row.getCell(21).value = { formula: `S${i}+T${i}` };
+      // R: Taxable Service (L*M)
+      row.getCell(18).value = { formula: `L${i}*M${i}` };
+      // S: GST Service (R*N/100)
+      row.getCell(19).value = { formula: `R${i}*(N${i}/100)` };
+      // T: Invoice Service (R+S)
+      row.getCell(20).value = { formula: `R${i}+S${i}` };
 
-      // V: Total Taxable (P+S)
+      // U: Total Taxable (O+R)
+      row.getCell(21).value = { formula: `O${i}+R${i}` };
+      // V: Total GST (P+S)
       row.getCell(22).value = { formula: `P${i}+S${i}` };
-      // W: Total GST (Q+T)
-      row.getCell(23).value = { formula: `Q${i}+T${i}` };
-      // X: Total Invoice (V+W)
-      row.getCell(24).value = { formula: `V${i}+W${i}` };
+      // W: Total Invoice (U+V)
+      row.getCell(23).value = { formula: `U${i}+V${i}` };
 
-      for (let colNum = 1; colNum <= 24; colNum++) {
-        if (colNum === 15) continue; // Skip empty column O
-
+      for (let colNum = 1; colNum <= 23; colNum++) {
         const cell = row.getCell(colNum);
         cell.border = {
           top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
@@ -244,7 +250,7 @@ export default function NewPO() {
         if (colNum === 1) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
           cell.alignment = { horizontal: 'center' };
-        } else if (colNum >= 16) {
+        } else if (colNum >= 15) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }; // Light grey for auto-cal
           cell.numFmt = '#,##0.00';
         }
@@ -341,19 +347,19 @@ export default function NewPO() {
         };
       }
       return {
-        ref_no: r['Ref No'] || r['ref_no'] || '',
-        package_name: r.Package || r['Package Name'] || '',
-        heading: r.Heading || '',
-        sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || '',
-        item_name: r['Item Name'] || r.Item || '',
-        description: r['Item Description'] || r.Description || '',
-        uom: r.UOM || '',
-        supply_qty: r['Supply Qty'] || r['Supply QTY'] || '',
-        supply_rate: r['Supply Rate'] || '',
-        supply_gst_rate: r['Supply GST'] || '18',
-        service_qty: r['Service Qty'] || '',
-        service_rate: r['Service Rate'] || '',
-        service_gst_rate: r['Service GST'] || '18'
+        ref_no: r['Ref No'] || r['ref_no'] || r['REF NO'] || '',
+        package_name: r.Package || r['Package Name'] || r['PACKAGE'] || r['PACKAGE NAME'] || '',
+        heading: r.Heading || r.HEADING || '',
+        sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || r['SUB HEADING'] || '',
+        item_name: r['Item Name'] || r.Item || r['ITEM NAME'] || r['ITEM'] || '',
+        description: r['Item Description'] || r.Description || r['ITEM DESCRIPTION'] || r['DESCRIPTION'] || '',
+        uom: r.UOM || r.uom || '',
+        supply_qty: r['Supply Qty'] || r['Supply QTY'] || r['SUPPLY QTY'] || '',
+        supply_rate: r['Supply Rate'] || r['SUPPLY RATE'] || '',
+        supply_gst_rate: r['Supply GST'] || r['SUPPLY GST'] || r['Supply GST%'] || '18',
+        service_qty: r['Service Qty'] || r['Service QTY'] || r['SERVICE QTY'] || '',
+        service_rate: r['Service Rate'] || r['SERVICE RATE'] || '',
+        service_gst_rate: r['Service GST'] || r['SERVICE GST'] || r['Service GST%'] || '18'
       };
     });
     setPasteRows(mapped);
@@ -387,19 +393,19 @@ export default function NewPO() {
           };
         } else {
           data = {
-            ref_no: r['Ref No'] || r['ref_no'] || '',
-            package_name: r.Package || r['Package Name'] || '',
-            heading: r.Heading || '',
-            sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || '',
-            item_name: r['Item Name'] || r.Item || '',
-            description: r['Item Description'] || r.Description || '',
-            uom: r.UOM || '',
-            supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY']),
-            supply_rate: cleanNum(r['Supply Rate']),
-            supply_gst_rate: cleanNum(r['Supply GST']) || 0,
-            service_qty: cleanNum(r['Service Qty']),
-            service_rate: cleanNum(r['Service Rate']),
-            service_gst_rate: cleanNum(r['Service GST']) || 0
+            ref_no: r['Ref No'] || r['ref_no'] || r['REF NO'] || '',
+            package_name: r.Package || r['Package Name'] || r['PACKAGE'] || r['PACKAGE NAME'] || '',
+            heading: r.Heading || r.HEADING || '',
+            sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || r['SUB HEADING'] || '',
+            item_name: r['Item Name'] || r.Item || r['ITEM NAME'] || r['ITEM'] || '',
+            description: r['Item Description'] || r.Description || r['ITEM DESCRIPTION'] || r['DESCRIPTION'] || '',
+            uom: r.UOM || r.uom || '',
+            supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY'] || r['SUPPLY QTY']),
+            supply_rate: cleanNum(r['Supply Rate'] || r['SUPPLY RATE']),
+            supply_gst_rate: cleanNum(r['Supply GST'] || r['SUPPLY GST'] || r['Supply GST%']) || 0,
+            service_qty: cleanNum(r['Service Qty'] || r['Service QTY'] || r['SERVICE QTY']),
+            service_rate: cleanNum(r['Service Rate'] || r['SERVICE RATE']),
+            service_gst_rate: cleanNum(r['Service GST'] || r['SERVICE GST'] || r['Service GST%']) || 0
           };
         }
         return calculateRow({
@@ -474,6 +480,16 @@ export default function NewPO() {
               obj['col10'] = row[10];
               obj['col11'] = row[11];
               obj['col12'] = row[12];
+              obj['col13'] = row[13];
+              obj['col14'] = row[14];
+              obj['col15'] = row[15];
+              obj['col16'] = row[16];
+              obj['col17'] = row[17];
+              obj['col18'] = row[18];
+              obj['col19'] = row[19];
+              obj['col20'] = row[20];
+              obj['col21'] = row[21];
+              obj['col22'] = row[22];
             }
             return obj;
           }).filter(row => row['Item Name'] || row['Item'] || row['Package'] || row.col2 || row.col5);
@@ -602,7 +618,7 @@ export default function NewPO() {
   const nextStep = async () => {
     if (step === 1) {
       if (!basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber || !basicDetails.contactName || !basicDetails.contactPhone) {
-        return alert('Please fill all basic details including SPOC contact');
+        return Swal.fire({ icon: 'warning', title: 'Incomplete Details', text: 'Please fill all basic details including SPOC contact' });
       }
 
       setLoading(true);
@@ -636,31 +652,31 @@ export default function NewPO() {
             }
             return calculateRow({
               line_number: i + 1,
-              ref_no: r['Ref No'] || r['ref_no'] || '',
-              package_name: r.Package || r['Package Name'] || '',
-              heading: r.Heading || '',
-              sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || '',
-              item_name: r['Item Name'] || r.Item || '',
-              description: r['Item Description'] || r.Description || '',
-              uom: r.UOM || '',
-              supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY']),
-              supply_rate: cleanNum(r['Supply Rate']),
-              supply_gst_rate: cleanNum(r['Supply GST']) || 0,
-              service_qty: cleanNum(r['Service Qty']),
-              service_rate: cleanNum(r['Service Rate']),
-              service_gst_rate: cleanNum(r['Service GST']) || 0
+              ref_no: r['Ref No'] || r['ref_no'] || r['REF NO'] || '',
+              package_name: r.Package || r['Package Name'] || r['PACKAGE'] || r['PACKAGE NAME'] || '',
+              heading: r.Heading || r.HEADING || '',
+              sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || r['SUB HEADING'] || '',
+              item_name: r['Item Name'] || r.Item || r['ITEM NAME'] || r['ITEM'] || '',
+              description: r['Item Description'] || r.Description || r['ITEM DESCRIPTION'] || r['DESCRIPTION'] || '',
+              uom: r.UOM || r.uom || '',
+              supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY'] || r['SUPPLY QTY']),
+              supply_rate: cleanNum(r['Supply Rate'] || r['SUPPLY RATE']),
+              supply_gst_rate: cleanNum(r['Supply GST'] || r['SUPPLY GST'] || r['Supply GST%']) || 0,
+              service_qty: cleanNum(r['Service Qty'] || r['Service QTY'] || r['SERVICE QTY']),
+              service_rate: cleanNum(r['Service Rate'] || r['SERVICE RATE']),
+              service_gst_rate: cleanNum(r['Service GST'] || r['SERVICE GST'] || r['Service GST%']) || 0
             });
           });
 
           if (mapped.length > 0) {
             setItems(mapped);
-            alert('Excel uploaded successfully. Click Next to review.');
+            Swal.fire({ icon: 'success', title: 'Parsed', text: 'Excel uploaded successfully. Click Next to review.', timer: 2000, showConfirmButton: false });
           } else {
-            alert('No valid items found in the Excel file. Please check the columns.');
+            Swal.fire({ icon: 'error', title: 'Empty Excel', text: 'No valid items found in the Excel file. Please check the columns.' });
           }
         } catch (err) {
           console.error(err);
-          alert('Error parsing Excel file.');
+          Swal.fire({ icon: 'error', title: 'Parsing Error', text: 'Error parsing Excel file.' });
         }
       }
       setLoading(false);
@@ -671,10 +687,10 @@ export default function NewPO() {
       if (hasItems || manualEntryMode) {
         setStep(2);
       } else {
-        alert('Please upload a PO Annex or use Manual Entry.');
+        Swal.fire({ icon: 'info', title: 'Items Required', text: 'Please upload a PO Annex or use Manual Entry.' });
       }
     } else if (step === 2) {
-      if (items.length === 0) return alert('No items to review');
+      if (items.length === 0) return Swal.fire({ icon: 'warning', title: 'No Items', text: 'No items to review' });
       setStep(3);
     }
   };
@@ -686,7 +702,7 @@ export default function NewPO() {
       const headers = { Authorization: `Bearer ${token}` };
 
       if (!basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber) {
-        return alert('Please fill in all basic details (Customer, Location, PO Number)');
+        return Swal.fire({ icon: 'warning', title: 'Missing Details', text: 'Please fill in all basic details (Customer, Location, PO Number)' });
       }
 
       const subtotal = items.reduce((acc, it) => acc + it.total_taxable, 0);
@@ -711,10 +727,10 @@ export default function NewPO() {
 
       await axios.post('http://localhost:3000/api/pos', payload, { headers });
       sessionStorage.removeItem('new_po_draft');
-      alert('Purchase Order created successfully!');
+      Swal.fire({ icon: 'success', title: 'Created', text: 'Purchase Order created successfully!', timer: 2000, showConfirmButton: false });
       navigate('/dashboard');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to create PO');
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to create PO' });
     } finally {
       setSubmitting(false);
     }
@@ -801,7 +817,10 @@ export default function NewPO() {
       {renderFileViewer()}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-        <button onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} style={{ padding: '8px 16px', background: '#374151', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>← Back</button>
+        <button onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} className="btn-back" style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+          Back
+        </button>
         <h2 style={{ margin: 0 }}>Purchase Order Ingestion</h2>
       </div>
 
@@ -841,18 +860,47 @@ export default function NewPO() {
                     <input name="contactPhone" value={basicDetails.contactPhone} onChange={handleBasicChange} placeholder="Primary Phone" style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'grid', gap: '16px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>PO Date</label>
-                    <input type="date" name="poDate" value={basicDetails.poDate} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>PO Date</label>
+                    <div className="date-picker-container">
+                      <DatePicker
+                        selected={basicDetails.poDate ? new Date(basicDetails.poDate) : null}
+                        onChange={(date) => handleDateChange('poDate', date)}
+                        dateFormat="dd/MM/yyyy"
+                        className="form-input"
+                        placeholderText="DD/MM/YYYY"
+                      />
+                      <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Start Date</label>
-                    <input type="date" name="startDate" value={basicDetails.startDate} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Est. End Date</label>
-                    <input type="date" name="endDate" value={basicDetails.endDate} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Start Date</label>
+                      <div className="date-picker-container">
+                        <DatePicker
+                          selected={basicDetails.startDate ? new Date(basicDetails.startDate) : null}
+                          onChange={(date) => handleDateChange('startDate', date)}
+                          dateFormat="dd/MM/yyyy"
+                          className="form-input"
+                          placeholderText="DD/MM/YYYY"
+                        />
+                        <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Est. End Date</label>
+                      <div className="date-picker-container">
+                        <DatePicker
+                          selected={basicDetails.endDate ? new Date(basicDetails.endDate) : null}
+                          onChange={(date) => handleDateChange('endDate', date)}
+                          dateFormat="dd/MM/yyyy"
+                          className="form-input"
+                          placeholderText="DD/MM/YYYY"
+                        />
+                        <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -893,9 +941,15 @@ export default function NewPO() {
                     await handleDownloadTemplate();
                     handleManualEntry();
                   }}
-                  style={{ width: '100%', padding: '12px', background: '#374151', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  className="btn-primary btn-download-template"
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>download</span>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: '20px' }}
+                  >
+                    download
+                  </span>
+
                   Download Template
                 </button>
               </div>
@@ -945,72 +999,61 @@ export default function NewPO() {
               </div>
             </div>
 
-            <p style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: '12px' }}>
-              <strong>Tip:</strong> You can edit any cell. Use "Bulk Paste" to add many rows at once from your spreadsheet.
-            </p>
 
-            <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '6px', maxHeight: '550px', background: 'white' }}>
-              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.6rem' }}>
+
+            <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '6px', maxHeight: '700px', background: 'white' }}>
+              <table className="no-hover" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.95rem' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 20, background: '#F9FAFB' }}>
                   <tr style={{ whiteSpace: 'nowrap' }}>
-                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '30px' }}>Sl no</th>
-                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '60px' }}>Ref No</th>
-                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '100px' }}>Package</th>
-                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '100px' }}>Heading</th>
-                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '100px' }}>Sub Heading (if Any)</th>
-                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '130px' }}>Item Name</th>
-                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '150px' }}>Item Description</th>
-                    <th rowSpan="2" style={{ padding: '2px 3px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '40px' }}>UOM</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '30px' }}>Sl no</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '60px' }}>Ref No</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '100px' }}>Package</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '100px' }}>Heading</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '100px' }}>Sub Heading (if Any)</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '130px' }}>Item Name</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '150px' }}>Item Description</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '40px' }}>UOM</th>
 
-                    <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#ECFDF5', textAlign: 'center', fontSize: '0.65rem' }}>Supply Details</th>
-                    <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#EFF6FF', textAlign: 'center', fontSize: '0.65rem' }}>Service Details</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '80px' }}>Supply QTY</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '90px' }}>Supply Rate</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '60px' }}>Supply GST%</th>
 
-                    <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center', fontSize: '0.65rem' }}>Calc. Supply</th>
-                    <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#F3F4F6', textAlign: 'center', fontSize: '0.65rem' }}>Calc. Service</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '80px' }}>Service QTY</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '90px' }}>Service Rate</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '60px' }}>Service GST%</th>
 
-                    <th colSpan="3" style={{ padding: '3px', border: '1px solid #E5E7EB', background: '#FEF3C7', textAlign: 'center', fontSize: '0.65rem' }}>TOTALS</th>
-                  </tr>
-                  <tr style={{ whiteSpace: 'nowrap' }}>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '70px' }}>Qty</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '80px' }}>Rate</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#ECFDF5', minWidth: '50px' }}>GST%</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Taxable Value of Supply</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>GST Value of Supply</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Total Value of Supply</th>
 
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '70px' }}>Qty</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '80px' }}>Rate</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#EFF6FF', minWidth: '50px' }}>GST%</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Taxable Value of Service</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>GST Value of Service</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '90px' }}>Total Value of Service</th>
 
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Taxable</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>GST</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Total</th>
-
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Taxable</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>GST</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#F3F4F6', minWidth: '80px' }}>Total</th>
-
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '80px' }}>Taxable</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '80px' }}>GST</th>
-                    <th style={{ padding: '3px 6px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '90px' }}>Invoice</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '90px' }}>Total Taxable Value</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '90px' }}>Total GST Value</th>
+                    <th style={{ padding: '6px 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', minWidth: '110px' }}>Grand Total Invoice Value</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((it, idx) => (
                     <tr key={idx}>
                       <td style={{ padding: '2px 3px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#6B7280' }}>{idx + 1}</td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.ref_no} onChange={(e) => updateItem(idx, 'ref_no', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.package_name} onChange={(e) => updateItem(idx, 'package_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.heading} onChange={(e) => updateItem(idx, 'heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.sub_heading} onChange={(e) => updateItem(idx, 'sub_heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.description} onChange={(e) => updateItem(idx, 'description', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB' }}><input value={it.uom} onChange={(e) => updateItem(idx, 'uom', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB' }}><input value={it.ref_no} onChange={(e) => updateItem(idx, 'ref_no', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.85rem' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB' }}><input value={it.package_name} onChange={(e) => updateItem(idx, 'package_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.85rem' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB' }}><input value={it.heading} onChange={(e) => updateItem(idx, 'heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.85rem' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB' }}><input value={it.sub_heading} onChange={(e) => updateItem(idx, 'sub_heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.85rem' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB' }}><input value={it.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.85rem' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB' }}><input value={it.description} onChange={(e) => updateItem(idx, 'description', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.85rem' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB' }}><input value={it.uom} onChange={(e) => updateItem(idx, 'uom', e.target.value)} style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.85rem' }} /></td>
 
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_qty} onChange={(e) => updateItem(idx, 'supply_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_rate} onChange={(e) => updateItem(idx, 'supply_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_qty} onChange={(e) => updateItem(idx, 'supply_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.85rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_rate} onChange={(e) => updateItem(idx, 'supply_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.85rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB', background: '#ECFDF5' }}>
                         <select
                           value={it.supply_gst_rate || ''}
                           onChange={(e) => updateItem(idx, 'supply_gst_rate', e.target.value)}
-                          style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent', outline: 'none' }}
+                          style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.85rem', background: 'transparent', outline: 'none' }}
                         >
                           <option value="">Select GST</option>
                           <option value="5">5%</option>
@@ -1019,13 +1062,13 @@ export default function NewPO() {
                         </select>
                       </td>
 
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_qty} onChange={(e) => updateItem(idx, 'service_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_rate} onChange={(e) => updateItem(idx, 'service_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent' }} /></td>
-                      <td style={{ padding: '1px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_qty} onChange={(e) => updateItem(idx, 'service_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.85rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}><input type="number" value={it.service_rate} onChange={(e) => updateItem(idx, 'service_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '1px 3px', fontSize: '0.85rem', background: 'transparent' }} /></td>
+                      <td style={{ padding: '2px', border: '1px solid #E5E7EB', background: '#EFF6FF' }}>
                         <select
                           value={it.service_gst_rate || ''}
                           onChange={(e) => updateItem(idx, 'service_gst_rate', e.target.value)}
-                          style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.6rem', background: 'transparent', outline: 'none' }}
+                          style={{ width: '100%', border: 'none', padding: '1px 3px', fontSize: '0.85rem', background: 'transparent', outline: 'none' }}
                         >
                           <option value="">Select GST</option>
                           <option value="5">5%</option>
@@ -1034,36 +1077,47 @@ export default function NewPO() {
                         </select>
                       </td>
 
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.taxable_supply || 0).toLocaleString()}</td>
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.gst_supply || 0).toLocaleString()}</td>
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.total_supply || 0).toLocaleString()}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.85rem' }}>₹{(it.taxable_supply || 0).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.85rem' }}>₹{(it.gst_supply || 0).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.85rem' }}>₹{(it.total_supply || 0).toLocaleString('en-IN')}</td>
 
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.taxable_service || 0).toLocaleString()}</td>
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.gst_service || 0).toLocaleString()}</td>
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.65rem' }}>₹{(it.total_service || 0).toLocaleString()}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.85rem' }}>₹{(it.taxable_service || 0).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.85rem' }}>₹{(it.gst_service || 0).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', color: '#6B7280', fontSize: '0.85rem' }}>₹{(it.total_service || 0).toLocaleString('en-IN')}</td>
 
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB', fontSize: '0.65rem' }}>₹{(it.total_taxable || 0).toLocaleString()}</td>
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB', fontSize: '0.65rem' }}>₹{(it.total_gst || 0).toLocaleString()}</td>
-                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, background: '#FEF3C7', fontSize: '0.7rem' }}>₹{(it.total_invoice || 0).toLocaleString()}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB', fontSize: '0.85rem' }}>₹{(it.total_taxable || 0).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, background: '#FFFBEB', fontSize: '0.85rem' }}>₹{(it.total_gst || 0).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, background: '#FEF3C7', fontSize: '0.9rem' }}>₹{(it.total_invoice || 0).toLocaleString('en-IN')}</td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 20, background: '#374151', color: 'white', fontWeight: 700 }}>
+                <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 20, background: '#0f172a', color: '#ffffff', fontWeight: 700 }}>
                   <tr>
-                    <td colSpan="8" style={{ padding: '4px 10px', textAlign: 'right', fontSize: '0.7rem' }}>GRAND TOTALS:</td>
-                    <td colSpan="3"></td>
-                    <td colSpan="3"></td>
-                    <td colSpan="3" style={{ textAlign: 'right', padding: '4px 10px', fontSize: '0.7rem' }}>₹{getSummaryTotals().taxable.toLocaleString()} <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(Taxable)</span></td>
-                    <td colSpan="3" style={{ textAlign: 'right', padding: '4px 10px', fontSize: '0.7rem' }}>₹{getSummaryTotals().gst.toLocaleString()} <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(GST)</span></td>
-                    <td colSpan="3" style={{ textAlign: 'right', padding: '4px 10px', background: '#059669', fontSize: '0.8rem' }}>₹{getSummaryTotals().grandTotal.toLocaleString()}</td>
+                    <td colSpan="20" style={{ padding: '6px 12px', textAlign: 'right', fontSize: '1rem', borderTop: '2px solid #334155', color: '#ffffff' }}>GRAND TOTALS:</td>
+                    <td style={{ textAlign: 'right', padding: '6px 12px', fontSize: '1rem', borderTop: '2px solid #334155', color: '#ffffff', whiteSpace: 'nowrap' }}>₹{getSummaryTotals().taxable.toLocaleString('en-IN')} <span style={{ fontSize: '0.9rem', color: '#cbd5e1', marginLeft: '4px' }}>(Taxable)</span></td>
+                    <td style={{ textAlign: 'right', padding: '6px 12px', fontSize: '1rem', borderTop: '2px solid #334155', color: '#ffffff', whiteSpace: 'nowrap' }}>₹{getSummaryTotals().gst.toLocaleString('en-IN')} <span style={{ fontSize: '0.9rem', color: '#cbd5e1', marginLeft: '4px' }}>(GST)</span></td>
+                    <td style={{ textAlign: 'right', padding: '6px 12px', background: '#059669', fontSize: '1.1rem', color: '#ffffff', borderTop: '2px solid #065f46', whiteSpace: 'nowrap' }}>₹{getSummaryTotals().grandTotal.toLocaleString('en-IN')} <span style={{ fontSize: '0.9rem', color: '#d1fae5', marginLeft: '4px' }}>(Total)</span></td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
-              <button onClick={() => setStep(1)} style={{ padding: '12px 24px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '6px', cursor: 'pointer' }}>← Back</button>
-              <button onClick={nextStep} style={{ padding: '12px 32px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>Review</button>
+            <div className="form-footer-actions">
+
+              <button
+                onClick={() => setStep(1)}
+                className="btn-secondary"
+              >
+                ← Back
+              </button>
+
+              <button
+                onClick={nextStep}
+                className="btn-primary"
+              >
+                Review
+              </button>
+
             </div>
           </div>
         )}
@@ -1080,9 +1134,9 @@ export default function NewPO() {
                 <p><strong>Date:</strong> {basicDetails.poDate}</p>
               </div>
               <div style={{ background: '#ECFDF5', padding: '20px', borderRadius: '8px', border: '1px solid #A7F3D0', textAlign: 'right' }}>
-                <p style={{ margin: '0 0 4px', color: '#065F46' }}><strong>Overall Subtotal:</strong> ₹{getSummaryTotals().taxable.toLocaleString()}</p>
-                <p style={{ margin: '0 0 4px', color: '#065F46' }}><strong>Overall GST:</strong> ₹{getSummaryTotals().gst.toLocaleString()}</p>
-                <p style={{ fontSize: '1.5rem', color: '#065F46', margin: 0 }}><strong>Grand Total:</strong> ₹{getSummaryTotals().grandTotal.toLocaleString()}</p>
+                <p style={{ margin: '0 0 4px', color: '#065F46' }}><strong>Overall Subtotal:</strong> ₹{getSummaryTotals().taxable.toLocaleString('en-IN')}</p>
+                <p style={{ margin: '0 0 4px', color: '#065F46' }}><strong>Overall GST:</strong> ₹{getSummaryTotals().gst.toLocaleString('en-IN')}</p>
+                <p style={{ fontSize: '1.5rem', color: '#065F46', margin: 0 }}><strong>Grand Total:</strong> ₹{getSummaryTotals().grandTotal.toLocaleString('en-IN')}</p>
               </div>
             </div>
 
@@ -1123,7 +1177,7 @@ export default function NewPO() {
               <p style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: '16px' }}>Edit cells directly, use <b>Ctrl+V</b> to paste from your desktop Excel, or <b>Load from Excel</b> to import a whole file. Click <b>Save as Excel</b> to export your current work.</p>
 
               <div onPaste={handleGridPaste} style={{ flex: 1, overflow: 'auto', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#F9FAFB' }}>
-                <table style={{ width: 'max-content', borderCollapse: 'collapse', fontSize: '0.65rem', background: 'white' }}>
+                <table style={{ width: 'max-content', borderCollapse: 'collapse', fontSize: '0.75rem', background: 'white' }}>
                   <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F3F4F6' }}>
                     <tr>
                       <th style={{ padding: '8px', border: '1px solid #E5E7EB', minWidth: '40px' }}>#</th>
@@ -1205,15 +1259,15 @@ function SummaryTable({ data }) {
     const summary = data.reduce((acc, it) => {
       const pkg = it.package_name || 'General';
       if (!acc[pkg]) {
-        acc[pkg] = { 
-          package_name: pkg, 
-          supply_taxable: 0, 
-          supply_gst: 0, 
-          service_taxable: 0, 
-          service_gst: 0, 
-          total_taxable: 0, 
-          total_gst: 0, 
-          total_invoice: 0 
+        acc[pkg] = {
+          package_name: pkg,
+          supply_taxable: 0,
+          supply_gst: 0,
+          service_taxable: 0,
+          service_gst: 0,
+          total_taxable: 0,
+          total_gst: 0,
+          total_invoice: 0
         };
       }
       acc[pkg].supply_taxable += (it.taxable_supply || 0);
@@ -1235,39 +1289,39 @@ function SummaryTable({ data }) {
       cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue()}</span>,
     },
     {
-      header: 'Supply Tax Value',
+      header: 'Taxable Value of Supply',
       accessorKey: 'supply_taxable',
-      cell: info => `₹${info.getValue().toLocaleString()}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
     },
     {
-      header: 'Supply GST',
+      header: 'GST Value of Supply',
       accessorKey: 'supply_gst',
-      cell: info => `₹${info.getValue().toLocaleString()}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
     },
     {
-      header: 'Service Tax Value',
+      header: 'Taxable Value of Service',
       accessorKey: 'service_taxable',
-      cell: info => `₹${info.getValue().toLocaleString()}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
     },
     {
-      header: 'Service GST',
+      header: 'GST Value of Service',
       accessorKey: 'service_gst',
-      cell: info => `₹${info.getValue().toLocaleString()}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
     },
     {
-      header: 'Total Tax Value',
+      header: 'Total Taxable Value',
       accessorKey: 'total_taxable',
-      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN')}</span>,
     },
     {
-      header: 'Total GST',
+      header: 'Total GST Value',
       accessorKey: 'total_gst',
-      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN')}</span>,
     },
     {
-      header: 'Total Invoice',
+      header: 'Grand Total Invoice Value',
       accessorKey: 'total_invoice',
-      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString()}</span>,
+      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString('en-IN')}</span>,
     }
   ], []);
 
@@ -1290,7 +1344,7 @@ function SummaryTable({ data }) {
   return (
     <div style={{ marginBottom: '32px' }}>
       <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '16px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+        <table className="no-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
           <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
@@ -1313,25 +1367,25 @@ function SummaryTable({ data }) {
               </tr>
             ))}
           </tbody>
-          <tfoot style={{ background: '#F9FAFB', fontWeight: 700, borderTop: '2px solid #E5E7EB' }}>
+          <tfoot style={{ background: '#0f172a', color: '#ffffff', fontWeight: 700, borderTop: '2px solid #334155', fontSize: '1rem' }}>
             <tr>
-              <td style={{ padding: '12px' }}>TOTAL</td>
-              <td style={{ padding: '12px' }}>₹{grandTotals.supply_taxable.toLocaleString()}</td>
-              <td style={{ padding: '12px' }}>₹{grandTotals.supply_gst.toLocaleString()}</td>
-              <td style={{ padding: '12px' }}>₹{grandTotals.service_taxable.toLocaleString()}</td>
-              <td style={{ padding: '12px' }}>₹{grandTotals.service_gst.toLocaleString()}</td>
-              <td style={{ padding: '12px' }}>₹{grandTotals.total_taxable.toLocaleString()}</td>
-              <td style={{ padding: '12px' }}>₹{grandTotals.total_gst.toLocaleString()}</td>
-              <td style={{ padding: '12px', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString()}</td>
+              <td style={{ padding: '12px', color: '#ffffff' }}>TOTAL</td>
+              <td style={{ padding: '12px', color: '#ffffff' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN')} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(Supply)</span></td>
+              <td style={{ padding: '12px', color: '#ffffff' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN')} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(GST)</span></td>
+              <td style={{ padding: '12px', color: '#ffffff' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN')} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(Service)</span></td>
+              <td style={{ padding: '12px', color: '#ffffff' }}>₹{grandTotals.service_gst.toLocaleString('en-IN')} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(GST)</span></td>
+              <td style={{ padding: '12px', color: '#ffffff' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN')} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(Taxable)</span></td>
+              <td style={{ padding: '12px', color: '#ffffff' }}>₹{grandTotals.total_gst.toLocaleString('en-IN')} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(GST)</span></td>
+              <td style={{ padding: '12px', background: '#059669', color: '#ffffff' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN')} <span style={{ fontSize: '0.75rem', color: '#d1fae5' }}>(Total)</span></td>
             </tr>
           </tfoot>
         </table>
       </div>
-      
+
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
           <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Final Grand Total</p>
-          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString()}</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN')}</p>
         </div>
       </div>
     </div>

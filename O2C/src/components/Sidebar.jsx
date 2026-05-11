@@ -16,6 +16,7 @@ export default function Sidebar() {
   if (role === 'admin') {
     routes = routes.concat([
       { path: '/customers', label: 'Customers', icon: 'group' },
+      { path: '/master-address', label: 'Master Address', icon: 'location_on' },
     ]);
   } else if (role === 'sales') {
     routes = routes.concat([

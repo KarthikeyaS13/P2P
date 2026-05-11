@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import {
   useReactTable,
   getCoreRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   flexRender,
 } from '@tanstack/react-table';
 
@@ -110,12 +112,12 @@ export default function POReview() {
         status, remarks
       }, { headers });
 
-      alert(`PO successfully ${status}`);
-      navigate('/po-review');
       loadPendingPOs();
+      Swal.fire({ icon: 'success', title: 'Success', text: `PO successfully ${status}`, timer: 2000, showConfirmButton: false });
+      navigate('/po-review');
     } catch (err) {
       console.error(err);
-      alert('Error updating PO status');
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Error updating PO status' });
     } finally {
       setActionLoading(false);
       setIsRejecting(false);
@@ -209,7 +211,7 @@ export default function POReview() {
           color: info.getValue() ? '#1D4ED8' : '#6B7280',
           padding: '2px 8px',
           borderRadius: '4px',
-          fontSize: '0.7rem',
+          fontSize: '0.8rem',
           fontWeight: 700
         }}>
           {info.getValue() ? 'NT' : 'REGULAR'}
@@ -222,8 +224,14 @@ export default function POReview() {
       cell: ({ row }) => (
         <button
           onClick={() => handleSelectPO(row.original)}
-          className="btn btn-sm btn-primary"
-          style={{ padding: '6px 12px', fontSize: '12px' }}
+          className="btn btn-primary"
+          style={{ 
+            height: '32px', 
+            minHeight: 'auto', 
+            padding: '0 16px', 
+            fontSize: '13px',
+            borderRadius: '8px'
+          }}
         >
           View
         </button>
@@ -235,6 +243,12 @@ export default function POReview() {
     data: filteredData,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
   });
 
   return (
@@ -243,16 +257,14 @@ export default function POReview() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button
             onClick={() => navigate('/dashboard')}
-            className="btn-ghost"
+            className="btn-ghost btn-back"
             style={{
               width: '40px',
               height: '40px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              background: 'white',
-              border: '1px solid var(--outline-variant)'
+              justifyContent: 'center'
             }}
           >
             <span className="material-symbols-outlined">arrow_back</span>
@@ -273,17 +285,17 @@ export default function POReview() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '12px',
+        gap: '20px',
         marginBottom: '24px',
         background: 'white',
-        padding: '16px',
-        borderRadius: '8px',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        padding: '16px 24px',
+        borderRadius: '12px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         border: '1px solid #E5E7EB'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
-          <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
-            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', fontSize: '20px' }}>search</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', fontSize: '18px' }}>search</span>
             <input
               type="text"
               placeholder="Search by PO #, Customer..."
@@ -291,11 +303,13 @@ export default function POReview() {
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 width: '100%',
-                padding: '10px 12px 10px 40px',
+                height: '42px',
+                padding: '0 12px 0 40px',
                 border: '1px solid #D1D5DB',
-                borderRadius: '6px',
+                borderRadius: '8px',
                 fontSize: '14px',
-                outline: 'none'
+                outline: 'none',
+                background: '#F9FAFB'
               }}
             />
           </div>
@@ -303,25 +317,27 @@ export default function POReview() {
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             style={{
-              padding: '10px 16px',
+              flex: 1,
+              height: '42px',
+              padding: '0 16px',
               border: '1px solid #D1D5DB',
-              borderRadius: '6px',
-              background: 'white',
+              borderRadius: '8px',
+              background: '#F9FAFB',
               fontSize: '14px',
               cursor: 'pointer',
-              color: '#374151'
+              color: '#374151',
+              outline: 'none'
             }}
           >
-            <option value="pending">Pending</option>
+            <option value="pending">Pending Orders</option>
             <option value="all">All Statuses</option>
-
             <option value="nt_created">NT Created</option>
             <option value="accepted">Accepted</option>
             <option value="rejected">Rejected</option>
           </select>
         </div>
-        <div style={{ fontSize: '13px', color: '#6B7280', fontWeight: 500 }}>
-          {filteredData.length} Records Found
+        <div style={{ fontSize: '13px', color: '#6B7280', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {filteredData.length} Results
         </div>
       </div>
 
@@ -329,15 +345,15 @@ export default function POReview() {
         background: 'white',
         borderRadius: '8px',
         border: '1px solid #E5E7EB',
-        overflow: 'hidden',
+        overflowX: 'auto',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1000px' }}>
           <thead style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '12px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
+                  <th key={header.id} style={{ padding: '10px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -351,7 +367,7 @@ export default function POReview() {
               table.getRowModel().rows.map(row => (
                 <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} style={{ padding: '12px 16px', fontSize: '0.85rem', color: '#374151' }}>
+                    <td key={cell.id} style={{ padding: '8px 16px', fontSize: '0.85rem', color: '#374151' }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -368,6 +384,40 @@ export default function POReview() {
         </table>
       </div>
 
+      {/* Pagination UI */}
+      <div style={{
+        marginTop: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 16px',
+        background: 'white',
+        borderRadius: '8px',
+        border: '1px solid #E5E7EB'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+            className="btn btn-ghost"
+            style={{ padding: '6px 12px', fontSize: '12px', opacity: table.getCanPreviousPage() ? 1 : 0.5 }}
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+            className="btn btn-ghost"
+            style={{ padding: '6px 12px', fontSize: '12px', opacity: table.getCanNextPage() ? 1 : 0.5 }}
+          >
+            Next
+          </button>
+        </div>
+        <div style={{ fontSize: '13px', color: '#6B7280' }}>
+          Page <span style={{ fontWeight: 600 }}>{table.getState().pagination.pageIndex + 1}</span> of <span style={{ fontWeight: 600 }}>{table.getPageCount()}</span>
+        </div>
+      </div>
+
       {/* Full Screen Overlay for Details - PUSHED DOWN from top */}
       {(selectedPO || loadingDetails) && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
@@ -376,8 +426,8 @@ export default function POReview() {
             {/* Overlay Header */}
             <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <button className="btn-ghost" onClick={() => navigate('/po-review')} style={{ padding: '4px', borderRadius: '50%' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>arrow_back</span>
+                <button className="btn-ghost btn-back" onClick={() => navigate('/po-review')} style={{ padding: '8px', borderRadius: '50%' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_back</span>
                 </button>
                 <div>
                   <h2 className="text-h3" style={{ margin: 0 }}>Review: {selectedPO?.po_number}</h2>
@@ -465,7 +515,7 @@ export default function POReview() {
                               className="btn btn-danger"
                               style={{ flex: 2, height: '42px', fontWeight: 700 }}
                               onClick={() => {
-                                if (!remarks.trim()) return alert('Please enter a reason for denial');
+                                if (!remarks.trim()) return Swal.fire({ icon: 'warning', title: 'Reason Required', text: 'Please enter a reason for denial' });
                                 updatePOStatus('rejected');
                               }}
                               disabled={actionLoading}
@@ -535,37 +585,37 @@ function SummaryTable({ data }) {
     {
       header: 'Supply Tax Value',
       accessorKey: 'supply_taxable',
-      cell: info => `₹${info.getValue().toLocaleString()}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
     },
     {
       header: 'Supply GST',
       accessorKey: 'supply_gst',
-      cell: info => `₹${info.getValue().toLocaleString()}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
     },
     {
       header: 'Service Tax Value',
       accessorKey: 'service_taxable',
-      cell: info => `₹${info.getValue().toLocaleString()}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
     },
     {
       header: 'Service GST',
       accessorKey: 'service_gst',
-      cell: info => `₹${info.getValue().toLocaleString()}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
     },
     {
       header: 'Total Tax Value',
       accessorKey: 'total_taxable',
-      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN')}</span>,
     },
     {
       header: 'Total GST',
       accessorKey: 'total_gst',
-      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString()}</span>,
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN')}</span>,
     },
     {
       header: 'Total Invoice',
       accessorKey: 'total_invoice',
-      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString()}</span>,
+      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString('en-IN')}</span>,
     }
   ], []);
 
@@ -588,12 +638,12 @@ function SummaryTable({ data }) {
   return (
     <div style={{ marginBottom: '16px' }}>
       <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflowX: 'auto', marginBottom: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1200px' }}>
           <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '12px 16px', fontSize: '0.7rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em', borderRight: '1px solid #F3F4F6' }}>
+                  <th key={header.id} style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em', borderRight: '1px solid #F3F4F6' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -604,7 +654,7 @@ function SummaryTable({ data }) {
             {table.getRowModel().rows.map(row => (
               <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#374151', borderRight: '1px solid #F3F4F6' }}>
+                  <td key={cell.id} style={{ padding: '6px 16px', fontSize: '0.8rem', color: '#374151', borderRight: '1px solid #F3F4F6' }}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -614,13 +664,13 @@ function SummaryTable({ data }) {
           <tfoot style={{ background: '#F9FAFB', fontWeight: 800, borderTop: '2px solid #E5E7EB', color: '#111827' }}>
             <tr>
               <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>TOTAL</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_taxable.toLocaleString()}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_gst.toLocaleString()}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_taxable.toLocaleString()}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_gst.toLocaleString()}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_taxable.toLocaleString()}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_gst.toLocaleString()}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString()}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN')}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN')}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN')}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_gst.toLocaleString('en-IN')}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN')}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_gst.toLocaleString('en-IN')}</td>
+              <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN')}</td>
             </tr>
           </tfoot>
         </table>
@@ -629,7 +679,7 @@ function SummaryTable({ data }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
           <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Grand Total Value</p>
-          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString()}</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN')}</p>
         </div>
       </div>
     </div>

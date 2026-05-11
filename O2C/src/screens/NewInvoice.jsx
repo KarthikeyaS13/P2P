@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Swal from 'sweetalert2';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { getUser } from '../auth';
 
 export default function NewInvoice() {
@@ -86,6 +89,7 @@ export default function NewInvoice() {
 
         return {
           ...di,
+          item_name: pi.item_name || di.item_name || 'Item',
           quantity: remaining, // Qty being invoiced NOW
           delivered_qty: delivered,
           already_invoiced_qty: alreadyInvoiced,
@@ -130,7 +134,7 @@ export default function NewInvoice() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedDC || !dcDetails) {
-      alert("Please select a DC");
+      Swal.fire({ icon: 'warning', title: 'Selection Required', text: 'Please select a DC' });
       return;
     }
 
@@ -159,11 +163,11 @@ export default function NewInvoice() {
 
       const result = res.data;
       
-      alert(`Invoice Request ${result.invoice_number} created successfully!`);
+      Swal.fire({ icon: 'success', title: 'Invoice Request Created', text: `Invoice Request ${result.invoice_number} created successfully!`, timer: 2000, showConfirmButton: false });
       const targetPath = isAccounts ? `/invoice-approval/${result.id}` : `/invoice-request/${result.id}`;
       navigate(targetPath);
     } catch (err) {
-      alert(err.response?.data?.error || err.message);
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || err.message });
     } finally {
       setSubmitting(false);
     }
@@ -181,16 +185,14 @@ export default function NewInvoice() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button
             onClick={() => navigate('/dashboard')}
-            className="btn-ghost"
+            className="btn-ghost btn-back"
             style={{
               width: '40px',
               height: '40px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              background: 'white',
-              border: '1px solid var(--outline-variant)'
+              justifyContent: 'center'
             }}
           >
             <span className="material-symbols-outlined">arrow_back</span>
@@ -228,11 +230,31 @@ export default function NewInvoice() {
             </div>
             <div className="form-group">
               <label className="form-label">Invoice Date</label>
-              <input type="date" className="form-input" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} required />
+              <div className="date-picker-container">
+                <DatePicker
+                  selected={invoiceDate ? new Date(invoiceDate) : null}
+                  onChange={(date) => setInvoiceDate(date ? date.toISOString().split('T')[0] : '')}
+                  dateFormat="dd/MM/yyyy"
+                  className="form-input"
+                  placeholderText="DD/MM/YYYY"
+                  required
+                />
+                <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+              </div>
             </div>
             <div className="form-group">
               <label className="form-label">Due Date</label>
-              <input type="date" className="form-input" value={dueDate} onChange={e => setDueDate(e.target.value)} required />
+              <div className="date-picker-container">
+                <DatePicker
+                  selected={dueDate ? new Date(dueDate) : null}
+                  onChange={(date) => setDueDate(date ? date.toISOString().split('T')[0] : '')}
+                  dateFormat="dd/MM/yyyy"
+                  className="form-input"
+                  placeholderText="DD/MM/YYYY"
+                  required
+                />
+                <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+              </div>
             </div>
             <div className="form-group">
               <label className="form-label">Payment Terms</label>

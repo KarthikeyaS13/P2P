@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import {
   useReactTable,
   getCoreRowModel,
@@ -25,9 +28,13 @@ export default function DCRequest() {
   const [logistics, setLogistics] = useState({ driver_name: '', driver_phone: '', vehicle_no: '' });
   const [dcNumbering, setDcNumbering] = useState({ type: 'auto', manualValue: '' });
   const [autoDCNumber, setAutoDCNumber] = useState('');
-  const [customAddress, setCustomAddress] = useState({ enabled: false, line1: '', line2: '', pin: '', landmark: '' });
   const [remarks, setRemarks] = useState('');
   const [proofFile, setProofFile] = useState(null);
+
+  const [currentPOData, setCurrentPOData] = useState(null);
+  const [masterAddresses, setMasterAddresses] = useState([]);
+  const [dispatchSource, setDispatchSource] = useState('manual');
+  const [sourceAddress, setSourceAddress] = useState({ line1: '', line2: '', pin: '', landmark: '' });
 
   useEffect(() => {
     const fetchApprovedPOs = async () => {
@@ -42,7 +49,32 @@ export default function DCRequest() {
         setLoadingPOs(false);
       }
     };
+
+    const fetchMasterAddresses = async () => {
+      try {
+        const token = sessionStorage.getItem('token');
+        const res = await axios.get('http://localhost:3000/api/master-addresses', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setMasterAddresses(res.data);
+        // Default to the first address marked as default if it exists
+        const def = res.data.find(a => a.is_default);
+        if (def) {
+          setDispatchSource(def.id.toString());
+          setSourceAddress({
+            line1: def.addr_line1 || '',
+            line2: def.addr_line2 || '',
+            pin: def.pincode || '',
+            landmark: def.landmark || ''
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
     fetchApprovedPOs();
+    fetchMasterAddresses();
   }, []);
 
   useEffect(() => {
@@ -105,6 +137,17 @@ export default function DCRequest() {
       });
       // Filter out items that are fully delivered or have no supply qty
       setItems(newItems.filter(it => it.supply_qty > 0 && it.available > 0));
+      setCurrentPOData(po);
+
+      // If source is customer, update address
+      if (dispatchSource === 'customer') {
+        setSourceAddress({
+          line1: po.customer_addr1 || '',
+          line2: po.customer_addr2 || po.customer_city || '',
+          pin: po.customer_pincode || '',
+          landmark: ''
+        });
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -131,7 +174,7 @@ export default function DCRequest() {
 
       const max = it.available;
       if (num > max && num > 0) {
-        alert('Sales team has to update the PO');
+        Swal.fire({ icon: 'error', title: 'Limit Exceeded', text: 'Sales team has to update the PO' });
         it.requestQty = '';
       } else {
         it.requestQty = num;
@@ -149,6 +192,23 @@ export default function DCRequest() {
     it.total_supply_value = taxable + gst;
 
     setItems(newItems);
+  };
+
+  const handleSourceChange = (val) => {
+    setDispatchSource(val);
+    if (val === 'manual') {
+      setSourceAddress({ line1: '', line2: '', pin: '', landmark: '' });
+    } else {
+      const addr = masterAddresses.find(a => a.id.toString() === val);
+      if (addr) {
+        setSourceAddress({
+          line1: addr.addr_line1 || '',
+          line2: addr.addr_line2 || '',
+          pin: addr.pincode || '',
+          landmark: addr.landmark || ''
+        });
+      }
+    }
   };
 
   const submitDCRequest = async () => {
@@ -169,10 +229,10 @@ export default function DCRequest() {
     formData.append('vehicle_no', logistics.vehicle_no);
     formData.append('driver_name', logistics.driver_name);
     formData.append('driver_phone', logistics.driver_phone);
-    formData.append('dispatch_from_line1', customAddress.enabled ? customAddress.line1 : '');
-    formData.append('dispatch_from_line2', customAddress.enabled ? customAddress.line2 : '');
-    formData.append('dispatch_from_pin', customAddress.enabled ? customAddress.pin : '');
-    formData.append('dispatch_from_landmark', customAddress.enabled ? customAddress.landmark : '');
+    formData.append('dispatch_from_line1', sourceAddress.line1);
+    formData.append('dispatch_from_line2', sourceAddress.line2);
+    formData.append('dispatch_from_pin', sourceAddress.pin);
+    formData.append('dispatch_from_landmark', sourceAddress.landmark);
     formData.append('requested_dc_number', dcNumbering.type === 'auto' ? autoDCNumber : dcNumbering.manualValue);
     formData.append('is_manual_dc', dcNumbering.type === 'manual');
     formData.append('logistics_remarks', remarks);
@@ -189,7 +249,7 @@ export default function DCRequest() {
       const res = await axios.post('http://localhost:3000/api/dc-requests', formData, { headers });
 
       const data = res.data;
-      alert(`DC Request ${data.dc_request} submitted successfully!`);
+      Swal.fire({ icon: 'success', title: 'Success', text: `DC Request ${data.dc_request} submitted successfully!`, timer: 2000, showConfirmButton: false });
       navigate('/dashboard');
 
       // Reset form
@@ -202,7 +262,7 @@ export default function DCRequest() {
     } catch (err) {
       console.error('ERROR SUBMITTING DC REQUEST:', err);
       const msg = err.response?.data?.error || err.message || 'Failed to submit DC Request';
-      alert('Error: ' + msg);
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Error: ' + msg });
     } finally {
       setSubmitting(false);
     }
@@ -219,16 +279,14 @@ export default function DCRequest() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button
             onClick={() => navigate('/dashboard')}
-            className="btn-ghost"
+            className="btn-ghost btn-back"
             style={{
               width: '40px',
               height: '40px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              background: 'white',
-              border: '1px solid var(--outline-variant)'
+              justifyContent: 'center'
             }}
           >
             <span className="material-symbols-outlined">arrow_back</span>
@@ -261,7 +319,16 @@ export default function DCRequest() {
           </div>
           <div className="form-group">
             <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Requested Dispatch Date</label>
-            <input className="form-input" type="date" value={dispatchDate} onChange={e => setDispatchDate(e.target.value)} style={{ height: '42px', fontSize: '14px' }} />
+            <div className="date-picker-container">
+              <DatePicker
+                selected={dispatchDate ? new Date(dispatchDate) : null}
+                onChange={(date) => setDispatchDate(date ? date.toISOString().split('T')[0] : '')}
+                dateFormat="dd/MM/yyyy"
+                className="form-input"
+                placeholderText="DD/MM/YYYY"
+              />
+              <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+            </div>
           </div>
         </div>
       </div>
@@ -273,22 +340,22 @@ export default function DCRequest() {
             <h3 className="text-h3">Select Items for Dispatch</h3>
           </div>
 
-          <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '12px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-              <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+          <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '12px', maxHeight: '650px', overflowY: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+              <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB', position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr style={{ whiteSpace: 'nowrap' }}>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>Sl no</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>Ref No</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>Package</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>Heading</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>Sub Heading</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>Item Name</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>Description</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>UOM</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>Supply QTY</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px' }}>Already Despatched</th>
-                  <th style={{ padding: '12px 8px', color: '#059669', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px', background: '#ECFDF5' }}>Available Qty</th>
-                  <th style={{ padding: '12px 8px', color: '#1D4ED8', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px', background: '#EFF6FF' }}>New DC Qty</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Sl no</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Ref No</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Package</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Heading</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Sub Heading</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Item Name</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Description</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>UOM</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Supply QTY</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Already Despatched</th>
+                  <th style={{ padding: '12px 8px', color: '#059669', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', background: '#ECFDF5' }}>Available Qty</th>
+                  <th style={{ padding: '12px 8px', color: '#1D4ED8', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', background: '#EFF6FF' }}>New DC Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -314,7 +381,7 @@ export default function DCRequest() {
                           textOverflow: 'ellipsis',
                           cursor: 'pointer',
                         }}
-                        onClick={() => setExpandedDesc(it.description || 'No description available')}
+                        onClick={() => Swal.fire({ icon: 'info', title: 'Description', text: it.description || 'No description available' })}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description || '-'}</span>
@@ -331,7 +398,7 @@ export default function DCRequest() {
                           className="form-input"
                           value={it.requestQty}
                           onChange={(e) => handleQtyChange(idx, e.target.value)}
-                          style={{ width: '80px', padding: '4px 8px', fontSize: '13px', textAlign: 'center', border: '1px solid #BFDBFE' }}
+                          style={{ width: '80px', padding: '4px 8px', fontSize: '14px', textAlign: 'center', border: '1px solid #BFDBFE' }}
                         />
                       </td>
                     </tr>
@@ -458,28 +525,54 @@ export default function DCRequest() {
             </div>
 
             <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={customAddress.enabled}
-                  onChange={e => setCustomAddress({ ...customAddress, enabled: e.target.checked })}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Dispatch Source</label>
+                <select 
+                  className="form-select" 
+                  value={dispatchSource} 
+                  onChange={(e) => handleSourceChange(e.target.value)}
+                  style={{ width: '180px', height: '30px', fontSize: '12px', padding: '0 8px' }}
+                >
+                  <option value="manual">Manual Entry</option>
+                  {masterAddresses.map(addr => (
+                    <option key={addr.id} value={addr.id.toString()}>{addr.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
+                <input 
+                  className="form-input" 
+                  placeholder="Addr Line 1" 
+                  style={{ fontSize: '12px' }} 
+                  value={sourceAddress.line1} 
+                  onChange={e => setSourceAddress({ ...sourceAddress, line1: e.target.value })}
+                  readOnly={dispatchSource !== 'manual'}
                 />
-                <span style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--secondary)' }}>Dispatch From (Different Address)</span>
-              </label>
-              {customAddress.enabled && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' }}>
-                  <input className="form-input" placeholder="Addr Line 1" style={{ fontSize: '12px' }} value={customAddress.line1} onChange={e => setCustomAddress({ ...customAddress, line1: e.target.value })} />
-                  <input className="form-input" placeholder="Addr Line 2" style={{ fontSize: '12px' }} value={customAddress.line2} onChange={e => setCustomAddress({ ...customAddress, line2: e.target.value })} />
-                  <input className="form-input" placeholder="Pincode" style={{ fontSize: '12px' }} value={customAddress.pin} onChange={e => setCustomAddress({ ...customAddress, pin: e.target.value })} />
-                  <input className="form-input" placeholder="Landmark" style={{ fontSize: '12px' }} value={customAddress.landmark} onChange={e => setCustomAddress({ ...customAddress, landmark: e.target.value })} />
-                </div>
-              )}
-              {!customAddress.enabled && (
-                <div style={{ fontSize: '11px', color: '#64748B', lineHeight: '1.4', marginTop: '8px' }}>
-                  <p style={{ margin: 0, fontWeight: 700, color: '#475569' }}>Default Source Address:</p>
-                  <p style={{ margin: 0, color: 'var(--primary)', fontWeight: 600 }}>Plot No. 44, Shed No. 3, Phase-I, IDA Balanagar, Hyderabad 500037</p>
-                </div>
-              )}
+                <input 
+                  className="form-input" 
+                  placeholder="Addr Line 2" 
+                  style={{ fontSize: '12px' }} 
+                  value={sourceAddress.line2} 
+                  onChange={e => setSourceAddress({ ...sourceAddress, line2: e.target.value })}
+                  readOnly={dispatchSource !== 'manual'}
+                />
+                <input 
+                  className="form-input" 
+                  placeholder="Pincode" 
+                  style={{ fontSize: '12px' }} 
+                  value={sourceAddress.pin} 
+                  onChange={e => setSourceAddress({ ...sourceAddress, pin: e.target.value })}
+                  readOnly={dispatchSource !== 'manual'}
+                />
+                <input 
+                  className="form-input" 
+                  placeholder="Landmark" 
+                  style={{ fontSize: '12px' }} 
+                  value={sourceAddress.landmark} 
+                  onChange={e => setSourceAddress({ ...sourceAddress, landmark: e.target.value })}
+                />
+              </div>
             </div>
           </div>
         </div>
