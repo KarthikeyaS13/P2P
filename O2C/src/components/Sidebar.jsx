@@ -8,21 +8,27 @@ export default function Sidebar() {
   const role = user?.role?.toLowerCase();
   const isSales = role === 'sales';
 
-  let routes = [
-    { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-  ];
+  let routes = [];
+
+  if (['admin', 'sales', 'stores', 'accounts', 'management', 'auditor'].includes(role)) {
+    routes.push({ path: '/dashboard', label: 'Dashboard', icon: 'dashboard' });
+  }
 
 
   if (role === 'admin') {
     routes = routes.concat([
       { path: '/customers', label: 'Customers', icon: 'group' },
       { path: '/master-address', label: 'Master Address', icon: 'location_on' },
+      { path: '/projects', label: 'Project Site', icon: 'location_on' },
     ]);
   } else if (role === 'sales') {
     routes = routes.concat([
       { path: '/new-po', label: 'New PO', icon: 'add_shopping_cart' },
       { path: '/edit-po', label: 'Edit PO', icon: 'edit_document' },
       { path: '/invoice-request', label: 'Invoice Req', icon: 'receipt_long' },
+    ]);
+  } else if (role === 'projects') {
+    routes = routes.concat([
       { path: '/projects', label: 'Project Site', icon: 'location_on' },
     ]);
   } else if (role === 'stores') {

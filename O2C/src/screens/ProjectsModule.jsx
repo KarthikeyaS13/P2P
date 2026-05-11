@@ -86,6 +86,11 @@ export default function ProjectsModule() {
       Swal.fire({ icon: 'warning', title: 'Missing Info', text: 'Receiver name and phone are mandatory.' });
       return;
     }
+    
+    if (phone.length !== 10) {
+      Swal.fire({ icon: 'warning', title: 'Invalid Phone', text: 'Phone number must be exactly 10 digits.' });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -205,7 +210,7 @@ export default function ProjectsModule() {
                 </div>
                 <div className="info-block">
                   <label style={{ fontSize: '8px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Vehicle</label>
-                  <div style={{ fontSize: '13px', fontWeight: 700 }}>{details.vehicle_number || 'NA'}</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700 }}>{details.vehicle_no || details.vehicle_number || 'NA'}</div>
                 </div>
                 <div className="info-block">
                   <label style={{ fontSize: '8px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Driver</label>
@@ -277,7 +282,15 @@ export default function ProjectsModule() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Receiver Phone *</label>
-                    <input className="form-input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Mobile No" />
+                    <input 
+                      className="form-input" 
+                      value={phone} 
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setPhone(val);
+                      }} 
+                      placeholder="10-digit Mobile No" 
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Designation</label>

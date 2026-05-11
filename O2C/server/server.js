@@ -322,6 +322,24 @@ app.post('/api/master-addresses', requireRole(['admin']), (req, res) => {
   }
 });
 
+app.put('/api/master-addresses/:id', requireRole(['admin']), (req, res) => {
+  const { id } = req.params;
+  const { name, addr_line1, addr_line2, city, state, pincode, landmark, is_default } = req.body;
+  try {
+    if (is_default) {
+      db.prepare("UPDATE master_addresses SET is_default = 0").run();
+    }
+    db.prepare(`
+      UPDATE master_addresses 
+      SET name = ?, addr_line1 = ?, addr_line2 = ?, city = ?, state = ?, pincode = ?, landmark = ?, is_default = ?
+      WHERE id = ?
+    `).run(name, addr_line1, addr_line2, city, state, pincode, landmark, is_default ? 1 : 0, id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/master-addresses/:id', requireRole(['admin']), (req, res) => {
   try {
     db.prepare("DELETE FROM master_addresses WHERE id = ?").run(req.params.id);
@@ -333,7 +351,9 @@ app.delete('/api/master-addresses/:id', requireRole(['admin']), (req, res) => {
 
 // --- Login ---
 app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
+  let { username, password } = req.body;
+  username = username?.toLowerCase().trim();
+  password = password?.trim();
   try {
     const user = db.prepare(`SELECT u.id, u.username, u.full_name, u.password_hash, r.name as role
       FROM users u JOIN user_roles ur ON u.id=ur.user_id JOIN roles r ON ur.role_id=r.id WHERE u.username=?`).get(username);
@@ -1503,12 +1523,15 @@ app.get('/api/dc', authenticate, (req, res) => {
         c.name as customer_name,
         cl.label as location_name,
         cl.city as location_city,
-        dr.dc_request_no
+        dr.dc_request_no,
+        i.id as invoice_id,
+        i.invoice_number
       FROM delivery_challans d
       LEFT JOIN purchase_orders p ON d.po_id = p.id
       LEFT JOIN customers c ON d.customer_id = c.id
       LEFT JOIN customer_locations cl ON d.customer_location_id = cl.id
       LEFT JOIN dc_requests dr ON d.dc_request_id = dr.id
+      LEFT JOIN invoices i ON i.dc_id = d.id
       ORDER BY d.created_at DESC
     `).all();
     res.json(rows);

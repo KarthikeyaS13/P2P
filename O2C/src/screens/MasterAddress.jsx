@@ -17,6 +17,8 @@ export default function MasterAddress() {
     landmark: '',
     is_default: false
   });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,14 +43,43 @@ export default function MasterAddress() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.post('http://localhost:3000/api/master-addresses', form, { headers });
-      Swal.fire({ icon: 'success', title: 'Success', text: 'Location added successfully', timer: 1500, showConfirmButton: false });
-      setShowForm(false);
-      setForm({ name: '', addr_line1: '', addr_line2: '', city: '', state: '', pincode: '', landmark: '', is_default: false });
+      
+      if (isEditing) {
+        await axios.put(`http://localhost:3000/api/master-addresses/${editId}`, form, { headers });
+        Swal.fire({ icon: 'success', title: 'Success', text: 'Location updated successfully', timer: 1500, showConfirmButton: false });
+      } else {
+        await axios.post('http://localhost:3000/api/master-addresses', form, { headers });
+        Swal.fire({ icon: 'success', title: 'Success', text: 'Location added successfully', timer: 1500, showConfirmButton: false });
+      }
+      
+      handleCloseForm();
       fetchAddresses();
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to add location' });
+      Swal.fire({ icon: 'error', title: 'Error', text: `Failed to ${isEditing ? 'update' : 'add'} location` });
     }
+  };
+
+  const handleEdit = (addr) => {
+    setForm({
+      name: addr.name,
+      addr_line1: addr.addr_line1,
+      addr_line2: addr.addr_line2 || '',
+      city: addr.city,
+      state: addr.state,
+      pincode: addr.pincode,
+      landmark: addr.landmark || '',
+      is_default: !!addr.is_default
+    });
+    setEditId(addr.id);
+    setIsEditing(true);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setIsEditing(false);
+    setEditId(null);
+    setForm({ name: '', addr_line1: '', addr_line2: '', city: '', state: '', pincode: '', landmark: '', is_default: false });
   };
 
   const handleDelete = async (id) => {
@@ -87,15 +118,15 @@ export default function MasterAddress() {
             <p className="page-header__subtitle">Manage corporate and warehouse dispatch locations</p>
           </div>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
+        <button onClick={() => { if(showForm) handleCloseForm(); else setShowForm(true); }} className="btn btn-primary">
           <span className="material-symbols-outlined" style={{ marginRight: '8px' }}>{showForm ? 'close' : 'add'}</span>
           {showForm ? 'Cancel' : 'Add Location'}
         </button>
       </div>
 
       {showForm && (
-        <div className="card card--padded animate-slide-up" style={{ marginBottom: '24px', border: '1px solid var(--primary)' }}>
-          <h3 className="text-h3" style={{ marginBottom: '20px' }}>Add New Location</h3>
+        <div className="card card--padded animate-slide-up" style={{ marginBottom: '24px', border: '2px solid var(--primary)' }}>
+          <h3 className="text-h3" style={{ marginBottom: '20px' }}>{isEditing ? 'Edit Location' : 'Add New Location'}</h3>
           <form onSubmit={handleSubmit}>
             <div className="grid-2">
               <div className="form-group">
@@ -132,8 +163,8 @@ export default function MasterAddress() {
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-              <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)}>Discard</button>
-              <button type="submit" className="btn btn-primary">Save Location</button>
+              <button type="button" className="btn btn-outline" onClick={handleCloseForm}>Discard</button>
+              <button type="submit" className="btn btn-primary">{isEditing ? 'Update Location' : 'Save Location'}</button>
             </div>
           </form>
         </div>
@@ -142,14 +173,15 @@ export default function MasterAddress() {
       {loading ? (
         <div className="card" style={{ padding: '40px', textAlign: 'center' }}>Loading addresses...</div>
       ) : (
-        <div className="grid-3 animate-fade">
+        <div className="grid grid-3 animate-fade">
           {addresses.map(addr => (
             <div key={addr.id} className="card card--padded" style={{ 
               position: 'relative', 
               border: addr.is_default ? '2px solid #10B981' : '1px solid #E5E7EB',
-              background: addr.is_default ? '#F0FDF4' : 'white'
+              background: addr.is_default ? '#F0FDF4' : 'white',
+              marginBottom: '20px'
             }}>
-              {addr.is_default && (
+              {!!addr.is_default && (
                 <div style={{ 
                   position: 'absolute', 
                   top: '12px', 
@@ -170,6 +202,9 @@ export default function MasterAddress() {
                 {addr.landmark && <div style={{ fontStyle: 'italic', color: '#6B7280', marginTop: '4px' }}>Landmark: {addr.landmark}</div>}
               </div>
               <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button onClick={() => handleEdit(addr)} className="btn-ghost" style={{ color: 'var(--primary)' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit</span>
+                </button>
                 <button onClick={() => handleDelete(addr.id)} className="btn-ghost" style={{ color: '#EF4444' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>delete</span>
                 </button>

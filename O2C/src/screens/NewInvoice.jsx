@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import DatePicker from 'react-datepicker';
@@ -7,7 +7,13 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { getUser } from '../auth';
 
 export default function NewInvoice() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const filterPO = queryParams.get('po');
+
   const [dcs, setDcs] = useState([]);
+  const [allDcs, setAllDcs] = useState([]); // Store all billable DCs
   const [selectedDC, setSelectedDC] = useState('');
   const [dcDetails, setDcDetails] = useState(null);
 
@@ -24,7 +30,6 @@ export default function NewInvoice() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
   const user = getUser();
   const isAccounts = user?.role === 'accounts' || user?.role === 'admin';
 
@@ -42,13 +47,22 @@ export default function NewInvoice() {
         (d.status === 'delivery_confirmed' || d.delivery_status === 'delivery_confirmed') &&
         d.invoicing_status !== 'fully_invoiced'
       );
-      setDcs(billable);
+      setAllDcs(billable);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (filterPO) {
+      const filtered = allDcs.filter(d => (d.po_no || d.po_number) === filterPO);
+      setDcs(filtered);
+    } else {
+      setDcs(allDcs);
+    }
+  }, [allDcs, filterPO]);
 
   const handleSelectDC = async (e) => {
     const id = e.target.value;
@@ -202,9 +216,9 @@ export default function NewInvoice() {
               {isAccounts ? 'Issue Official Invoice' : 'Invoice Request'}
             </h1>
             <p className="page-header__subtitle">
-              {isAccounts 
+              {filterPO ? `Filtering for PO: ${filterPO}` : (isAccounts 
                 ? 'Finalize billing and generate official tax document' 
-                : 'Raise a billing request for Accounts department approval'}
+                : 'Raise a billing request for Accounts department approval')}
             </p>
           </div>
         </div>

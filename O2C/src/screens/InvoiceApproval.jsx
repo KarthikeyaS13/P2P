@@ -23,6 +23,8 @@ export default function InvoiceApproval() {
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [hiddenInvoice, setHiddenInvoice] = useState(null);
+  const [isDownloadingSilent, setIsDownloadingSilent] = useState(false);
 
   const [verificationState, setVerificationState] = useState({
     gstin: false, address: false, dc: false, po: false,
@@ -52,6 +54,19 @@ export default function InvoiceApproval() {
       setSelectedInvoice(null);
     }
   }, [id]);
+
+  // Auto-download logic
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('download') === 'true' && selectedInvoice && selectedInvoice.status !== 'requested') {
+      const timer = setTimeout(() => {
+        handleDownloadPDF();
+        // Cleanup URL
+        navigate(`/invoice-approval/${selectedInvoice.id}`, { replace: true });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedInvoice]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -90,8 +105,11 @@ export default function InvoiceApproval() {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    const element = document.getElementById('tax-invoice-printable');
+  const handleDownloadPDF = async (targetInv = null) => {
+    const inv = targetInv || selectedInvoice;
+    const elementId = targetInv ? 'silent-invoice-printable' : 'tax-invoice-printable';
+    const element = document.getElementById(elementId);
+    
     if (!element) return;
     try {
       const { default: html2canvas } = await import('html2canvas');
@@ -102,9 +120,30 @@ export default function InvoiceApproval() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${selectedInvoice.invoice_number}.pdf`);
+      pdf.save(`${inv.invoice_number}.pdf`);
     } catch (err) {
       console.error('PDF Generation Error:', err);
+    }
+  };
+
+  const handleSilentDownload = async (invId) => {
+    setIsDownloadingSilent(true);
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(`http://localhost:3000/api/invoices/${invId}`, { headers });
+      setHiddenInvoice(res.data);
+      
+      // Wait for DOM to render the hidden div
+      setTimeout(async () => {
+        await handleDownloadPDF(res.data);
+        setHiddenInvoice(null);
+        setIsDownloadingSilent(false);
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      setIsDownloadingSilent(false);
+      Swal.fire({ icon: 'error', title: 'Download Failed', text: 'Could not generate PDF' });
     }
   };
 
@@ -278,9 +317,20 @@ export default function InvoiceApproval() {
     },
     {
       header: 'Actions', id: 'actions', cell: ({ row }) => (
-        <button className="btn-ghost btn-sm" onClick={() => navigate(`/invoice-approval/${row.original.id}`)} title="View Preview">
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn-ghost btn-sm" onClick={() => navigate(`/invoice-approval/${row.original.id}`)} title="View Preview" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
+          </button>
+          <button 
+            className="btn-ghost btn-sm" 
+            onClick={() => handleSilentDownload(row.original.id)} 
+            disabled={isDownloadingSilent}
+            title="Download Invoice" 
+            style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, color: '#10B981' }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{isDownloadingSilent ? 'hourglass_empty' : 'download'}</span>
+          </button>
+        </div>
       )
     }
   ], [navigate]);
@@ -672,6 +722,208 @@ export default function InvoiceApproval() {
         .data-table th { white-space: nowrap; }
         .data-table td { vertical-align: middle; }
       `}</style>
+      {/* Hidden container for silent PDF generation */}
+      {hiddenInvoice && (
+        <div style={{ position: 'fixed', left: '-9999px', top: '-9999px', width: '210mm', zIndex: -100 }}>
+          <div id="silent-invoice-printable" style={{ padding: '48px', background: 'white', color: '#1E293B' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'inline-block', padding: '6px 12px', background: '#F1F5F9', borderRadius: '4px', fontSize: '10px', fontWeight: 900, color: '#475569', letterSpacing: '0.1em', marginBottom: '16px' }}>TAX INVOICE</div>
+                <h2 style={{ fontSize: '42px', fontWeight: 900, margin: 0, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1 }}>{hiddenInvoice.invoice_number}</h2>
+                <div style={{ display: 'flex', gap: '24px', marginTop: '20px' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Date of Issue</div>
+                    <div style={{ fontSize: '15px', fontWeight: 700 }}>{new Date(hiddenInvoice.invoice_date).toLocaleDateString('en-IN')}</div>
+                  </div>
+                  <div style={{ width: '1px', background: '#E2E8F0' }}></div>
+                  <div>
+                    <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Payment Due</div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#DC2626' }}>{hiddenInvoice.due_date ? new Date(hiddenInvoice.due_date).toLocaleDateString('en-IN') : '-'}</div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', maxWidth: '280px' }}>
+                <img src="/logo.png" alt="Sudha Analyticals" style={{ height: '60px', marginBottom: '8px' }} />
+                <div style={{ fontSize: '20px', fontWeight: 900, color: '#0F172A', lineHeight: 1.1 }}>SUDHA ANALYTICALS</div>
+                <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.6', marginTop: '12px' }}>
+                  Plot 18A, Sy No 118, Madhapur<br />Hyderabad, Telangana 500037<br />
+                  <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 8px', background: '#F8FAFC', borderRadius: '4px', border: '1px solid #E2E8F0', fontWeight: 700, color: '#1E293B' }}>GSTIN: 36AGTPG0351P1ZY</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: '#E2E8F0', border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden', marginBottom: '40px' }}>
+              <div style={{ background: '#F8FAFC', padding: '16px' }}>
+                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Purchase Order</div>
+                <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenInvoice.po_no}</div>
+                <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenInvoice.po_date).toLocaleDateString('en-IN')}</div>
+              </div>
+              <div style={{ background: '#F8FAFC', padding: '16px' }}>
+                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Delivery Challan</div>
+                <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenInvoice.dc_no}</div>
+                <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenInvoice.dispatch_date).toLocaleDateString('en-IN')}</div>
+              </div>
+              <div style={{ background: '#F8FAFC', padding: '16px' }}>
+                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Place of Supply</div>
+                <div style={{ fontSize: '16px', fontWeight: 700 }}>{hiddenInvoice.place_of_supply || 'Telangana'}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '64px', marginBottom: '48px' }}>
+              <div>
+                <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', borderBottom: '2px solid #F1F5F9', paddingBottom: '6px' }}>Billed To</h4>
+                <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155', whiteSpace: 'pre-wrap' }}>{hiddenInvoice.billing_address}</div>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', borderBottom: '2px solid #F1F5F9', paddingBottom: '6px' }}>Shipped To</h4>
+                <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155', whiteSpace: 'pre-wrap' }}>{hiddenInvoice.shipping_address}</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '40px' }}>
+              <table style={{ width: '100%', borderCollapse: 'separate' }}>
+                <thead style={{ background: '#0F172A', color: 'white' }}>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
+                    <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Qty</th>
+                    <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Rate</th>
+                    <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(hiddenInvoice.items || []).map((it, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700 }}>{it.item_name}</td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>{it.quantity}</td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '64px' }}>
+              <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>{hiddenInvoice.notes}</div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{hiddenInvoice.subtotal?.toLocaleString('en-IN')}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderTop: '2px dashed #E2E8F0', marginTop: '12px' }}>
+                  <span style={{ fontWeight: 900 }}>Grand Total</span>
+                  <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{hiddenInvoice.grand_total?.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '80px', textAlign: 'right' }}>
+              <div style={{ height: '60px', width: '200px', borderBottom: '2px solid #0F172A', marginLeft: 'auto', marginBottom: '8px' }}>
+                {hiddenInvoice.signature_data && <img src={hiddenInvoice.signature_data} style={{ width: '150px' }} />}
+              </div>
+              <div style={{ fontWeight: 900 }}>Authorised Signatory</div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Hidden container for silent PDF generation */}
+      {hiddenInvoice && (
+        <div style={{ position: 'fixed', left: '-9999px', top: '-9999px', width: '210mm', zIndex: -100 }}>
+          <div id="silent-invoice-printable" style={{ padding: '48px', background: 'white', color: '#1E293B' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'inline-block', padding: '6px 12px', background: '#F1F5F9', borderRadius: '4px', fontSize: '10px', fontWeight: 900, color: '#475569', letterSpacing: '0.1em', marginBottom: '16px' }}>TAX INVOICE</div>
+                <h2 style={{ fontSize: '42px', fontWeight: 900, margin: 0, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1 }}>{hiddenInvoice.invoice_number}</h2>
+                <div style={{ display: 'flex', gap: '24px', marginTop: '20px' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Date of Issue</div>
+                    <div style={{ fontSize: '15px', fontWeight: 700 }}>{new Date(hiddenInvoice.invoice_date).toLocaleDateString('en-IN')}</div>
+                  </div>
+                  <div style={{ width: '1px', background: '#E2E8F0' }}></div>
+                  <div>
+                    <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Payment Due</div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#DC2626' }}>{hiddenInvoice.due_date ? new Date(hiddenInvoice.due_date).toLocaleDateString('en-IN') : '-'}</div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', maxWidth: '280px' }}>
+                <img src="/logo.png" alt="Sudha Analyticals" style={{ height: '60px', marginBottom: '8px' }} />
+                <div style={{ fontSize: '20px', fontWeight: 900, color: '#0F172A', lineHeight: 1.1 }}>SUDHA ANALYTICALS</div>
+                <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.6', marginTop: '12px' }}>
+                  Plot 18A, Sy No 118, Madhapur<br />Hyderabad, Telangana 500037<br />
+                  <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 8px', background: '#F8FAFC', borderRadius: '4px', border: '1px solid #E2E8F0', fontWeight: 700, color: '#1E293B' }}>GSTIN: 36AGTPG0351P1ZY</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: '#E2E8F0', border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden', marginBottom: '40px' }}>
+              <div style={{ background: '#F8FAFC', padding: '16px' }}>
+                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Purchase Order</div>
+                <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenInvoice.po_no}</div>
+                <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenInvoice.po_date).toLocaleDateString('en-IN')}</div>
+              </div>
+              <div style={{ background: '#F8FAFC', padding: '16px' }}>
+                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Delivery Challan</div>
+                <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenInvoice.dc_no}</div>
+                <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenInvoice.dispatch_date).toLocaleDateString('en-IN')}</div>
+              </div>
+              <div style={{ background: '#F8FAFC', padding: '16px' }}>
+                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Place of Supply</div>
+                <div style={{ fontSize: '16px', fontWeight: 700 }}>{hiddenInvoice.place_of_supply || 'Telangana'}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '64px', marginBottom: '48px' }}>
+              <div>
+                <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', borderBottom: '2px solid #F1F5F9', paddingBottom: '6px' }}>Billed To</h4>
+                <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155', whiteSpace: 'pre-wrap' }}>{hiddenInvoice.billing_address}</div>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', borderBottom: '2px solid #F1F5F9', paddingBottom: '6px' }}>Shipped To</h4>
+                <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155', whiteSpace: 'pre-wrap' }}>{hiddenInvoice.shipping_address}</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '40px' }}>
+              <table style={{ width: '100%', borderCollapse: 'separate' }}>
+                <thead style={{ background: '#0F172A', color: 'white' }}>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
+                    <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Qty</th>
+                    <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Rate</th>
+                    <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(hiddenInvoice.items || []).map((it, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700 }}>{it.item_name}</td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>{it.quantity}</td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '64px' }}>
+              <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>{hiddenInvoice.notes}</div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{hiddenInvoice.subtotal?.toLocaleString('en-IN')}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderTop: '2px dashed #E2E8F0', marginTop: '12px' }}>
+                  <span style={{ fontWeight: 900 }}>Grand Total</span>
+                  <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{hiddenInvoice.grand_total?.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '80px', textAlign: 'right' }}>
+              <div style={{ height: '60px', width: '200px', borderBottom: '2px solid #0F172A', marginLeft: 'auto', marginBottom: '8px' }}>
+                {hiddenInvoice.signature_data && <img src={hiddenInvoice.signature_data} style={{ width: '150px' }} />}
+              </div>
+              <div style={{ fontWeight: 900 }}>Authorised Signatory</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

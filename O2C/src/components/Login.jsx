@@ -66,6 +66,7 @@ export default function Login({ onSuccess }) {
           sales1 / password123 (Sales Role)<br />
           accounts / password123 (Accounts Role)<br />
           stores / password123 (Stores Role)<br />
+          projects / projects123 (Projects Role)<br />
           {/* auditor / password123 (Auditor Role) */}
         </div>
       </div>

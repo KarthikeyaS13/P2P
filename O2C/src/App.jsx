@@ -35,7 +35,7 @@ function RoleGate({ allowedRoles, children }) {
   if (allowedRoles.includes(userRole) || userRole === 'admin') {
     return children;
   }
-  return <Navigate to="/dashboard" replace />;
+  return <Navigate to={userRole === 'projects' ? "/projects" : "/dashboard"} replace />;
 }
 
 function App() {
@@ -44,7 +44,11 @@ function App() {
   // const isSales = user?.role?.toLowerCase() === 'sales';
 
   if (!user) {
-    return <Login onSuccess={() => navigate('/')} />;
+    return <Login onSuccess={() => {
+      const u = getUser();
+      if (u?.role?.toLowerCase() === 'projects') navigate('/projects');
+      else navigate('/');
+    }} />;
   }
 
   return (
@@ -57,7 +61,7 @@ function App() {
 
           <div className="main-content__inner">
             <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<Navigate to={user?.role?.toLowerCase() === 'projects' ? "/projects" : "/dashboard"} replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/master-address" element={<MasterAddress />} />
 
@@ -93,7 +97,7 @@ function App() {
               <Route path="/dispatch-confirmation/:id" element={<RoleGate allowedRoles={['stores']}><DispatchConfirmation /></RoleGate>} />
 
               {/* Projects */}
-              <Route path="/projects" element={<RoleGate allowedRoles={['projects', 'sales']}><ProjectsModule /></RoleGate>} />
+              <Route path="/projects" element={<RoleGate allowedRoles={['projects']}><ProjectsModule /></RoleGate>} />
 
               {/* Management / Auditor */}
               <Route path="/analytics" element={

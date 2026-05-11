@@ -101,12 +101,12 @@ export default function InvoiceRequest() {
   ], [navigate]);
 
   const pendingColumns = useMemo(() => [
-    { header: 'DC Number', accessorKey: 'dc_number' },
+    { header: 'PO Number', accessorKey: 'po_no' },
     { header: 'Customer', accessorKey: 'customer_name' },
     { header: 'Delivered On', accessorKey: 'dispatch_date', cell: ({ getValue }) => new Date(getValue()).toLocaleDateString('en-IN') },
     {
       header: 'Action', id: 'action', cell: ({ row }) => (
-        <button className="btn btn-primary btn-sm" onClick={() => navigate('/new-invoice')}>Request Invoice</button>
+        <button className="btn btn-primary btn-sm" onClick={() => navigate(`/new-invoice?po=${row.original.po_no}`)}>Request Invoice</button>
       )
     }
   ], [navigate]);

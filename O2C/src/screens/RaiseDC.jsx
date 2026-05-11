@@ -33,6 +33,8 @@ export default function RaiseDC() {
   const [signatureImage, setSignatureImage] = useState(null);
   const [itemHSNs, setItemHSNs] = useState({});
   const [showPreview, setShowPreview] = useState(false);
+  const [hiddenData, setHiddenData] = useState(null); // { type: 'dc'|'invoice', data: any }
+  const [isDownloadingSilent, setIsDownloadingSilent] = useState(false);
   const sigCanvas = useRef(null);
 
   useEffect(() => {
@@ -56,8 +58,23 @@ export default function RaiseDC() {
     } else {
       setView('list');
       setDetails(null);
+      setSignatureImage(null);
     }
   }, [id, trackingDCs]);
+
+  // Auto-download logic for tracking table
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('download') === 'true' && details && details.dc_number && signatureImage) {
+      setShowPreview(true);
+      const timer = setTimeout(() => {
+        downloadPDF();
+        // Cleanup URL
+        navigate(`/raise-dc/${details.id}`, { replace: true });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [details, signatureImage]);
 
   const fetchDetailDirectly = async (targetId) => {
     setLoadingDetails(true);
@@ -143,12 +160,69 @@ export default function RaiseDC() {
       setManualDC('');
       setCustomDCNo('');
       setDispatchFrom({ line1: '', line2: '', pin: '' });
+      
+      // If already issued, set the signature
+      if (res.data.signature) {
+        setSignatureImage(res.data.signature);
+      } else {
+        setSignatureImage(null);
+      }
 
     } catch (err) {
       console.error(err);
       setView('list');
     } finally {
       setLoadingDetails(false);
+    }
+  };
+
+  const handleSilentDownload = async (row) => {
+    setIsDownloadingSilent(true);
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      let docData;
+      let docType;
+      
+      if (row.invoice_id) {
+        const res = await axios.get(`http://localhost:3000/api/invoices/${row.invoice_id}`, { headers });
+        docData = res.data;
+        docType = 'invoice';
+      } else {
+        try {
+          const res = await axios.get(`http://localhost:3000/api/dc-requests/${row.id}`, { headers });
+          docData = res.data;
+        } catch (e) {
+          const res = await axios.get(`http://localhost:3000/api/dc/${row.id}`, { headers });
+          docData = res.data;
+        }
+        docType = 'dc';
+      }
+      
+      setHiddenData({ type: docType, data: docData });
+
+      // Wait for render
+      setTimeout(async () => {
+        const elementId = docType === 'invoice' ? 'silent-invoice-capture' : 'silent-dc-capture';
+        const element = document.getElementById(elementId);
+        if (element) {
+           const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+           const imgData = canvas.toDataURL('image/png');
+           const pdf = new jsPDF('p', 'mm', 'a4');
+           const pdfWidth = pdf.internal.pageSize.getWidth();
+           const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+           pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+           const fileName = docType === 'invoice' ? `${docData.invoice_number}.pdf` : `${docData.dc_number || 'DC'}.pdf`;
+           pdf.save(fileName);
+        }
+        setHiddenData(null);
+        setIsDownloadingSilent(false);
+      }, 1200);
+    } catch (err) {
+      console.error(err);
+      setIsDownloadingSilent(false);
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to generate PDF' });
     }
   };
 
@@ -432,9 +506,11 @@ export default function RaiseDC() {
     {
       header: 'Action',
       cell: info => (
-        <button className="btn-ghost" onClick={() => navigate(`/raise-dc/${info.row.original.id}`)} style={{ padding: '2px' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#6366F1' }}>visibility</span>
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn-ghost" onClick={() => navigate(`/raise-dc/${info.row.original.id}`)} style={{ padding: '2px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#6366F1' }}>visibility</span>
+          </button>
+        </div>
       )
     }
   ], []);
@@ -766,13 +842,21 @@ export default function RaiseDC() {
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Authorized DC Summary</h3>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button className="btn btn-ghost" onClick={() => setShowPreview(false)} style={{ height: '32px' }}>Back to Edit</button>
-                  <button className="btn btn-ghost" onClick={downloadPDF} style={{ height: '32px', border: '1px solid #CBD5E1', opacity: signatureImage ? 1 : 0.5 }} disabled={!signatureImage}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', marginRight: '6px' }}>download</span>
-                    Download PDF
-                  </button>
-                  <button className="btn btn-primary" onClick={finalizeRaiseDC} disabled={submitting || !signatureImage} style={{ height: '32px', background: '#10B981', fontWeight: 700 }}>
-                    {submitting ? 'Processing...' : 'Confirm & Send to Site'}
-                  </button>
+                  
+                  {/* Download PDF only shown AFTER confirmation (issued) */}
+                  {details.dc_number && (
+                    <button className="btn btn-ghost" onClick={downloadPDF} style={{ height: '32px', border: '1px solid #10B981', color: '#10B981', fontWeight: 700 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px', marginRight: '6px' }}>download</span>
+                      Download PDF
+                    </button>
+                  )}
+
+                  {/* Confirm button only shown BEFORE confirmation (pending) */}
+                  {!details.dc_number && (
+                    <button className="btn btn-primary" onClick={finalizeRaiseDC} disabled={submitting || !signatureImage} style={{ height: '32px', background: '#10B981', fontWeight: 700 }}>
+                      {submitting ? 'Processing...' : 'Confirm & Send to Site'}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1041,6 +1125,211 @@ export default function RaiseDC() {
           </tbody>
         </table>
       </div>
+      {/* Hidden containers for silent PDF generation */}
+      {hiddenData && (
+        <div style={{ position: 'fixed', left: '-9999px', top: '-9999px', width: '210mm', zIndex: -100 }}>
+          {hiddenData.type === 'invoice' ? (
+            <div id="silent-invoice-capture" style={{ padding: '48px', background: 'white', color: '#1E293B' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'inline-block', padding: '6px 12px', background: '#F1F5F9', borderRadius: '4px', fontSize: '10px', fontWeight: 900, color: '#475569', letterSpacing: '0.1em', marginBottom: '16px' }}>TAX INVOICE</div>
+                  <h2 style={{ fontSize: '42px', fontWeight: 900, margin: 0, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1 }}>{hiddenData.data.invoice_number}</h2>
+                  <div style={{ display: 'flex', gap: '24px', marginTop: '20px' }}>
+                    <div>
+                      <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Date of Issue</div>
+                      <div style={{ fontSize: '15px', fontWeight: 700 }}>{new Date(hiddenData.data.invoice_date).toLocaleDateString('en-IN')}</div>
+                    </div>
+                    <div style={{ width: '1px', background: '#E2E8F0' }}></div>
+                    <div>
+                      <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Payment Due</div>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: '#DC2626' }}>{hiddenData.data.due_date ? new Date(hiddenData.data.due_date).toLocaleDateString('en-IN') : '-'}</div>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', maxWidth: '280px' }}>
+                  <img src="/logo.png" alt="Sudha Analyticals" style={{ height: '60px', marginBottom: '8px' }} />
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#0F172A', lineHeight: 1.1 }}>SUDHA ANALYTICALS</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.6', marginTop: '12px' }}>
+                    Plot 18A, Sy No 118, Madhapur<br />Hyderabad, Telangana 500037<br />
+                    <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 8px', background: '#F8FAFC', borderRadius: '4px', border: '1px solid #E2E8F0', fontWeight: 700, color: '#1E293B' }}>GSTIN: 36AGTPG0351P1ZY</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: '#E2E8F0', border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden', marginBottom: '40px' }}>
+                <div style={{ background: '#F8FAFC', padding: '16px' }}>
+                  <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Purchase Order</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenData.data.po_no}</div>
+                  <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenData.data.po_date).toLocaleDateString('en-IN')}</div>
+                </div>
+                <div style={{ background: '#F8FAFC', padding: '16px' }}>
+                  <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Delivery Challan</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenData.data.dc_no}</div>
+                  <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenData.data.dispatch_date).toLocaleDateString('en-IN')}</div>
+                </div>
+                <div style={{ background: '#F8FAFC', padding: '16px' }}>
+                  <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Place of Supply</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700 }}>{hiddenData.data.place_of_supply || 'Telangana'}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '64px', marginBottom: '48px' }}>
+                <div>
+                  <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', borderBottom: '2px solid #F1F5F9', paddingBottom: '6px' }}>Billed To</h4>
+                  <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155', whiteSpace: 'pre-wrap' }}>{hiddenData.data.billing_address}</div>
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', borderBottom: '2px solid #F1F5F9', paddingBottom: '6px' }}>Shipped To</h4>
+                  <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155', whiteSpace: 'pre-wrap' }}>{hiddenData.data.shipping_address}</div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '40px' }}>
+                <table style={{ width: '100%', borderCollapse: 'separate' }}>
+                  <thead style={{ background: '#0F172A', color: 'white' }}>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
+                      <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Qty</th>
+                      <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Rate</th>
+                      <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(hiddenData.data.items || []).map((it, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                        <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700 }}>{it.item_name}</td>
+                        <td style={{ padding: '16px', textAlign: 'right' }}>{it.quantity}</td>
+                        <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN')}</td>
+                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '64px' }}>
+                <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>{hiddenData.data.notes}</div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{hiddenData.data.subtotal?.toLocaleString('en-IN')}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderTop: '2px dashed #E2E8F0', marginTop: '12px' }}>
+                    <span style={{ fontWeight: 900 }}>Grand Total</span>
+                    <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{hiddenData.data.grand_total?.toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '80px', textAlign: 'right' }}>
+                <div style={{ height: '60px', width: '200px', borderBottom: '2px solid #0F172A', marginLeft: 'auto', marginBottom: '8px' }}>
+                  {hiddenData.data.signature_data && <img src={hiddenData.data.signature_data} style={{ width: '150px' }} />}
+                </div>
+                <div style={{ fontWeight: 900 }}>Authorised Signatory</div>
+              </div>
+            </div>
+          ) : (
+            <div id="silent-dc-capture" style={{
+              background: 'white',
+              width: '210mm',
+              minHeight: '297mm',
+              padding: '40px',
+              position: 'relative',
+              color: '#1E293B',
+              fontFamily: '"Inter", sans-serif'
+            }}>
+              {/* Header Block */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
+                <div>
+                  <img src="/logo.png" alt="Sudha Analyticals" style={{ height: '60px' }} />
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <h1 style={{ margin: '0 0 10px 0', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', color: '#0F172A' }}>DELIVERY CHALLAN</h1>
+                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '5px', fontSize: '14px' }}>
+                    <span style={{ fontWeight: 700 }}>DC NO :</span> <span style={{ fontWeight: 800 }}>{hiddenData.data.dc_number || 'AUTO'}</span>
+                    <span style={{ fontWeight: 700 }}>Date :</span> <span>{new Date(hiddenData.data.issued_at || Date.now()).toLocaleDateString('en-GB')}</span>
+                    <span style={{ fontWeight: 700 }}>PO Ref :</span> <span>{hiddenData.data.po_no || hiddenData.data.po_number}</span>
+                    <span style={{ fontWeight: 700 }}>PO Date :</span> <span>{hiddenData.data.po_date ? new Date(hiddenData.data.po_date).toLocaleDateString('en-GB') : '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2x2 Grid for Addresses */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0', border: '1px solid #000', marginBottom: '30px' }}>
+                <div style={{ padding: '15px', borderRight: '1px solid #000', borderBottom: '1px solid #000' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Billing By</h4>
+                  <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                    <div style={{ fontWeight: 800 }}>Sudha Analyticals</div>
+                    <div>Plot 18A, Sy No 118</div>
+                    <div>IDA Balanagar, Hyderabad 500037</div>
+                    <div>GSTIN: 36AGTPG0351P1ZY</div>
+                  </div>
+                </div>
+                <div style={{ padding: '15px', borderBottom: '1px solid #000' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Despatch From</h4>
+                  <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                    <div style={{ fontWeight: 700 }}>{hiddenData.data.dispatch_from_address1 || 'Sudha Analyticals'}</div>
+                    <div>{hiddenData.data.dispatch_from_address2 || 'IDA Balanagar, Hyderabad'}</div>
+                    {hiddenData.data.dispatch_from_pincode && <div>Pincode: {hiddenData.data.dispatch_from_pincode}</div>}
+                  </div>
+                </div>
+                <div style={{ padding: '15px', borderRight: '1px solid #000' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Billing To</h4>
+                  <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                    <div style={{ fontWeight: 800 }}>{hiddenData.data.customer_name}</div>
+                    <div>{hiddenData.data.customer_addr1}</div>
+                    <div>{hiddenData.data.customer_addr2} | {hiddenData.data.customer_city}</div>
+                    <div>GSTIN: {hiddenData.data.customer_gstin}</div>
+                  </div>
+                </div>
+                <div style={{ padding: '15px' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>Despatch To</h4>
+                  <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                    <div style={{ fontWeight: 800 }}>{hiddenData.data.location_name}</div>
+                    <div>{hiddenData.data.location_address}</div>
+                    <div>{hiddenData.data.location_city}, {hiddenData.data.location_state} - {hiddenData.data.location_pincode}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '40px', border: '1px solid #000' }}>
+                <thead>
+                  <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #000' }}>
+                    <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>SI no</th>
+                    <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Reference from PO</th>
+                    <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Package</th>
+                    <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>HSN</th>
+                    <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Description</th>
+                    <th style={{ padding: '8px', fontSize: '11px', textAlign: 'right', borderRight: '1px solid #000' }}>Qty</th>
+                    <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left' }}>UoM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(hiddenData.data.items || []).map((it, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #000' }}>
+                      <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{idx + 1}</td>
+                      <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{it.ref_no || it.po_ref}</td>
+                      <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{it.package_name}</td>
+                      <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{it.hsn || '-'}</td>
+                      <td style={{ padding: '8px', fontSize: '10px', borderRight: '1px solid #000', maxWidth: '300px' }}>{it.description}</td>
+                      <td style={{ padding: '8px', fontSize: '11px', textAlign: 'right', borderRight: '1px solid #000', fontWeight: 700 }}>{it.qty}</td>
+                      <td style={{ padding: '8px', fontSize: '11px' }}>{it.uom}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Signature Section */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '60px' }}>
+                <div style={{ textAlign: 'center', width: '200px' }}>
+                  <div style={{ height: '60px', borderBottom: '1px solid #000', marginBottom: '8px' }}>
+                    {hiddenData.data.signature && <img src={hiddenData.data.signature} style={{ height: '50px' }} />}
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: 900 }}>Authorised Signatory</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
