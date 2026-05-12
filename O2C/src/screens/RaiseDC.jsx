@@ -576,12 +576,12 @@ export default function RaiseDC() {
                     active: true
                   },
                   {
-                    id: 'approved', label: 'DC Approved', icon: (details.status === 'ready_for_dispatch' || details.status === 'in_transit' || details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed') ? 'check_circle' : 'pending_actions', sub: 'Accounts Verified',
-                    active: (details.status === 'ready_for_dispatch' || details.status === 'in_transit' || details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed')
+                    id: 'approved', label: 'DC Approved', icon: (details.status === 'dispatched' || details.status === 'ready_for_dispatch' || details.status === 'in_transit' || details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed') ? 'check_circle' : 'pending_actions', sub: 'Accounts Verified',
+                    active: (details.status === 'dispatched' || details.status === 'ready_for_dispatch' || details.status === 'in_transit' || details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed')
                   },
                   {
                     id: 'transit', label: 'In Transit', icon: 'local_shipping', sub: 'Shipment Dispatched',
-                    active: (details.status === 'in_transit' || details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed')
+                    active: (details.status === 'dispatched' || details.status === 'in_transit' || details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed')
                   },
                   {
                     id: 'confirmed', label: 'Confirmed', icon: (details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed') ? 'task_alt' : 'verified_user', sub: 'Site Receipt Verified',
@@ -695,9 +695,9 @@ export default function RaiseDC() {
                 <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px', color: details.status === 'delivery_confirmed' ? '#10B981' : '#3B82F6' }}>
                   {details.status === 'delivery_confirmed' ? 'task_alt' : 'local_shipping'}
                 </span>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: details.status === 'delivery_confirmed' ? '#065F46' : '#1E40AF' }}>
-                  {details.status === 'delivery_confirmed' ? 'Shipment Fully Delivered & Confirmed at Project Site.' :
-                    details.status === 'in_transit' ? 'Shipment is currently In Transit to Destination.' : 'DC Authorized & Ready for Dispatch.'}
+                <span style={{ fontSize: '14px', fontWeight: 700, color: (details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed') ? '#065F46' : '#1E40AF' }}>
+                  {(details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed') ? 'Shipment Fully Delivered & Confirmed at Project Site.' :
+                    (details.status === 'in_transit' || details.status === 'dispatched') ? 'Shipment is currently In Transit to Destination.' : 'DC Authorized & Ready for Dispatch.'}
                 </span>
               </div>
             )}
@@ -845,7 +845,7 @@ export default function RaiseDC() {
                   
                   {/* Download PDF only shown AFTER confirmation (issued) */}
                   {details.dc_number && (
-                    <button className="btn btn-ghost" onClick={downloadPDF} style={{ height: '32px', border: '1px solid #10B981', color: '#10B981', fontWeight: 700 }}>
+                    <button className="btn btn-ghost" onClick={() => downloadPDF()} style={{ height: '32px', border: '1px solid #10B981', color: '#10B981', fontWeight: 700 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '18px', marginRight: '6px' }}>download</span>
                       Download PDF
                     </button>
@@ -1108,9 +1108,13 @@ export default function RaiseDC() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#9CA3AF' }}>Loading requests...</td></tr>
-            ) : requests.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#9CA3AF' }}>No pending DC requests found.</td></tr>
+              <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px', color: '#9CA3AF' }}>Loading data...</td></tr>
+            ) : table.getRowModel().rows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px', color: '#9CA3AF' }}>
+                  {activeTab === 'pending' ? 'No pending DC requests found.' : 'No generated Delivery Challans found.'}
+                </td>
+              </tr>
             ) : (
               table.getRowModel().rows.map(row => (
                 <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }} onClick={() => handleView(row.original)}>

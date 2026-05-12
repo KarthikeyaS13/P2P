@@ -316,19 +316,10 @@ export default function InvoiceApproval() {
       }
     },
     {
-      header: 'Actions', id: 'actions', cell: ({ row }) => (
-        <div style={{ display: 'flex', gap: '8px' }}>
+      header: () => <div style={{ textAlign: 'center' }}>Actions</div>, id: 'actions', cell: ({ row }) => (
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <button className="btn-ghost btn-sm" onClick={() => navigate(`/invoice-approval/${row.original.id}`)} title="View Preview" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
-          </button>
-          <button 
-            className="btn-ghost btn-sm" 
-            onClick={() => handleSilentDownload(row.original.id)} 
-            disabled={isDownloadingSilent}
-            title="Download Invoice" 
-            style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, color: '#10B981' }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{isDownloadingSilent ? 'hourglass_empty' : 'download'}</span>
           </button>
         </div>
       )
@@ -376,7 +367,7 @@ export default function InvoiceApproval() {
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
             {inv.status !== 'requested' && (
-              <button className="btn btn-outline no-print" onClick={handleDownloadPDF}>
+              <button className="btn btn-outline no-print" onClick={() => handleDownloadPDF()}>
                 <span className="material-symbols-outlined">download</span> Download PDF
               </button>
             )}

@@ -12,9 +12,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'o2c-super-secret-key-2026';
 const app = express();
 
 app.use(cors({
-  origin: 'http://localhost:5173',
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  methods: ['GET','POST','PUT','DELETE','OPTIONS']
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -214,7 +214,7 @@ try {
 try {
   const projectsUser = db.prepare('SELECT id FROM users WHERE username = ?').get('projects');
   if (!projectsUser) {
-    const hash = bcrypt.hashSync('projects123', 10);
+    const hash = bcrypt.hashSync('password123', 10);
     const res = db.prepare('INSERT INTO users (username, full_name, password_hash) VALUES (?,?,?)').run('projects', 'Projects Team', hash);
     const userId = res.lastInsertRowid;
     
