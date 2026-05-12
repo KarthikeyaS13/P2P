@@ -32,7 +32,7 @@ export default function PODetails() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
 
-    axios.get(`http://localhost:3000/api/pos/${id}`, { headers })
+    axios.get(`http://localhost:5000/api/pos/${id}`, { headers })
       .then(res => {
         setPO(res.data);
         setItems(res.data.items || []);
@@ -67,7 +67,7 @@ export default function PODetails() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     setActionLoading(true);
-    axios.put(`http://localhost:3000/api/pos/${id}/status`, { status: 'accepted' }, { headers })
+    axios.put(`http://localhost:5000/api/pos/${id}/status`, { status: 'accepted' }, { headers })
       .then(() => {
         Swal.fire({ icon: 'success', title: 'PO Accepted', text: 'PO Accepted successfully', timer: 2000, showConfirmButton: false });
         navigate('/purchase-orders');
@@ -93,7 +93,7 @@ export default function PODetails() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     setActionLoading(true);
-    axios.put(`http://localhost:3000/api/pos/${id}/status`, { status: 'rejected', remarks: reason }, { headers })
+    axios.put(`http://localhost:5000/api/pos/${id}/status`, { status: 'rejected', remarks: reason }, { headers })
       .then(() => {
         Swal.fire({ icon: 'success', title: 'PO Rejected', text: 'PO Rejected successfully', timer: 2000, showConfirmButton: false });
         navigate('/purchase-orders');
@@ -106,7 +106,7 @@ export default function PODetails() {
 
   const handleViewFile = async (path) => {
     const filename = path.split('/').pop();
-    const fullUrl = `http://localhost:3000/uploads/${filename}`;
+    const fullUrl = `http://localhost:5000/uploads/${filename}`;
     const isExcel = filename.toLowerCase().match(/\.(xlsx|xls|xlsm|csv)$/);
 
     if (isExcel) {

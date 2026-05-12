@@ -32,7 +32,7 @@ export default function ARDatabase() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:3000/api/invoices/ar/entries', { headers });
+      const res = await axios.get('http://localhost:5000/api/invoices/ar/entries', { headers });
       setEntries(res.data);
     } catch (err) {
       setError(err.message);
@@ -48,7 +48,7 @@ export default function ARDatabase() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.post(`http://localhost:3000/api/invoices/${selectedEntry.invoice_id}/payment`, {
+      await axios.post(`http://localhost:5000/api/invoices/${selectedEntry.invoice_id}/payment`, {
         amount: parseFloat(amountReceived),
         payment_date: paymentDate,
         payment_mode: 'NEFT', // Default, could be a dropdown

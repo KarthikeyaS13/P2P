@@ -105,7 +105,7 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
     const payload = { ...form, customer_id: customerId };
 
     if (isEdit) {
-      axios.put(`http://localhost:3000/api/locations/${location.id}`, payload, { headers })
+      axios.put(`http://localhost:5000/api/locations/${location.id}`, payload, { headers })
         .then(() => {
           Swal.fire({ icon: 'success', title: 'Updated', text: 'Location updated', timer: 2000, showConfirmButton: false });
           onRefresh();
@@ -114,7 +114,7 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
         .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to update location' }))
         .finally(() => setSubmitting(false));
     } else {
-      axios.post('http://localhost:3000/api/locations', payload, { headers })
+      axios.post('http://localhost:5000/api/locations', payload, { headers })
         .then(() => {
           Swal.fire({ icon: 'success', title: 'Success', text: 'Location added', timer: 2000, showConfirmButton: false });
           onRefresh();

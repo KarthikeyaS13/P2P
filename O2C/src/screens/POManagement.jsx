@@ -14,7 +14,7 @@ export default function POManagement() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
 
-    axios.get('http://localhost:3000/api/pos', { headers })
+    axios.get('http://localhost:5000/api/pos', { headers })
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : [];
         setPOs(data);

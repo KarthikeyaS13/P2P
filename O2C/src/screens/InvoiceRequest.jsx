@@ -39,8 +39,8 @@ export default function InvoiceRequest() {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const [invRes, dcRes] = await Promise.all([
-        axios.get('http://localhost:3000/api/invoices', { headers }),
-        axios.get('http://localhost:3000/api/dc', { headers })
+        axios.get('http://localhost:5000/api/invoices', { headers }),
+        axios.get('http://localhost:5000/api/dc', { headers })
       ]);
       setInvoices(invRes.data);
       setPendingDCs(dcRes.data.filter(d =>
@@ -57,7 +57,7 @@ export default function InvoiceRequest() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:3000/api/invoices/${invId}`, { headers });
+      const res = await axios.get(`http://localhost:5000/api/invoices/${invId}`, { headers });
       setSelectedInvoice(res.data);
     } catch (err) {
       console.error('Invoice detail error:', err);

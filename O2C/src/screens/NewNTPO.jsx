@@ -164,7 +164,7 @@ export default function NewNTPO() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get('http://localhost:3000/api/customers', { headers });
+        const res = await axios.get('http://localhost:5000/api/customers', { headers });
         setCustomers(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error(err);
@@ -219,7 +219,7 @@ export default function NewNTPO() {
         try {
           const token = sessionStorage.getItem('token');
           const headers = { Authorization: `Bearer ${token}` };
-          const res = await axios.get(`http://localhost:3000/api/locations?customer_id=${selectedCustomer}`, { headers });
+          const res = await axios.get(`http://localhost:5000/api/locations?customer_id=${selectedCustomer}`, { headers });
           setLocations(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
           console.error(err);
@@ -242,7 +242,7 @@ export default function NewNTPO() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get('http://localhost:3000/api/pos?type=original', { headers });
+        const res = await axios.get('http://localhost:5000/api/pos?type=original', { headers });
         setOriginalPOs(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error(err);
@@ -370,7 +370,7 @@ export default function NewNTPO() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' };
-      const res = await axios.post('http://localhost:3000/api/upload-multi', formData, { headers });
+      const res = await axios.post('http://localhost:5000/api/upload-multi', formData, { headers });
       setAttachmentPaths(res.data);
       return res.data;
     } catch (err) {
@@ -716,7 +716,7 @@ export default function NewNTPO() {
         items
       };
 
-      await axios.post('http://localhost:3000/api/pos', payload, { headers });
+      await axios.post('http://localhost:5000/api/pos', payload, { headers });
       sessionStorage.removeItem('new_nt_po_draft');
       Swal.fire({ icon: 'success', title: 'Created', text: 'NT Purchase Order created successfully!', timer: 2000, showConfirmButton: false });
       navigate('/dashboard');

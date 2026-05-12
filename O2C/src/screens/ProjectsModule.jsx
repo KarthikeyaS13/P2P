@@ -42,7 +42,7 @@ export default function ProjectsModule() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:3000/api/dc', { headers });
+      const res = await axios.get('http://localhost:5000/api/dc', { headers });
       // Only show awaiting site confirmation
       const pending = res.data.filter(d => d.delivery_status === 'awaiting_site_confirmation');
       setDeliveries(pending);
@@ -59,7 +59,7 @@ export default function ProjectsModule() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:3000/api/dc/${dc.id}`, { headers });
+      const res = await axios.get(`http://localhost:5000/api/dc/${dc.id}`, { headers });
       setDetails(res.data);
       
       // Initialize items
@@ -117,7 +117,7 @@ export default function ProjectsModule() {
         'Content-Type': 'multipart/form-data'
       };
 
-      await axios.post(`http://localhost:3000/api/dc/${details.id}/confirm-delivery`, formData, { headers });
+      await axios.post(`http://localhost:5000/api/dc/${details.id}/confirm-delivery`, formData, { headers });
       
       Swal.fire({ icon: 'success', title: 'Confirmed', text: `Delivery for DC ${details.dc_number} confirmed successfully! Proceeding to Invoice Request.`, timer: 3000, showConfirmButton: false });
       navigate('/invoice-request');

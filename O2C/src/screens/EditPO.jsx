@@ -105,8 +105,8 @@ export default function EditPO() {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         const [cRes, pRes] = await Promise.all([
-          axios.get('http://localhost:3000/api/customers', { headers }),
-          axios.get('http://localhost:3000/api/pos', { headers })
+          axios.get('http://localhost:5000/api/customers', { headers }),
+          axios.get('http://localhost:5000/api/pos', { headers })
         ]);
         setCustomers(Array.isArray(cRes.data) ? cRes.data : []);
         setAllPOs(Array.isArray(pRes.data) ? pRes.data : []);
@@ -128,7 +128,7 @@ export default function EditPO() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get(`http://localhost:3000/api/locations?customer_id=${val}`, { headers });
+        const res = await axios.get(`http://localhost:5000/api/locations?customer_id=${val}`, { headers });
         setLocations(Array.isArray(res.data) ? res.data : []);
       } catch (err) { console.error(err); }
     }
@@ -146,7 +146,7 @@ export default function EditPO() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:3000/api/pos/${poId}`, { headers });
+      const res = await axios.get(`http://localhost:5000/api/pos/${poId}`, { headers });
       const data = res.data;
 
       setPODetails(data);
@@ -250,7 +250,7 @@ export default function EditPO() {
         }))
       };
 
-      await axios.put(`http://localhost:3000/api/pos/${poDetails.id}`, payload, { headers });
+      await axios.put(`http://localhost:5000/api/pos/${poDetails.id}`, payload, { headers });
 
       // Clear draft after successful submission
       sessionStorage.removeItem(`edit_po_draft_${poDetails.id}`);
@@ -268,7 +268,7 @@ export default function EditPO() {
 
   const handleViewFile = async (path) => {
     const filename = path.split('/').pop();
-    const fullUrl = `http://localhost:3000/uploads/${filename}`;
+    const fullUrl = `http://localhost:5000/uploads/${filename}`;
     const isExcel = filename.toLowerCase().match(/\.(xlsx|xls|xlsm|csv)$/);
 
     if (isExcel) {

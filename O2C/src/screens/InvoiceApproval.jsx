@@ -73,7 +73,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:3000/api/invoices', { headers });
+      const res = await axios.get('http://localhost:5000/api/invoices', { headers });
       setInvoices(res.data);
     } catch (err) {
       console.error('Fetch error:', err);
@@ -86,7 +86,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:3000/api/invoices/${invId}`, { headers });
+      const res = await axios.get(`http://localhost:5000/api/invoices/${invId}`, { headers });
       setSelectedInvoice(res.data);
       if (res.data.verification_state) {
         try {
@@ -131,7 +131,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:3000/api/invoices/${invId}`, { headers });
+      const res = await axios.get(`http://localhost:5000/api/invoices/${invId}`, { headers });
       setHiddenInvoice(res.data);
       
       // Wait for DOM to render the hidden div
@@ -152,7 +152,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.post(`http://localhost:3000/api/invoices/${selectedInvoice.id}/payment`, paymentForm, { headers });
+      await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/payment`, paymentForm, { headers });
       setShowPaymentModal(false);
       fetchInvoiceDetails(selectedInvoice.id);
       fetchData();
@@ -190,7 +190,7 @@ export default function InvoiceApproval() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        await axios.post(`http://localhost:3000/api/invoices/${selectedInvoice.id}/approve`, {}, { headers });
+        await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/approve`, {}, { headers });
         fetchInvoiceDetails(selectedInvoice.id);
         fetchData();
         Swal.fire({ icon: 'success', title: 'Invoice Approved', text: "Invoice Approved Successfully!", timer: 2000, showConfirmButton: false });
@@ -215,7 +215,7 @@ export default function InvoiceApproval() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        await axios.post(`http://localhost:3000/api/invoices/${selectedInvoice.id}/reject`, {}, { headers });
+        await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/reject`, {}, { headers });
         fetchInvoiceDetails(selectedInvoice.id);
         fetchData();
         Swal.fire({ icon: 'success', title: 'Rejected', text: "Request Rejected.", timer: 2000, showConfirmButton: false });
@@ -229,7 +229,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.put(`http://localhost:3000/api/invoices/${selectedInvoice.id}/draft`, {
+      await axios.put(`http://localhost:5000/api/invoices/${selectedInvoice.id}/draft`, {
         verification_state: verificationState,
         notes: draftNotes
       }, { headers });
@@ -279,7 +279,7 @@ export default function InvoiceApproval() {
     const signatureData = canvas.toDataURL('image/png');
     try {
       const token = sessionStorage.getItem('token');
-      await axios.post(`http://localhost:3000/api/invoices/${selectedInvoice.id}/signature`,
+      await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/signature`,
         { signature_data: signatureData },
         { headers: { Authorization: `Bearer ${token}` } }
       );

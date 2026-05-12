@@ -38,7 +38,7 @@ export default function DispatchConfirmation() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:3000/api/dc', { headers });
+      const res = await axios.get('http://localhost:5000/api/dc', { headers });
       
       const transit = res.data.filter(d => d.status === 'in_transit');
       const completed = res.data.filter(d => d.status === 'delivery_confirmed');
@@ -63,7 +63,7 @@ export default function DispatchConfirmation() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:3000/api/dc/${targetId}`, { headers });
+      const res = await axios.get(`http://localhost:5000/api/dc/${targetId}`, { headers });
       setDetails(res.data);
     } catch (err) {
       console.error(err);
@@ -215,8 +215,8 @@ export default function DispatchConfirmation() {
                 <div className="info-block">
                   <label style={{ fontSize: '9px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px', display: 'block' }}>Dispatch Proof</label>
                   {details.dispatch_proof_path ? (
-                    <a href={`http://localhost:3000${details.dispatch_proof_path}`} target="_blank" rel="noreferrer" style={{ display: 'block', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-                      <img src={`http://localhost:3000${details.dispatch_proof_path}`} alt="Proof" style={{ width: '100%', height: '120px', objectFit: 'cover' }} />
+                    <a href={`http://localhost:5000${details.dispatch_proof_path}`} target="_blank" rel="noreferrer" style={{ display: 'block', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+                      <img src={`http://localhost:5000${details.dispatch_proof_path}`} alt="Proof" style={{ width: '100%', height: '120px', objectFit: 'cover' }} />
                     </a>
                   ) : (
                     <div style={{ padding: '20px', textAlign: 'center', background: '#F9FAFB', borderRadius: '8px', border: '1px dashed #D1D5DB', fontSize: '11px', color: '#9CA3AF' }}>No image evidence available</div>

@@ -48,7 +48,7 @@ export default function POReview() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:3000/api/pos', { headers });
+      const res = await axios.get('http://localhost:5000/api/pos', { headers });
       setPendingPOs(res.data);
     } catch (err) {
       console.error(err);
@@ -73,7 +73,7 @@ export default function POReview() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:3000/api/pos/${po.id}`, { headers });
+      const res = await axios.get(`http://localhost:5000/api/pos/${po.id}`, { headers });
       const details = res.data;
       setPoDetails(details);
 
@@ -108,7 +108,7 @@ export default function POReview() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.put(`http://localhost:3000/api/pos/${selectedPO.id}/status`, {
+      await axios.put(`http://localhost:5000/api/pos/${selectedPO.id}/status`, {
         status, remarks
       }, { headers });
 

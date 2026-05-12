@@ -41,7 +41,7 @@ export default function DCRequest() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get('http://localhost:3000/api/dc-requests/pos', { headers });
+        const res = await axios.get('http://localhost:5000/api/dc-requests/pos', { headers });
         setApprovedPOs(res.data);
       } catch (err) {
         console.error(err);
@@ -53,7 +53,7 @@ export default function DCRequest() {
     const fetchMasterAddresses = async () => {
       try {
         const token = sessionStorage.getItem('token');
-        const res = await axios.get('http://localhost:3000/api/master-addresses', {
+        const res = await axios.get('http://localhost:5000/api/master-addresses', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMasterAddresses(res.data);
@@ -87,7 +87,7 @@ export default function DCRequest() {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         // We need to make sure we have customer_id. Let's update the PO list to include it.
-        const res = await axios.get(`http://localhost:3000/api/next-dc-number/${po.customer_id || po.id}`, { headers });
+        const res = await axios.get(`http://localhost:5000/api/next-dc-number/${po.customer_id || po.id}`, { headers });
         setAutoDCNumber(res.data.nextDC);
       } catch (err) {
         console.error('Failed to fetch next DC number', err);
@@ -108,7 +108,7 @@ export default function DCRequest() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:3000/api/pos/${poId}`, { headers });
+      const res = await axios.get(`http://localhost:5000/api/pos/${poId}`, { headers });
       const po = res.data;
       setLocationDetails({
         name: po.location_name
@@ -246,7 +246,7 @@ export default function DCRequest() {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'multipart/form-data'
       };
-      const res = await axios.post('http://localhost:3000/api/dc-requests', formData, { headers });
+      const res = await axios.post('http://localhost:5000/api/dc-requests', formData, { headers });
 
       const data = res.data;
       Swal.fire({ icon: 'success', title: 'Success', text: `DC Request ${data.dc_request} submitted successfully!`, timer: 2000, showConfirmButton: false });

@@ -85,7 +85,7 @@ export default function RaiseDC() {
 
       // Try fetching as a DC request first
       try {
-        const res = await axios.get(`http://localhost:3000/api/dc-requests/${targetId}`, { headers });
+        const res = await axios.get(`http://localhost:5000/api/dc-requests/${targetId}`, { headers });
         if (res.data) {
           setDetails(res.data);
           return;
@@ -93,7 +93,7 @@ export default function RaiseDC() {
       } catch (e) { }
 
       // Then try as a DC
-      const resDc = await axios.get(`http://localhost:3000/api/dc/${targetId}`, { headers });
+      const resDc = await axios.get(`http://localhost:5000/api/dc/${targetId}`, { headers });
       setDetails(resDc.data);
     } catch (err) {
       console.error(err);
@@ -110,12 +110,12 @@ export default function RaiseDC() {
       const headers = { Authorization: `Bearer ${token}` };
 
       // 1. Load Pending Requests
-      const reqRes = await axios.get('http://localhost:3000/api/dc-requests', { headers });
+      const reqRes = await axios.get('http://localhost:5000/api/dc-requests', { headers });
       const filtered = reqRes.data.filter(r => r.status === 'dc_requested');
       setRequests(filtered);
 
       // 2. Load Generated DCs for Tracking
-      const dcRes = await axios.get('http://localhost:3000/api/dc', { headers });
+      const dcRes = await axios.get('http://localhost:5000/api/dc', { headers });
       setTrackingDCs(dcRes.data);
     } catch (err) {
       console.error(err);
@@ -138,10 +138,10 @@ export default function RaiseDC() {
       // Try DC Request endpoint first since we are in the "Raise" screen
       let res;
       try {
-        res = await axios.get(`http://localhost:3000/api/dc-requests/${targetId}`, { headers });
+        res = await axios.get(`http://localhost:5000/api/dc-requests/${targetId}`, { headers });
       } catch (e) {
         // Fallback to DC endpoint if not found in requests
-        res = await axios.get(`http://localhost:3000/api/dc/${targetId}`, { headers });
+        res = await axios.get(`http://localhost:5000/api/dc/${targetId}`, { headers });
       }
 
       if (!res || !res.data) throw new Error('Data not found');
@@ -186,15 +186,15 @@ export default function RaiseDC() {
       let docType;
       
       if (row.invoice_id) {
-        const res = await axios.get(`http://localhost:3000/api/invoices/${row.invoice_id}`, { headers });
+        const res = await axios.get(`http://localhost:5000/api/invoices/${row.invoice_id}`, { headers });
         docData = res.data;
         docType = 'invoice';
       } else {
         try {
-          const res = await axios.get(`http://localhost:3000/api/dc-requests/${row.id}`, { headers });
+          const res = await axios.get(`http://localhost:5000/api/dc-requests/${row.id}`, { headers });
           docData = res.data;
         } catch (e) {
-          const res = await axios.get(`http://localhost:3000/api/dc/${row.id}`, { headers });
+          const res = await axios.get(`http://localhost:5000/api/dc/${row.id}`, { headers });
           docData = res.data;
         }
         docType = 'dc';
@@ -368,7 +368,7 @@ export default function RaiseDC() {
         signature: signatureData
       };
 
-      const res = await axios.post(`http://localhost:3000/api/dc-requests/${details.id}/raise`, payload, { headers });
+      const res = await axios.post(`http://localhost:5000/api/dc-requests/${details.id}/raise`, payload, { headers });
 
       Swal.fire({ icon: 'success', title: 'DC Raised', text: `Delivery Challan ${res.data.dc_number} raised successfully!`, timer: 2000, showConfirmButton: false });
       setShowPreview(false);
@@ -663,8 +663,8 @@ export default function RaiseDC() {
                 <div className="info-block">
                   <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Dispatch Proof</label>
                   {details.proof_path ? (
-                    <a href={`http://localhost:3000${details.proof_path}`} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid #E2E8F0', borderRadius: '4px', overflow: 'hidden', background: 'white' }}>
-                      <img src={`http://localhost:3000${details.proof_path}`} alt="Proof" style={{ width: '100%', height: '60px', objectFit: 'cover' }} />
+                    <a href={`http://localhost:5000${details.proof_path}`} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid #E2E8F0', borderRadius: '4px', overflow: 'hidden', background: 'white' }}>
+                      <img src={`http://localhost:5000${details.proof_path}`} alt="Proof" style={{ width: '100%', height: '60px', objectFit: 'cover' }} />
                       <div style={{ fontSize: '10px', textAlign: 'center', padding: '2px', background: '#F1F5F9', color: '#2563EB', fontWeight: 700 }}>VIEW FULL PHOTO</div>
                     </a>
                   ) : (

@@ -26,19 +26,19 @@ export default function Dashboard() {
       const headers = { Authorization: `Bearer ${token}` };
       let res;
       if (type === 'active_pos') {
-        res = await axios.get('http://localhost:3000/api/pos', { headers });
+        res = await axios.get('http://localhost:5000/api/pos', { headers });
         setSummaryData(res.data.filter(p => !['rejected', 'invoice_closed'].includes(p.status)));
       } else if (type === 'pending_pos') {
-        res = await axios.get('http://localhost:3000/api/pos?status=pending', { headers });
+        res = await axios.get('http://localhost:5000/api/pos?status=pending', { headers });
         setSummaryData(res.data);
       } else if (type === 'pending_dcs') {
-        res = await axios.get('http://localhost:3000/api/dc', { headers });
+        res = await axios.get('http://localhost:5000/api/dc', { headers });
         setSummaryData(res.data.filter(d => ['draft', 'raised'].includes(d.status)));
       } else if (type === 'pending_invoice_requests') {
-        res = await axios.get('http://localhost:3000/api/dc', { headers });
+        res = await axios.get('http://localhost:5000/api/dc', { headers });
         setSummaryData(res.data.filter(d => d.delivery_status === 'delivery_confirmed'));
       } else if (type === 'total_customers') {
-        res = await axios.get('http://localhost:3000/api/customers', { headers });
+        res = await axios.get('http://localhost:5000/api/customers', { headers });
         setSummaryData(res.data);
       }
     } catch (err) {
@@ -56,8 +56,8 @@ export default function Dashboard() {
 
         // Parallel fetch for speed
         const [dashRes, dcRes] = await Promise.all([
-          axios.get('http://localhost:3000/api/dashboard', { headers }),
-          axios.get('http://localhost:3000/api/dc', { headers })
+          axios.get('http://localhost:5000/api/dashboard', { headers }),
+          axios.get('http://localhost:5000/api/dc', { headers })
         ]);
 
         setData(dashRes.data);

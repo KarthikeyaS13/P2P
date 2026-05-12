@@ -41,7 +41,7 @@ export default function NewInvoice() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:3000/api/dc', { headers });
+      const res = await axios.get('http://localhost:5000/api/dc', { headers });
       // Only show DCs that are delivery_confirmed AND not fully invoiced
       const billable = res.data.filter(d =>
         (d.status === 'delivery_confirmed' || d.delivery_status === 'delivery_confirmed') &&
@@ -75,7 +75,7 @@ export default function NewInvoice() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:3000/api/dc/${id}`, { headers });
+      const res = await axios.get(`http://localhost:5000/api/dc/${id}`, { headers });
       const data = res.data;
 
       // Auto-populate addresses
@@ -83,7 +83,7 @@ export default function NewInvoice() {
       setShippingAddress(`${data.location_name}\n${data.loc_addr1}\n${data.loc_addr2 || ''}\n${data.loc_city} - ${data.loc_pin}`);
 
       // We need PO details to get rates and GST. Let's fetch the PO.
-      const poRes = await axios.get(`http://localhost:3000/api/pos/${data.po_id}`, { headers });
+      const poRes = await axios.get(`http://localhost:5000/api/pos/${data.po_id}`, { headers });
       const poData = poRes.data;
 
       // Map DC items to include financial details from PO line items
@@ -173,7 +173,7 @@ export default function NewInvoice() {
 
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.post('http://localhost:3000/api/invoices', payload, { headers });
+      const res = await axios.post('http://localhost:5000/api/invoices', payload, { headers });
 
       const result = res.data;
       

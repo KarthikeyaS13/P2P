@@ -22,7 +22,7 @@ export default function Customers() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     
-    axios.get('http://localhost:3000/api/customers', { headers })
+    axios.get('http://localhost:5000/api/customers', { headers })
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : [];
         setCustomers(data);
@@ -45,7 +45,7 @@ export default function Customers() {
     if (result.isConfirmed) {
       try {
         const token = sessionStorage.getItem('token');
-        await axios.delete(`http://localhost:3000/api/customers/${id}`, {
+        await axios.delete(`http://localhost:5000/api/customers/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         Swal.fire({

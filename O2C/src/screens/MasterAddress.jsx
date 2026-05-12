@@ -29,7 +29,7 @@ export default function MasterAddress() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:3000/api/master-addresses', { headers });
+      const res = await axios.get('http://localhost:5000/api/master-addresses', { headers });
       setAddresses(res.data);
     } catch (err) {
       console.error(err);
@@ -45,10 +45,10 @@ export default function MasterAddress() {
       const headers = { Authorization: `Bearer ${token}` };
       
       if (isEditing) {
-        await axios.put(`http://localhost:3000/api/master-addresses/${editId}`, form, { headers });
+        await axios.put(`http://localhost:5000/api/master-addresses/${editId}`, form, { headers });
         Swal.fire({ icon: 'success', title: 'Success', text: 'Location updated successfully', timer: 1500, showConfirmButton: false });
       } else {
-        await axios.post('http://localhost:3000/api/master-addresses', form, { headers });
+        await axios.post('http://localhost:5000/api/master-addresses', form, { headers });
         Swal.fire({ icon: 'success', title: 'Success', text: 'Location added successfully', timer: 1500, showConfirmButton: false });
       }
       
@@ -97,7 +97,7 @@ export default function MasterAddress() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        await axios.delete(`http://localhost:3000/api/master-addresses/${id}`, { headers });
+        await axios.delete(`http://localhost:5000/api/master-addresses/${id}`, { headers });
         Swal.fire('Deleted!', 'Location has been deleted.', 'success');
         fetchAddresses();
       } catch (err) {
