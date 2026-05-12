@@ -106,7 +106,7 @@ export default function PODetails() {
 
   const handleViewFile = async (path) => {
     const filename = path.split('/').pop();
-    const fullUrl = `http://localhost:5000/uploads/${filename}`;
+    const fullUrl = `${window.location.origin}/uploads/${filename}`;
     const isExcel = filename.toLowerCase().match(/\.(xlsx|xls|xlsm|csv)$/);
 
     if (isExcel) {
@@ -205,7 +205,7 @@ export default function PODetails() {
 
       {/* SECTION 1: Header card */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '15px' }}>
-        <button 
+        <button
           onClick={() => navigate(-1)}
           className="btn-ghost btn-back"
           style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -314,15 +314,15 @@ function SummaryTable({ data }) {
     const summary = data.reduce((acc, it) => {
       const pkg = it.package_name || 'General';
       if (!acc[pkg]) {
-        acc[pkg] = { 
-          package_name: pkg, 
-          supply_taxable: 0, 
-          supply_gst: 0, 
-          service_taxable: 0, 
-          service_gst: 0, 
-          total_taxable: 0, 
-          total_gst: 0, 
-          total_invoice: 0 
+        acc[pkg] = {
+          package_name: pkg,
+          supply_taxable: 0,
+          supply_gst: 0,
+          service_taxable: 0,
+          service_gst: 0,
+          total_taxable: 0,
+          total_gst: 0,
+          total_invoice: 0
         };
       }
       acc[pkg].supply_taxable += (it.taxable_supply || 0);
@@ -436,7 +436,7 @@ function SummaryTable({ data }) {
           </tfoot>
         </table>
       </div>
-      
+
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
           <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Final Grand Total</p>
