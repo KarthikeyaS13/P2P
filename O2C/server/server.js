@@ -2033,5 +2033,5 @@ app.get('/api/next-dc-number/:customerId', authenticate, (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`O2C Server V2 running on port ${PORT}`));
