@@ -268,7 +268,7 @@ export default function EditPO() {
 
   const handleViewFile = async (path) => {
     const filename = path.split('/').pop();
-    const fullUrl = `http://localhost:5000/uploads/${filename}`;
+    const fullUrl = `${window.location.origin}/uploads/${filename}`;
     const isExcel = filename.toLowerCase().match(/\.(xlsx|xls|xlsm|csv)$/);
 
     if (isExcel) {
@@ -683,15 +683,15 @@ function SummaryTable({ data }) {
     const summary = data.reduce((acc, it) => {
       const pkg = it.package_name || 'General';
       if (!acc[pkg]) {
-        acc[pkg] = { 
-          package_name: pkg, 
-          supply_taxable: 0, 
-          supply_gst: 0, 
-          service_taxable: 0, 
-          service_gst: 0, 
-          total_taxable: 0, 
-          total_gst: 0, 
-          total_invoice: 0 
+        acc[pkg] = {
+          package_name: pkg,
+          supply_taxable: 0,
+          supply_gst: 0,
+          service_taxable: 0,
+          service_gst: 0,
+          total_taxable: 0,
+          total_gst: 0,
+          total_invoice: 0
         };
       }
       acc[pkg].supply_taxable += (it.rev_taxable_supply || 0);
@@ -805,7 +805,7 @@ function SummaryTable({ data }) {
           </tfoot>
         </table>
       </div>
-      
+
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <div style={{ background: '#F0F9FF', padding: '20px 32px', borderRadius: '16px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '350px' }}>
           <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase' }}>Revised Grand Total</p>

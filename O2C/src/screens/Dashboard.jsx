@@ -221,13 +221,7 @@ export default function Dashboard() {
             <p className="feature-card__description">View sales performance and order lifecycle analytics.</p>
           </div>
 
-          <div className="feature-card animate-fade animate-stagger-6" onClick={() => navigate('/projects')}>
-            <div className="feature-card__icon" style={{ background: '#F0F9FF', color: '#0EA5E9' }}>
-              <span className="material-symbols-outlined">location_on</span>
-            </div>
-            <h3 className="feature-card__title">Projects</h3>
-            <p className="feature-card__description">Manage site delivery acknowledgements and site coordination.</p>
-          </div>
+
         </div>
       </div>
     );

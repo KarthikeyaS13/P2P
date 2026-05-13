@@ -4,17 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 export default function Header() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef(null);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -113,13 +108,6 @@ export default function Header() {
                 <span className="user-name">User Name</span>
               )}
             </div>
-            {user && (
-              <div>
-                <button onClick={handleLogout} className="btn-logout" title="Logout">
-                  <span className="material-symbols-outlined">logout</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>

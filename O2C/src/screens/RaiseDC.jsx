@@ -160,7 +160,7 @@ export default function RaiseDC() {
       setManualDC('');
       setCustomDCNo('');
       setDispatchFrom({ line1: '', line2: '', pin: '' });
-      
+
       // If already issued, set the signature
       if (res.data.signature) {
         setSignatureImage(res.data.signature);
@@ -181,10 +181,10 @@ export default function RaiseDC() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       let docData;
       let docType;
-      
+
       if (row.invoice_id) {
         const res = await axios.get(`http://localhost:5000/api/invoices/${row.invoice_id}`, { headers });
         docData = res.data;
@@ -199,7 +199,7 @@ export default function RaiseDC() {
         }
         docType = 'dc';
       }
-      
+
       setHiddenData({ type: docType, data: docData });
 
       // Wait for render
@@ -207,14 +207,14 @@ export default function RaiseDC() {
         const elementId = docType === 'invoice' ? 'silent-invoice-capture' : 'silent-dc-capture';
         const element = document.getElementById(elementId);
         if (element) {
-           const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-           const imgData = canvas.toDataURL('image/png');
-           const pdf = new jsPDF('p', 'mm', 'a4');
-           const pdfWidth = pdf.internal.pageSize.getWidth();
-           const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-           pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-           const fileName = docType === 'invoice' ? `${docData.invoice_number}.pdf` : `${docData.dc_number || 'DC'}.pdf`;
-           pdf.save(fileName);
+          const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          const fileName = docType === 'invoice' ? `${docData.invoice_number}.pdf` : `${docData.dc_number || 'DC'}.pdf`;
+          pdf.save(fileName);
         }
         setHiddenData(null);
         setIsDownloadingSilent(false);
@@ -636,7 +636,7 @@ export default function RaiseDC() {
                   <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.driver_phone || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
                 </div>
                 <div className="info-block">
-                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Delivery Location Address</label>
+                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Despatch From Address</label>
                   <div style={{ fontSize: '12px', lineHeight: '1.4', color: 'var(--primary)', fontWeight: 600 }}>
                     {details.dispatch_from_address1 ? (
                       <>
@@ -842,7 +842,7 @@ export default function RaiseDC() {
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Authorized DC Summary</h3>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button className="btn btn-ghost" onClick={() => setShowPreview(false)} style={{ height: '32px' }}>Back to Edit</button>
-                  
+
                   {/* Download PDF only shown AFTER confirmation (issued) */}
                   {details.dc_number && (
                     <button className="btn btn-ghost" onClick={() => downloadPDF()} style={{ height: '32px', border: '1px solid #10B981', color: '#10B981', fontWeight: 700 }}>

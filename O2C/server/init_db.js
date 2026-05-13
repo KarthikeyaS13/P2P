@@ -32,7 +32,7 @@ const assignRole = db.prepare('INSERT OR IGNORE INTO user_roles (user_id, role_i
 
 const usersData = [
   { user: 'admin', name: 'System Admin', email: 'admin@o2c.local', role: 'admin' },
-  { user: 'sales1', name: 'John Sales', email: 'john@o2c.local', role: 'sales' },
+  { user: 'sales', name: 'John Sales', email: 'john@o2c.local', role: 'sales' },
   { user: 'accounts1', name: 'Jane Finance', email: 'jane@o2c.local', role: 'accounts' },
   { user: 'stores1', name: 'Bob Logistics', email: 'bob@o2c.local', role: 'stores' },
 ];

@@ -25,6 +25,7 @@ import InvoiceApproval from './screens/InvoiceApproval';
 import DispatchConfirmation from './screens/DispatchConfirmation';
 import ProjectsModule from './screens/ProjectsModule';
 import MasterAddress from './screens/MasterAddress';
+import POFlowManagement from './screens/POFlowManagement';
 
 import { useAuth } from './context/AuthContext';
 
@@ -64,6 +65,7 @@ function App() {
               <Route path="/" element={<Navigate to={user?.role?.toLowerCase() === 'projects' ? "/projects" : "/dashboard"} replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/master-address" element={<MasterAddress />} />
+              <Route path="/po-flow" element={<RoleGate allowedRoles={['admin']}><POFlowManagement /></RoleGate>} />
 
               {/* Sales / Admin */}
               <Route path="/customers" element={<RoleGate allowedRoles={['sales']}><Customers /></RoleGate>} />

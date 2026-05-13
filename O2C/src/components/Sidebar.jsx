@@ -19,6 +19,7 @@ export default function Sidebar() {
     routes = routes.concat([
       { path: '/customers', label: 'Customers', icon: 'group' },
       { path: '/master-address', label: 'Master Address', icon: 'location_on' },
+      { path: '/po-flow', label: 'PO Flow Management', icon: 'account_tree' },
     ]);
   } else if (role === 'sales') {
     routes = routes.concat([

@@ -124,7 +124,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS audit_log (
 )`);
 
 // Seed additional users (stores, accounts, management) with bcrypt passwords
-const hash = bcrypt.hashSync('password123', 10);
+const hash = bcrypt.hashSync('qwe123', 10);
 const insertUser = db.prepare('INSERT OR IGNORE INTO users (username, full_name, email, password_hash) VALUES (?, ?, ?, ?)');
 const getRole   = db.prepare('SELECT id FROM roles WHERE name = ?');
 const assignRole = db.prepare('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)');

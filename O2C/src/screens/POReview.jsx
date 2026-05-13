@@ -462,7 +462,7 @@ export default function POReview() {
                           <p style={{ fontSize: '11px', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Delivery Location</p>
                           <p style={{ fontWeight: 600, margin: 0 }}>{poDetails.location_name} - {poDetails.location_city}, {poDetails.location_state}</p>
                           <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>{poDetails.location_address}</p>
-                          <p style={{ fontSize: '13px', color: 'var(--secondary)' }}>GSTIN: <span style={{ color: 'var(--surface-on)', fontWeight: 500 }}>{poDetails.location_gstin || 'N/A'}</span></p>
+                          <p style={{ fontSize: '13px', color: 'var(--secondary)' }}>GSTIN: <span style={{ color: 'var(--surface-on)', fontWeight: 600 }}>{poDetails.location_gstin || poDetails.customer_gst || 'N/A'}</span></p>
                         </div>
                       </div>
                     </div>

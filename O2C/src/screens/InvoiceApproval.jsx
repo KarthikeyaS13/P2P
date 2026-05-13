@@ -153,6 +153,15 @@ export default function InvoiceApproval() {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/payment`, paymentForm, { headers });
+      
+      // Reset form fields after successful post
+      setPaymentForm({
+        amount: '',
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_mode: 'NEFT',
+        transaction_ref: ''
+      });
+      
       setShowPaymentModal(false);
       fetchInvoiceDetails(selectedInvoice.id);
       fetchData();

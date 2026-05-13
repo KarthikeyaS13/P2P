@@ -174,7 +174,7 @@ const seed = () => {
 try {
   const accountsUser = db.prepare('SELECT id FROM users WHERE username = ?').get('accounts');
   if (!accountsUser) {
-    const hash = bcrypt.hashSync('password123', 10);
+    const hash = bcrypt.hashSync('qwe123', 10);
     const res = db.prepare('INSERT INTO users (username, full_name, password_hash) VALUES (?,?,?)').run('accounts', 'Accounts Department', hash);
     const userId = res.lastInsertRowid;
     
@@ -194,7 +194,7 @@ try {
 try {
   const storesUser = db.prepare('SELECT id FROM users WHERE username = ?').get('stores');
   if (!storesUser) {
-    const hash = bcrypt.hashSync('password123', 10);
+    const hash = bcrypt.hashSync('qwe123', 10);
     const res = db.prepare('INSERT INTO users (username, full_name, password_hash) VALUES (?,?,?)').run('stores', 'Stores Department', hash);
     const userId = res.lastInsertRowid;
     
@@ -214,7 +214,7 @@ try {
 try {
   const projectsUser = db.prepare('SELECT id FROM users WHERE username = ?').get('projects');
   if (!projectsUser) {
-    const hash = bcrypt.hashSync('password123', 10);
+    const hash = bcrypt.hashSync('qwe123', 10);
     const res = db.prepare('INSERT INTO users (username, full_name, password_hash) VALUES (?,?,?)').run('projects', 'Projects Team', hash);
     const userId = res.lastInsertRowid;
     
@@ -837,7 +837,10 @@ app.get('/api/pos/:id', authenticate, (req, res) => {
         cl.city as location_city,
         cl.state as location_state,
         cl.pincode as location_pincode,
-        cl.gstin as location_gstin,
+        CASE 
+          WHEN cl.gst_is_different = 1 THEN cl.gstin 
+          ELSE c.gstin 
+        END as location_gstin,
         cl.contact_name as spoc_name,
         cl.contact_phone as spoc_phone
       FROM purchase_orders p
@@ -1229,16 +1232,18 @@ app.post('/api/invoices', authenticate, (req, res) => {
       `).run(isFullyInvoiced ? 'fully_invoiced' : 'partially_invoiced', invStatus, dc_id);
     }
 
-    db.prepare(`
-      INSERT INTO ar_entries (
-        invoice_id, po_id, customer_id,
-        amount_due, amount_received,
-        balance, status
-      ) VALUES (?,?,?,?,?,?,?)
-    `).run(
-      invoiceId, po_id, customer_id,
-      grand_total||0, 0, grand_total||0, 'pending'
-    );
+    if (initialStatus === 'raised') {
+      db.prepare(`
+        INSERT INTO ar_entries (
+          invoice_id, po_id, customer_id,
+          amount_due, amount_received,
+          balance, status
+        ) VALUES (?,?,?,?,?,?,?)
+      `).run(
+        invoiceId, po_id, customer_id,
+        grand_total||0, 0, grand_total||0, 'pending'
+      );
+    }
 
     db.exec('COMMIT');
     res.json({ success: true, invoice_number, id: invoiceId });
@@ -1304,6 +1309,24 @@ app.get('/api/invoices/:id', authenticate, (req, res) => {
   }
 });
 
+app.get('/api/pos/:id/payments', authenticate, (req, res) => {
+  try {
+    const payments = db.prepare(`
+      SELECT 
+        p.*,
+        i.invoice_number
+      FROM ar_payments p
+      JOIN invoices i ON p.invoice_id = i.id
+      WHERE i.po_id = ?
+      ORDER BY p.payment_date DESC
+    `).all(req.params.id);
+    res.json(payments);
+  } catch (err) {
+    console.error('ERROR in /api/pos/:id/payments:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
   const { id } = req.params;
   try {
@@ -1329,12 +1352,15 @@ app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
 
     db.prepare("UPDATE invoices SET invoice_number = ?, status = 'raised', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(invoice_number, id);
     
-    // Insert into AR database
-    const invData = db.prepare("SELECT po_id, customer_id, grand_total FROM invoices WHERE id = ?").get(id);
-    if (invData) {
-      db.prepare("INSERT INTO ar_entries (invoice_id, po_id, customer_id, amount_due, amount_received, balance, status) VALUES (?,?,?,?,?,?,?)").run(
-        id, invData.po_id, invData.customer_id, invData.grand_total, 0, invData.grand_total, 'pending'
-      );
+    // Insert into AR database (if not already exists)
+    const existingAR = db.prepare("SELECT id FROM ar_entries WHERE invoice_id = ?").get(id);
+    if (!existingAR) {
+      const invData = db.prepare("SELECT po_id, customer_id, grand_total FROM invoices WHERE id = ?").get(id);
+      if (invData) {
+        db.prepare("INSERT INTO ar_entries (invoice_id, po_id, customer_id, amount_due, amount_received, balance, status) VALUES (?,?,?,?,?,?,?)").run(
+          id, invData.po_id, invData.customer_id, invData.grand_total, 0, invData.grand_total, 'pending'
+        );
+      }
     }
     
     db.exec('COMMIT');
@@ -1602,6 +1628,7 @@ app.post('/api/dc/:id/confirm-delivery', authenticate, upload.fields([
 
   try {
     const parsedItems = JSON.parse(items || '[]');
+
     
     // Start Transaction
     const transaction = db.transaction(() => {
@@ -2032,6 +2059,64 @@ app.get('/api/next-dc-number/:customerId', authenticate, (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.get('/api/po-flow', authenticate, (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT 
+        p.id, 
+        p.po_number, 
+        p.po_date,
+        p.start_date,
+        p.end_date,
+        p.grand_total as po_value,
+        c.name as customer_name,
+        COALESCE((SELECT SUM(supply_qty + service_qty) FROM po_line_items WHERE po_id = p.id), 0) as po_qty,
+        COALESCE((
+          SELECT SUM(dli.quantity_dispatched * (
+            CASE 
+              WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+              WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+              ELSE 0 
+            END
+          ))
+          FROM dc_line_items dli
+          JOIN delivery_challans dc ON dli.dc_id = dc.id
+          JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+          WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+        ), 0) as supplied_value,
+        COALESCE((
+          SELECT SUM(ii.quantity) 
+          FROM invoice_items ii
+          JOIN invoices i ON ii.invoice_id = i.id
+          WHERE i.po_id = p.id AND i.status != 'cancelled'
+        ), 0) as invoiced_qty,
+        COALESCE((
+          SELECT SUM(grand_total) 
+          FROM invoices 
+          WHERE po_id = p.id AND status != 'cancelled'
+        ), 0) as invoice_amount,
+        COALESCE((
+          SELECT SUM(amount_received) 
+          FROM ar_entries 
+          WHERE po_id = p.id
+        ), 0) as received_amount,
+        (SELECT COUNT(*) FROM delivery_challans WHERE po_id = p.id AND status != 'cancelled') as dc_count,
+        (SELECT COUNT(*) FROM invoices WHERE po_id = p.id AND status != 'cancelled') as invoice_count
+      FROM purchase_orders p
+      JOIN customers c ON p.customer_id = c.id
+      ORDER BY p.created_at DESC
+    `).all();
+    res.json(rows);
+  } catch(err) {
+    console.error('ERROR in /api/po-flow:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`O2C Server V2 running on port ${PORT}`));
