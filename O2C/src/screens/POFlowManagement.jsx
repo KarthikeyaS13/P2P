@@ -110,7 +110,7 @@ export default function POFlowManagement() {
               const receivedAmount = Number(po.received_amount) || 0;
               
               const toBeSupplied = Math.max(0, poValue - suppliedValue);
-              const toBeInvoiced = Math.max(0, suppliedValue - invoiceAmount);
+              const toBeInvoiced = Number(po.to_be_invoiced_value) || 0;
               const outstandingAR = Math.max(0, invoiceAmount - receivedAmount);
               
               return (
@@ -272,11 +272,14 @@ export default function POFlowManagement() {
             letter-spacing: 0.05em;
             color: #64748b;
             background: #f8fafc;
-            padding: 12px 8px;
+            padding: 16px 16px;
             font-weight: 700;
         }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
+        .data-table td {
+            padding: 16px 16px;
+        }
+        .text-center { text-align: center !important; }
+        .text-right { text-align: right !important; }
         
         .details-overlay {
             position: fixed;

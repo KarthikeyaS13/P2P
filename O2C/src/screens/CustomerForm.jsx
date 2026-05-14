@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
+import { INDIAN_STATES } from '../utils/states';
+import CustomStateSelect from '../components/CustomStateSelect';
 
 export default function CustomerForm() {
   const { id } = useParams();
@@ -198,7 +200,10 @@ export default function CustomerForm() {
           </div>
           <div>
             <label style={labelStyle}>State *</label>
-            <input name="state" value={form.state} onChange={handleChange} style={inputStyle} />
+            <CustomStateSelect 
+              value={form.state} 
+              onChange={handleChange} 
+            />
           </div>
           <div>
             <label style={labelStyle}>Pincode *</label>

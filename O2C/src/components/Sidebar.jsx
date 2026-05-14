@@ -56,14 +56,29 @@ export default function Sidebar() {
   return (
     <nav className="sidebar">
       <div className="sidebar__brand">
-        <h2>Enterprise O2C</h2>
+        <div className="header__user" style={{ marginTop: '0', marginBottom: '16px', textAlign: 'left' }}>
+          <div className="avatar-initials avatar-initials--primary">
+            {user ? user.full_name?.charAt(0).toUpperCase() : 'U'}
+          </div>
+          <div className="header__user-info" style={{ textAlign: 'left' }}>
+            {user ? (
+              <>
+                <span className="user-name">{user.full_name}</span>
+                <span className="user-role">{user.role}</span>
+              </>
+            ) : (
+              <span className="user-name">User Name</span>
+            )}
+          </div>
+        </div>
+        <h3>Enterprise O2C</h3>
         <p>Operational Suite</p>
       </div>
       <div className="sidebar__nav">
         {routes.map(r => (
-          <NavLink 
-            key={r.path} 
-            to={r.path} 
+          <NavLink
+            key={r.path}
+            to={r.path}
             className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}
           >
             <span className="material-symbols-outlined">{r.icon}</span>{r.label}
@@ -71,9 +86,6 @@ export default function Sidebar() {
         ))}
       </div>
       <div className="sidebar__footer">
-        <a className="sidebar__link" href="#support" onClick={e => e.preventDefault()}>
-          <span className="material-symbols-outlined">contact_support</span>Support
-        </a>
         <a className="sidebar__link" href="#logout" onClick={(e) => { e.preventDefault(); logout(); navigate('/'); }}>
           <span className="material-symbols-outlined">logout</span>Log Out
         </a>

@@ -27,3 +27,4 @@ node_modules/
 server/database.sqlite
 server/uploads/
 .env
+*.sqlite

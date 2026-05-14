@@ -168,6 +168,7 @@ export default function CustomerLocations() {
       {showForm && (
         <LocationForm 
           customerId={id} 
+          customer={customer}
           corporateGST={customer.gstin}
           location={editingLocation} 
           onClose={() => setShowForm(false)} 

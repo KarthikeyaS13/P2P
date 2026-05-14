@@ -25,7 +25,7 @@ export default function ProjectsModule() {
   const [designation, setDesignation] = useState('');
   const [siteRemarks, setSiteRemarks] = useState('');
   const [itemStates, setItemStates] = useState({}); // { id: { received_qty, condition } }
-  
+
   // File States
   const [files, setFiles] = useState({
     pod: null,
@@ -61,14 +61,14 @@ export default function ProjectsModule() {
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`http://localhost:5000/api/dc/${dc.id}`, { headers });
       setDetails(res.data);
-      
+
       // Initialize items
       const initialItems = {};
       res.data.items.forEach(it => {
         initialItems[it.id] = { received_qty: it.quantity_dispatched, condition: 'OK' };
       });
       setItemStates(initialItems);
-      
+
       setReceivedBy('');
       setPhone('');
       setDesignation('');
@@ -82,11 +82,11 @@ export default function ProjectsModule() {
   };
 
   const handleConfirmDelivery = async () => {
-    if (!receivedBy || !phone) {
-      Swal.fire({ icon: 'warning', title: 'Missing Info', text: 'Receiver name and phone are mandatory.' });
+    if (!receivedBy || !phone || !designation) {
+      Swal.fire({ icon: 'warning', title: 'Missing Info', text: 'Receiver name, phone and designation are mandatory.' });
       return;
     }
-    
+
     if (phone.length !== 10) {
       Swal.fire({ icon: 'warning', title: 'Invalid Phone', text: 'Phone number must be exactly 10 digits.' });
       return;
@@ -100,7 +100,7 @@ export default function ProjectsModule() {
       formData.append('phone', phone);
       formData.append('designation', designation);
       formData.append('siteRemarks', siteRemarks);
-      
+
       const itemsPayload = Object.keys(itemStates).map(id => ({
         id: parseInt(id),
         received_qty: parseFloat(itemStates[id].received_qty),
@@ -112,13 +112,13 @@ export default function ProjectsModule() {
       if (files.signed_dc) formData.append('signed_dc', files.signed_dc);
       if (files.grn) formData.append('grn', files.grn);
 
-      const headers = { 
+      const headers = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'multipart/form-data'
       };
 
       await axios.post(`http://localhost:5000/api/dc/${details.id}/confirm-delivery`, formData, { headers });
-      
+
       Swal.fire({ icon: 'success', title: 'Confirmed', text: `Delivery for DC ${details.dc_number} confirmed successfully! Proceeding to Invoice Request.`, timer: 3000, showConfirmButton: false });
       navigate('/invoice-request');
     } catch (err) {
@@ -155,7 +155,7 @@ export default function ProjectsModule() {
 
   if (view === 'detail') {
     return (
-      <div className="page-container screen-enter">
+      <div className="page-container screen-enter projects-screen">
         <div className="page-header" style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button onClick={() => setView('list')} className="btn-ghost btn-back" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -169,7 +169,7 @@ export default function ProjectsModule() {
           <div className="card" style={{ padding: '40px', textAlign: 'center' }}>Loading delivery details...</div>
         ) : details && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            
+
             {/* STEPPER */}
             <div className="card animate-slide-up" style={{ padding: '20px 40px', border: '1px solid #E5E7EB' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
@@ -182,16 +182,16 @@ export default function ProjectsModule() {
                   { label: 'Confirmed', icon: 'verified', active: false }
                 ].map((step, idx) => (
                   <div key={idx} style={{ zIndex: 1, textAlign: 'center', background: 'white', padding: '0 10px' }}>
-                    <div style={{ 
-                      width: '32px', 
-                      height: '32px', 
-                      borderRadius: '50%', 
-                      background: step.active ? '#10B981' : 'white', 
-                      border: `2px solid ${step.active ? '#10B981' : '#E5E7EB'}`, 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      color: step.active ? 'white' : '#9CA3AF' 
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: step.active ? '#10B981' : 'white',
+                      border: `2px solid ${step.active ? '#10B981' : '#E5E7EB'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: step.active ? 'white' : '#9CA3AF'
                     }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{step.active ? 'check' : 'pending'}</span>
                     </div>
@@ -231,7 +231,7 @@ export default function ProjectsModule() {
                   <thead style={{ background: '#F9FAFB' }}>
                     <tr>
                       <th>SL</th>
-                      <th>ITEM DESCRIPTION</th>
+                      <th>ITEM NAME</th>
                       <th style={{ textAlign: 'right' }}>SENT QTY</th>
                       <th style={{ textAlign: 'right', background: '#FEF3C7' }}>RECEIVED QTY</th>
                       <th style={{ textAlign: 'center' }}>STATUS</th>
@@ -244,19 +244,19 @@ export default function ProjectsModule() {
                         <td style={{ fontWeight: 600 }}>{it.item_name || it.description}</td>
                         <td style={{ textAlign: 'right', fontWeight: 700 }}>{it.quantity_dispatched}</td>
                         <td style={{ textAlign: 'right' }}>
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             className="input-field"
                             value={itemStates[it.id]?.received_qty || 0}
-                            onChange={e => setItemStates({...itemStates, [it.id]: { ...itemStates[it.id], received_qty: e.target.value }})}
+                            onChange={e => setItemStates({ ...itemStates, [it.id]: { ...itemStates[it.id], received_qty: e.target.value } })}
                             style={{ width: '80px', height: '24px', textAlign: 'right' }}
                           />
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <select 
+                          <select
                             className="input-field"
                             value={itemStates[it.id]?.condition || 'OK'}
-                            onChange={e => setItemStates({...itemStates, [it.id]: { ...itemStates[it.id], condition: e.target.value }})}
+                            onChange={e => setItemStates({ ...itemStates, [it.id]: { ...itemStates[it.id], condition: e.target.value } })}
                             style={{ height: '24px', padding: '0 4px', fontSize: '10px' }}
                           >
                             <option value="OK">OK</option>
@@ -282,18 +282,18 @@ export default function ProjectsModule() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Receiver Phone *</label>
-                    <input 
-                      className="form-input" 
-                      value={phone} 
+                    <input
+                      className="form-input"
+                      value={phone}
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                         setPhone(val);
-                      }} 
-                      placeholder="10-digit Mobile No" 
+                      }}
+                      placeholder="10-digit Mobile No"
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Designation</label>
+                    <label className="form-label">Designation *</label>
                     <input className="form-input" value={designation} onChange={e => setDesignation(e.target.value)} placeholder="e.g. Site Engineer" />
                   </div>
                 </div>
@@ -311,14 +311,14 @@ export default function ProjectsModule() {
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
                       {files.pod ? files.pod.name : 'Upload POD (Proof of Delivery)'}
                     </button>
-                    <input type="file" onChange={e => setFiles({...files, pod: e.target.files[0]})} />
+                    <input type="file" onChange={e => setFiles({ ...files, pod: e.target.files[0] })} />
                   </div>
                   <div className="upload-btn-wrapper">
                     <button className="btn-ghost" style={{ width: '100%', justifyContent: 'flex-start', fontSize: '11px', border: '1px dashed #D1D5DB' }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
                       {files.signed_dc ? files.signed_dc.name : 'Upload Signed DC Copy'}
                     </button>
-                    <input type="file" onChange={e => setFiles({...files, signed_dc: e.target.files[0]})} />
+                    <input type="file" onChange={e => setFiles({ ...files, signed_dc: e.target.files[0] })} />
                   </div>
                 </div>
               </div>
@@ -328,8 +328,8 @@ export default function ProjectsModule() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="btn btn-ghost" onClick={() => setView('list')} disabled={submitting}>Cancel</button>
               <button className="btn btn-danger" disabled={submitting}>Raise Delivery Issue</button>
-              <button 
-                className="btn btn-primary" 
+              <button
+                className="btn btn-primary"
                 onClick={handleConfirmDelivery}
                 disabled={submitting}
                 style={{ background: '#10B981', padding: '0 32px', fontWeight: 700 }}
@@ -344,14 +344,14 @@ export default function ProjectsModule() {
   }
 
   return (
-    <div className="page-container screen-enter">
+    <div className="page-container screen-enter projects-screen">
       <div className="page-header" style={{ marginBottom: '16px' }}>
         <div>
           <h1 className="text-h2" style={{ fontSize: '18px' }}>Project Management</h1>
           <p className="text-p" style={{ fontSize: '12px' }}>Track material arrival at site and provide on-field acknowledgment.</p>
         </div>
       </div>
-      
+
       <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
         <table className="data-table" style={{ fontSize: '11px' }}>
           <thead>

@@ -218,6 +218,15 @@ export default function DCRequest() {
 
     if (!selectedPOId || selectedItems.length === 0) return;
 
+    if (!logistics.vehicle_no?.trim() || !logistics.driver_name?.trim() || !logistics.driver_phone?.trim()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Logistics Details Required',
+        text: 'Please enter Vehicle Number, Driver Name, and Driver Phone before submitting the request.'
+      });
+      return;
+    }
+
     setSubmitting(true);
     const formData = new FormData();
     formData.append('po_id', selectedPOId);
@@ -269,6 +278,7 @@ export default function DCRequest() {
   };
 
   const selectedForSummary = items.filter(i => i.selected && i.requestQty > 0);
+  const totalQuantity = selectedForSummary.reduce((acc, item) => acc + (Number(item.requestQty) || 0), 0);
   const totalValue = selectedForSummary.reduce((acc, item) => acc + ((item.supply_rate || 0) * item.requestQty), 0);
 
   const fmt = (v) => '₹' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -352,10 +362,10 @@ export default function DCRequest() {
                   <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Item Name</th>
                   <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Description</th>
                   <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>UOM</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Supply QTY</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Already Despatched</th>
-                  <th style={{ padding: '12px 8px', color: '#059669', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', background: '#ECFDF5' }}>Available Qty</th>
-                  <th style={{ padding: '12px 8px', color: '#1D4ED8', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', background: '#EFF6FF' }}>New DC Qty</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', textAlign: 'right' }}>Supply QTY</th>
+                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', textAlign: 'right' }}>Despatched</th>
+                  <th style={{ padding: '12px 8px', color: '#059669', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', background: '#ECFDF5', textAlign: 'right' }}>To be Despatched</th>
+                  <th style={{ padding: '12px 8px', color: '#1D4ED8', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', background: '#EFF6FF', textAlign: 'center' }}>New DC Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -389,10 +399,10 @@ export default function DCRequest() {
                         </div>
                       </td>
                       <td style={{ padding: '10px 8px' }}>{it.uom || '-'}</td>
-                      <td style={{ padding: '10px 8px' }}>{it.supply_qty}</td>
-                      <td style={{ padding: '10px 8px', color: '#6B7280' }}>{it.qty_delivered || 0}</td>
-                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#059669', background: '#F0FDF4' }}>{it.available}</td>
-                      <td style={{ padding: '10px 8px', background: '#EFF6FF' }}>
+                      <td style={{ padding: '10px 8px', textAlign: 'right' }}>{it.supply_qty}</td>
+                      <td style={{ padding: '10px 8px', color: '#6B7280', textAlign: 'right' }}>{it.qty_delivered || 0}</td>
+                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#059669', background: '#F0FDF4', textAlign: 'right' }}>{it.available}</td>
+                      <td style={{ padding: '10px 8px', background: '#EFF6FF', textAlign: 'center' }}>
                         <input
                           type="number"
                           className="form-input"
@@ -527,9 +537,9 @@ export default function DCRequest() {
             <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Dispatch Source</label>
-                <select 
-                  className="form-select" 
-                  value={dispatchSource} 
+                <select
+                  className="form-select"
+                  value={dispatchSource}
                   onChange={(e) => handleSourceChange(e.target.value)}
                   style={{ width: '180px', height: '30px', fontSize: '12px', padding: '0 8px' }}
                 >
@@ -539,37 +549,37 @@ export default function DCRequest() {
                   ))}
                 </select>
               </div>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
-                <input 
-                  className="form-input" 
-                  placeholder="Addr Line 1" 
-                  style={{ fontSize: '12px' }} 
-                  value={sourceAddress.line1} 
+                <input
+                  className="form-input"
+                  placeholder="Addr Line 1"
+                  style={{ fontSize: '12px' }}
+                  value={sourceAddress.line1}
                   onChange={e => setSourceAddress({ ...sourceAddress, line1: e.target.value })}
                   readOnly={dispatchSource !== 'manual'}
                 />
-                <input 
-                  className="form-input" 
-                  placeholder="Addr Line 2" 
-                  style={{ fontSize: '12px' }} 
-                  value={sourceAddress.line2} 
+                <input
+                  className="form-input"
+                  placeholder="Addr Line 2"
+                  style={{ fontSize: '12px' }}
+                  value={sourceAddress.line2}
                   onChange={e => setSourceAddress({ ...sourceAddress, line2: e.target.value })}
                   readOnly={dispatchSource !== 'manual'}
                 />
-                <input 
-                  className="form-input" 
-                  placeholder="Pincode" 
-                  style={{ fontSize: '12px' }} 
-                  value={sourceAddress.pin} 
+                <input
+                  className="form-input"
+                  placeholder="Pincode"
+                  style={{ fontSize: '12px' }}
+                  value={sourceAddress.pin}
                   onChange={e => setSourceAddress({ ...sourceAddress, pin: e.target.value })}
                   readOnly={dispatchSource !== 'manual'}
                 />
-                <input 
-                  className="form-input" 
-                  placeholder="Landmark" 
-                  style={{ fontSize: '12px' }} 
-                  value={sourceAddress.landmark} 
+                <input
+                  className="form-input"
+                  placeholder="Landmark"
+                  style={{ fontSize: '12px' }}
+                  value={sourceAddress.landmark}
                   onChange={e => setSourceAddress({ ...sourceAddress, landmark: e.target.value })}
                 />
               </div>
@@ -581,15 +591,29 @@ export default function DCRequest() {
           <div className="summary-card" style={{ width: '400px' }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '20px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Dispatch Summary</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.7)' }}>
-                <span>Items Selected for Dispatch</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.7)', marginBottom: '4px' }}>
+                <span style={{ fontSize: '12px' }}>Items Count</span>
                 <span style={{ fontWeight: 600, color: 'white' }}>{selectedForSummary.length}</span>
               </div>
+              {/* <div style={{ display: 'flex', justifyContent: 'space-between', color: 'white', padding: '12px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                <span style={{ fontWeight: 700, fontSize: '1rem' }}>Total Quantity</span>
+                <span style={{ fontWeight: 900, fontSize: '1.4rem', color: '#10B981' }}>{totalQuantity}</span>
+              </div> */}
               <button
                 className="btn btn-primary"
                 style={{ width: '100%', marginTop: '20px', background: '#10B981', border: 'none', padding: '16px', fontSize: '1rem', fontWeight: 700 }}
                 disabled={selectedForSummary.length === 0 || submitting}
-                onClick={() => setShowReview(true)}
+                onClick={() => {
+                  if (!logistics.vehicle_no?.trim() || !logistics.driver_name?.trim() || !logistics.driver_phone?.trim()) {
+                    Swal.fire({
+                      icon: 'warning',
+                      title: 'Logistics Details Required',
+                      text: 'Please enter Vehicle Number, Driver Name, and Driver Phone before reviewing the request.'
+                    });
+                    return;
+                  }
+                  setShowReview(true);
+                }}
               >
                 <span className="material-symbols-outlined">visibility</span>
                 {submitting ? 'Processing...' : 'Review Request'}
@@ -697,10 +721,10 @@ export default function DCRequest() {
                     <th>Item Name</th>
                     <th>Description</th>
                     <th>UOM</th>
-                    <th>Supply QTY</th>
-                    <th>Already Despatched</th>
-                    <th>Available Qty</th>
-                    <th style={{ background: '#EFF6FF', color: '#1D4ED8' }}>New DC Qty</th>
+                    <th style={{ textAlign: 'right' }}>Supply QTY</th>
+                    <th style={{ textAlign: 'right' }}>Despatched</th>
+                    <th style={{ textAlign: 'right' }}>To be Dispatched</th>
+                    <th style={{ background: '#EFF6FF', color: '#1D4ED8', textAlign: 'center' }}>New DC Qty</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -714,13 +738,19 @@ export default function DCRequest() {
                       <td style={{ fontWeight: 600 }}>{it.item_name === 'Item' ? '' : it.item_name}</td>
                       <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description || '-'}</td>
                       <td>{it.uom || '-'}</td>
-                      <td>{it.supply_qty}</td>
-                      <td>{it.qty_delivered || 0}</td>
-                      <td style={{ fontWeight: 700, color: '#059669' }}>{it.available}</td>
+                      <td style={{ textAlign: 'right' }}>{it.supply_qty}</td>
+                      <td style={{ textAlign: 'right' }}>{it.qty_delivered || 0}</td>
+                      <td style={{ fontWeight: 700, color: '#059669', textAlign: 'right' }}>{it.available}</td>
                       <td style={{ fontWeight: 800, color: '#1D4ED8', background: '#F0F7FF', textAlign: 'center' }}>{it.requestQty}</td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB' }}>
+                  <tr>
+                    <td colSpan="11" style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: '14px', color: '#4B5563' }}>TOTAL QUANTITY FOR DISPATCH</td>
+                    <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 900, fontSize: '16px', color: '#1D4ED8', background: '#EFF6FF' }}>{totalQuantity}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 

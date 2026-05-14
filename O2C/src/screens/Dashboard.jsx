@@ -276,7 +276,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="stats-grid">
+      <div className="stats-grid" style={{ marginTop: 'var(--space-xl)' }}>
         <div className="stat-card animate-fade animate-stagger-1" onClick={() => handleCardClick('active_pos', 'Active Purchase Orders')} style={{ cursor: 'pointer' }}>
           <p className="stat-card__label">Active POs</p>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
@@ -360,7 +360,7 @@ export default function Dashboard() {
                                   <span className="badge__dot"></span>{item.status}
                                 </span>
                               </td>
-                              <td className="text-right" style={{ fontWeight: 600 }}>₹{item.grand_total?.toLocaleString('en-IN')}</td>
+                              <td className="text-right" style={{ fontWeight: 600 }}>₹{item.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             </>
                           )}
                           {summaryConfig.type === 'pending_dcs' && (

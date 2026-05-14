@@ -205,7 +205,7 @@ export default function ARDatabase() {
             <h3 className="text-h3" style={{ marginBottom: '16px' }}>Record Payment</h3>
             <p className="text-body-sm" style={{ marginBottom: '16px' }}>
               Invoice: <strong>{selectedEntry.invoice_number}</strong><br/>
-              Balance Due: <strong>₹{selectedEntry.balance?.toLocaleString('en-IN')}</strong>
+              Balance Due: <strong>₹{selectedEntry.balance?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
             </p>
             <form onSubmit={handleRecordPayment}>
               <div className="form-group">

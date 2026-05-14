@@ -163,7 +163,7 @@ select {
 }
 
 .sidebar__brand {
-  padding: 20px 24px 18px;
+  padding: 0px 24px 18px;
 
   border-bottom: 1px solid var(--border-light);
 }
@@ -191,7 +191,7 @@ select {
 
 .sidebar__nav {
   flex: 1;
-  padding: 20px 16px;
+  padding: 8px 16px;
 }
 
 .sidebar__link {
@@ -201,9 +201,9 @@ select {
 
   width: 100%;
 
-  padding: 16px 18px;
+  padding: 10px 18px;
 
-  margin-bottom: 10px;
+  margin-bottom: 2px;
 
   border-radius: 16px;
 
@@ -304,13 +304,13 @@ select {
 }
 
 .app-header__search {
-  width: 360px;
+  width: 280px;
 
   height: 48px;
 
   background: #f8fafc;
 
-  border: 1px solid transparent;
+  border: 1.5px solid #d1d5db;
 
   border-radius: 14px;
 
@@ -412,6 +412,7 @@ select {
 
   color: var(--text-primary);
 
+  margin-top: 24px;
   margin-bottom: 10px;
 }
 
@@ -451,21 +452,55 @@ select {
 .card,
 .dashboard-card,
 .action-card,
-.stat-card {
+.stat-card,
+.feature-card {
   background: var(--surface);
 
-  border: 1px solid var(--border-light);
+  border: 1.5px solid #d1d5db; /* More visible border */
+  border-top: 1.5px solid #d1d5db;
 
   border-radius: 24px;
 
   padding: 30px;
 
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
 
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
     border-color 0.18s ease;
+}
+
+.stat-card__label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.stat-card__value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.stat-card__trend {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.stat-card__trend--warn {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.stat-card__trend--success {
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .card:hover,
@@ -476,7 +511,40 @@ select {
 
   box-shadow: var(--shadow-lg);
 
-  border-color: rgba(79, 70, 229, 0.15);
+  border-color: var(--primary);
+}
+
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.feature-card__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.feature-card__description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 /* =========================================================
@@ -1174,4 +1242,13 @@ input[type="file"]::file-selector-button:hover {
   transform: none !important;
 
   box-shadow: none !important;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
 }

@@ -738,15 +738,18 @@ export default function RaiseDC() {
             )}
 
             {/* Items Table Card */}
-            <div className="card animate-slide-up" style={{ padding: '0', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-              <div style={{ overflow: 'auto' }}>
-                <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+            {(() => {
+              const totalQuantity = details.items.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
+              return (
+                <div className="card animate-slide-up" style={{ padding: '0', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+                  <div style={{ overflow: 'auto' }}>
+                    <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
                   <thead style={{ background: '#3B82F6', color: 'white' }}>
                     <tr>
                       <th style={{ padding: '6px 12px' }}>SL NO</th>
                       <th style={{ padding: '6px 12px' }}>REFERENCE FROM PO</th>
                       <th style={{ padding: '6px 12px' }}>PACKAGE</th>
-                      <th style={{ padding: '6px 12px', background: '#2563EB' }}>HSN (ENTRY)</th>
+                      <th style={{ padding: '6px 12px', background: '#b8cbf4ff' }}>HSN (ENTRY)</th>
                       <th style={{ padding: '6px 12px' }}>DESCRIPTION</th>
                       <th style={{ padding: '6px 12px', textAlign: 'right' }}>QTY (STORES REQ)</th>
                       <th style={{ padding: '6px 12px' }}>UOM</th>
@@ -779,6 +782,13 @@ export default function RaiseDC() {
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB' }}>
+                    <tr>
+                      <td colSpan="5" style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, fontSize: '12px', color: '#4B5563' }}>TOTAL QUANTITY</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, fontSize: '14px', color: '#2563EB' }}>{totalQuantity}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
 
@@ -814,8 +824,10 @@ export default function RaiseDC() {
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
+      </div>
+    )}
         {showPreview && (
           <div style={{
             position: 'fixed',
@@ -1203,8 +1215,8 @@ export default function RaiseDC() {
                       <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
                         <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700 }}>{it.item_name}</td>
                         <td style={{ padding: '16px', textAlign: 'right' }}>{it.quantity}</td>
-                        <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN')}</td>
-                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN')}</td>
+                        <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1214,10 +1226,10 @@ export default function RaiseDC() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '64px' }}>
                 <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>{hiddenData.data.notes}</div>
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{hiddenData.data.subtotal?.toLocaleString('en-IN')}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{hiddenData.data.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderTop: '2px dashed #E2E8F0', marginTop: '12px' }}>
                     <span style={{ fontWeight: 900 }}>Grand Total</span>
-                    <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{hiddenData.data.grand_total?.toLocaleString('en-IN')}</span>
+                    <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{hiddenData.data.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>

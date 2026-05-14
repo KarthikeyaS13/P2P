@@ -146,7 +146,9 @@ const migrations = [
   "ALTER TABLE delivery_challans ADD COLUMN invoicing_status TEXT DEFAULT 'pending'",
   "ALTER TABLE invoices ADD COLUMN verification_state TEXT",
   "ALTER TABLE purchase_orders ADD COLUMN nt_count INTEGER DEFAULT 0",
-  "CREATE TABLE IF NOT EXISTS master_addresses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, addr_line1 TEXT, addr_line2 TEXT, city TEXT, state TEXT, pincode TEXT, landmark TEXT, is_default BOOLEAN DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+  "CREATE TABLE IF NOT EXISTS master_addresses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, addr_line1 TEXT, addr_line2 TEXT, city TEXT, state TEXT, pincode TEXT, landmark TEXT, is_default BOOLEAN DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+  "ALTER TABLE invoice_items ADD COLUMN package_name TEXT",
+  "ALTER TABLE invoice_items ADD COLUMN description TEXT"
 ];
 
 migrations.forEach(sql => {
@@ -867,6 +869,17 @@ app.get('/api/pos/:id', authenticate, (req, res) => {
   }
 });
 
+app.get('/api/pos/check-unique', authenticate, (req, res) => {
+  const { po_number } = req.query;
+  if (!po_number) return res.status(400).json({ error: 'po_number is required' });
+  try {
+    const existing = db.prepare('SELECT id FROM purchase_orders WHERE po_number = ?').get(po_number);
+    res.json({ unique: !existing });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/pos', authenticate, (req, res) => {
   try {
     const {
@@ -884,9 +897,9 @@ app.post('/api/pos', authenticate, (req, res) => {
     let finalPONumber = po_number;
     const existing = db.prepare(
       'SELECT id FROM purchase_orders WHERE po_number = ?'
-    ).get(finalPONumber);
+    ).get(po_number);
     if (existing) {
-      finalPONumber = finalPONumber + '-' + Date.now();
+      return res.status(400).json({ error: 'Purchase Order number already exists in the system.' });
     }
 
     const order_id = 'ORD-' + Date.now();
@@ -1169,6 +1182,27 @@ app.post('/api/invoices', authenticate, (req, res) => {
       initialStatus = 'requested';
     }
 
+    // Filter to only include items with quantity > 0
+    const validItems = (items || []).filter(it => it.quantity > 0);
+    if (validItems.length === 0) {
+      return res.status(400).json({ error: 'Cannot create invoice with zero billable quantity' });
+    }
+
+    // Backend validation: Check if requested_qty > remaining_qty
+    for (const it of validItems) {
+      if (it.dc_line_item_id) {
+         const dcItem = db.prepare('SELECT quantity_dispatched, invoiced_qty FROM dc_line_items WHERE id = ?').get(it.dc_line_item_id);
+         if (dcItem) {
+           const delivered = parseFloat(dcItem.quantity_dispatched) || 0;
+           const invoiced = parseFloat(dcItem.invoiced_qty) || 0;
+           const remaining = Math.max(0, delivered - invoiced);
+           if (it.quantity > remaining) {
+             return res.status(400).json({ error: `Invoice quantity (${it.quantity}) exceeds remaining billable quantity (${remaining}) for item ${it.item_name}` });
+           }
+         }
+      }
+    }
+
     db.exec('BEGIN');
     const invResult = db.prepare(`
       INSERT INTO invoices (
@@ -1192,9 +1226,9 @@ app.post('/api/invoices', authenticate, (req, res) => {
     const itemStmt = db.prepare(`
       INSERT INTO invoice_items (
         invoice_id, po_line_item_id, dc_line_item_id, 
-        item_name, quantity, rate, gst_percent, 
+        package_name, item_name, description, quantity, rate, gst_percent, 
         taxable_value, gst_amount, total_value
-      ) VALUES (?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
     `);
 
     const updateDCItemStmt = db.prepare(`
@@ -1203,10 +1237,11 @@ app.post('/api/invoices', authenticate, (req, res) => {
       WHERE id = ?
     `);
 
-    (items || []).forEach(it => {
+    (validItems).forEach(it => {
       itemStmt.run(
         invoiceId, it.po_line_item_id, it.dc_line_item_id,
-        it.item_name, it.quantity, it.rate_per_unit, it.gst_percent,
+        it.package_name || '-', it.item_name, it.description || '',
+        it.quantity, it.rate_per_unit, it.gst_percent,
         it.taxable_value, it.gst_amount, it.total_value
       );
       
@@ -1218,8 +1253,8 @@ app.post('/api/invoices', authenticate, (req, res) => {
     // Check DC Invoicing Status
     if (dc_id) {
       const dcItems = db.prepare('SELECT quantity_dispatched, invoiced_qty FROM dc_line_items WHERE dc_id = ?').all(dc_id);
-      const isFullyInvoiced = dcItems.every(item => (item.invoiced_qty || 0) >= item.quantity_dispatched);
-      const isPartiallyInvoiced = dcItems.some(item => (item.invoiced_qty || 0) > 0);
+      const isFullyInvoiced = dcItems.every(item => (parseFloat(item.invoiced_qty) || 0) >= (parseFloat(item.quantity_dispatched) || 0));
+      const isPartiallyInvoiced = dcItems.some(item => (parseFloat(item.invoiced_qty) || 0) > 0);
       
       let invStatus = 'pending';
       if (isFullyInvoiced) invStatus = 'fully_invoiced';
@@ -2084,6 +2119,19 @@ app.get('/api/po-flow', authenticate, (req, res) => {
           JOIN po_line_items pli ON dli.po_line_item_id = pli.id
           WHERE dc.po_id = p.id AND dc.status != 'cancelled'
         ), 0) as supplied_value,
+        COALESCE((
+          SELECT SUM((dli.quantity_dispatched - IFNULL(dli.invoiced_qty, 0)) * (
+            CASE 
+              WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+              WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+              ELSE 0 
+            END
+          ))
+          FROM dc_line_items dli
+          JOIN delivery_challans dc ON dli.dc_id = dc.id
+          JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+          WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+        ), 0) as to_be_invoiced_value,
         COALESCE((
           SELECT SUM(ii.quantity) 
           FROM invoice_items ii

@@ -49,9 +49,29 @@ export default function Header() {
     setShowResults(false);
   };
 
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentDateTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedDate = currentDateTime.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour12: true
+  });
+  const formattedTime = currentDateTime.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+
   return (
     <header className="app-header">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
         <span className="app-header__brand">O2C Command Center</span>
       </div>
       <div className="app-header__actions">
@@ -91,22 +111,14 @@ export default function Header() {
           )}
         </div>
         <div className="app-header__icons">
-          <span className="material-symbols-outlined tooltip" data-tooltip="Notifications">notifications</span>
-          <span className="material-symbols-outlined tooltip" data-tooltip="Help">help_outline</span>
-          <span className="app-header__divider"></span>
-          <div className="header__user">
-            <div className="avatar-initials avatar-initials--primary">
-              {user ? user.full_name?.charAt(0).toUpperCase() : 'U'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '6px 10px', background: 'var(--primary-light)', borderRadius: '14px', fontSize: '13px', fontWeight: 600 }}>
+            <div style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center' }}>calendar_today</span>
+              <span style={{ position: 'relative', top: '1px' }}>{formattedDate}</span>
             </div>
-            <div className="header__user-info">
-              {user ? (
-                <>
-                  <span className="user-name">{user.full_name}</span>
-                  <span className="user-role">{user.role}</span>
-                </>
-              ) : (
-                <span className="user-name">User Name</span>
-              )}
+            <div style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center' }}>schedule</span>
+              <span style={{ position: 'relative', top: '1px', fontVariantNumeric: 'tabular-nums' }}>{formattedTime}</span>
             </div>
           </div>
         </div>

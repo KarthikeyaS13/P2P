@@ -14,7 +14,7 @@ export default function InvoiceRequest() {
   const { id } = useParams();
   const user = getUser();
 
-  const [activeTab, setActiveTab] = useState('database');
+  const [activeTab, setActiveTab] = useState('pending');
   const [invoices, setInvoices] = useState([]);
   const [pendingDCs, setPendingDCs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,13 +44,23 @@ export default function InvoiceRequest() {
       ]);
       setInvoices(invRes.data);
       setPendingDCs(dcRes.data.filter(d =>
-        (d.status === 'delivery_confirmed' || d.status === 'partially_invoiced')
+        (d.status === 'delivery_confirmed' || d.status === 'partially_invoiced') &&
+        d.invoicing_status !== 'fully_invoiced'
       ));
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const showFullDescription = (desc, name) => {
+    Swal.fire({
+      title: name,
+      text: desc,
+      icon: 'info',
+      confirmButtonColor: 'var(--primary)',
+    });
   };
 
   const fetchInvoiceDetails = async (invId) => {
@@ -84,7 +94,7 @@ export default function InvoiceRequest() {
       )
     },
     { header: 'Customer', accessorKey: 'customer_name' },
-    { header: 'Amount', accessorKey: 'grand_total', cell: ({ getValue }) => `₹${getValue()?.toLocaleString('en-IN')}` },
+    { header: 'Amount', accessorKey: 'grand_total', cell: ({ getValue }) => `₹${getValue()?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
     {
       header: 'Status', accessorKey: 'status', cell: ({ getValue }) => {
         const cfg = getStatusColor(getValue());
@@ -134,7 +144,7 @@ export default function InvoiceRequest() {
       <div className="screen-enter">
         <div className="page-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => navigate('/invoice-request')} className="btn-ghost btn-back" style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button onClick={() => navigate(-1)} className="btn-ghost btn-back" style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
             </button>
             <div>
@@ -160,8 +170,8 @@ export default function InvoiceRequest() {
               <div>
                 <label style={{ fontSize: '11px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase' }}>Logistics Info</label>
                 <div style={{ marginTop: '8px' }}>
-                  <div>Dispatch Date: {new Date(inv.dispatch_date).toLocaleDateString()}</div>
-                  <div>Place of Supply: {inv.place_of_supply}</div>
+                  <div>Dispatch Date: <span style={{ fontWeight: 800 }}>{new Date(inv.dispatch_date).toLocaleDateString()}</span></div>
+                  <div>Place of Supply: <span style={{ fontWeight: 800 }}>{inv.place_of_supply}</span></div>
                 </div>
               </div>
             </div>
@@ -170,7 +180,9 @@ export default function InvoiceRequest() {
             <table className="data-table" style={{ marginTop: '12px', marginBottom: '32px' }}>
               <thead style={{ background: '#F8FAFC' }}>
                 <tr>
-                  <th style={{ textAlign: 'left' }}>Item Description</th>
+                  <th style={{ textAlign: 'left' }}>Package</th>
+                  <th style={{ textAlign: 'left' }}>Item Name</th>
+                  <th style={{ textAlign: 'left' }}>Description</th>
                   <th style={{ textAlign: 'right' }}>Qty</th>
                   <th style={{ textAlign: 'right' }}>Taxable Val</th>
                 </tr>
@@ -178,9 +190,22 @@ export default function InvoiceRequest() {
               <tbody>
                 {inv.items?.map((it, i) => (
                   <tr key={i}>
-                    <td>{it.item_name}</td>
-                    <td style={{ textAlign: 'right' }}>{it.quantity}</td>
-                    <td style={{ textAlign: 'right' }}>₹{it.taxable_value?.toLocaleString()}</td>
+                    <td style={{ fontWeight: 600, color: '#475569' }}>{it.package_name || '-'}</td>
+                    <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{it.item_name || '-'}</td>
+                    <td style={{ cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
+                      <div style={{ 
+                        fontSize: '11px', 
+                        color: '#64748B', 
+                        maxWidth: '180px', 
+                        whiteSpace: 'nowrap', 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis' 
+                      }}>
+                        {it.description}
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700 }}>{it.quantity}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700 }}>₹{it.taxable_value?.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -215,14 +240,14 @@ export default function InvoiceRequest() {
       </div>
 
       <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
-        <button className={`tab-link ${activeTab === 'database' ? 'active' : ''}`} onClick={() => setActiveTab('database')}>My Requests</button>
         <button className={`tab-link ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')}>Pending Delivery Challans</button>
+        <button className={`tab-link ${activeTab === 'database' ? 'active' : ''}`} onClick={() => setActiveTab('database')}>My Requests</button>
       </div>
 
       <div className="card data-table-wrapper">
         <table className="data-table">
-          <thead>{table.getHeaderGroups().map(hg => (<tr key={hg.id}>{hg.headers.map(h => (<th key={h.id}>{flexRender(h.column.columnDef.header, h.getContext())}</th>))}</tr>))}</thead>
-          <tbody>{table.getRowModel().rows.map(row => (<tr key={row.id}>{row.getVisibleCells().map(cell => (<td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}</tr>))}</tbody>
+          <thead>{table.getHeaderGroups().map(hg => (<tr key={hg.id}>{hg.headers.map(h => (<th key={h.id} style={{ textAlign: h.column.id === 'grand_total' ? 'right' : 'left' }}>{flexRender(h.column.columnDef.header, h.getContext())}</th>))}</tr>))}</thead>
+          <tbody>{table.getRowModel().rows.map(row => (<tr key={row.id}>{row.getVisibleCells().map(cell => (<td key={cell.id} style={{ textAlign: cell.column.id === 'grand_total' ? 'right' : 'left' }}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}</tr>))}</tbody>
         </table>
       </div>
       <style>{`

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { INDIAN_STATES } from '../utils/states';
+import CustomStateSelect from './CustomStateSelect';
 
-export default function LocationForm({ customerId, corporateGST, location, onClose, onRefresh }) {
+export default function LocationForm({ customerId, customer, corporateGST, location, onClose, onRefresh }) {
   const isEdit = !!location;
-  
+
   const [form, setForm] = useState({
     label: '',
     address_line1: '',
@@ -15,6 +17,7 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
     pincode: '',
     gstin: '',
     gst_is_different: false,
+    is_corporate_address: false,
     contact_name: '',
     contact_email: '',
     contact_phone: '',
@@ -52,7 +55,7 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
 
   const handleChange = (e) => {
     let { name, value, type, checked } = e.target;
-    
+
     if (name === 'gstin') {
       value = value.toUpperCase().slice(0, 15);
     }
@@ -60,17 +63,31 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
       value = value.replace(/\D/g, '').slice(0, (name === 'contact_phone' || name === 'spoc2_phone') ? 10 : 6);
     }
 
-    setForm(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
+    setForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
   const handleGstModeChange = (isDifferent) => {
-    setForm(prev => ({ 
-      ...prev, 
+    setForm(prev => ({
+      ...prev,
       gst_is_different: isDifferent,
       gstin: isDifferent ? prev.gstin : corporateGST
+    }));
+  };
+
+  const handleAddressToggle = (e) => {
+    const isCorporate = e.target.checked;
+    setForm(prev => ({
+      ...prev,
+      is_corporate_address: isCorporate,
+      address_line1: isCorporate ? (customer?.address_line1 || '') : '',
+      address_line2: isCorporate ? (customer?.address_line2 || '') : '',
+      address_line3: isCorporate ? (customer?.address_line3 || '') : '',
+      city: isCorporate ? (customer?.city || '') : '',
+      state: isCorporate ? (customer?.state || '') : '',
+      pincode: isCorporate ? (customer?.pincode || '') : ''
     }));
   };
 
@@ -80,11 +97,11 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
     if (!form.city) return Swal.fire({ icon: 'error', title: 'Required', text: 'City is required' });
     if (!form.state) return Swal.fire({ icon: 'error', title: 'Required', text: 'State is required' });
     if (!form.pincode || form.pincode.length !== 6) return Swal.fire({ icon: 'error', title: 'Invalid Pincode', text: 'Valid 6-digit Pincode is required' });
-    
+
     if (form.gst_is_different && (!form.gstin || form.gstin.length !== 15)) {
       return Swal.fire({ icon: 'error', title: 'Invalid GSTIN', text: '15-character GSTIN is required when using a different GST for this location' });
     }
-    
+
     if (form.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email)) {
       return Swal.fire({ icon: 'error', title: 'Invalid Email', text: 'Invalid SPOC 1 Email' });
     }
@@ -128,21 +145,21 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
       <div style={{ background: 'white', width: '100%', maxWidth: '800px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '50px' }}>
-        
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #E5E7EB' }}>
           <h2 style={{ margin: 0, color: '#111827' }}>{isEdit ? 'Edit Location' : 'Add New Location'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6B7280' }}>&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
-          
+
           <h3 style={{ color: '#1F2937', marginTop: 0, borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>Location Details</h3>
           <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '32px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Location Name / Project Name *</label>
               <input name="label" value={form.label} onChange={handleChange} placeholder="e.g. Hyderabad Site, Chennai Factory" required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
             </div>
-            
+
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#4B5563', fontWeight: 500 }}>GST Information</label>
               <div style={{ display: 'flex', gap: '20px', marginBottom: '12px' }}>
@@ -155,57 +172,107 @@ export default function LocationForm({ customerId, corporateGST, location, onClo
                   Different GST for this location
                 </label>
               </div>
-              <input 
-                name="gstin" 
-                value={form.gstin} 
-                onChange={handleChange} 
-                placeholder="15-character GSTIN" 
+              <input
+                name="gstin"
+                value={form.gstin}
+                onChange={handleChange}
+                placeholder={!form.gst_is_different ? corporateGST : "15-character GSTIN"}
                 disabled={!form.gst_is_different}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px', 
-                  borderRadius: '4px', 
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '4px',
                   border: '1px solid #D1D5DB',
                   background: !form.gst_is_different ? '#F9FAFB' : 'white',
                   cursor: !form.gst_is_different ? 'not-allowed' : 'text'
-                }} 
+                }}
               />
             </div>
           </div>
 
-          <h3 style={{ color: '#1F2937', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>Address</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>
+            <h3 style={{ color: '#1F2937', margin: 0 }}>Address</h3>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600, color: '#2563EB' }}>
+              <input 
+                type="checkbox" 
+                checked={form.is_corporate_address} 
+                onChange={handleAddressToggle}
+                style={{ width: '16px', height: '16px' }}
+              />
+              Same as Corporate Address
+            </label>
+          </div>
           <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '32px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 1 *</label>
-              <input name="address_line1" value={form.address_line1} onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <input 
+                name="address_line1" 
+                value={form.address_line1} 
+                onChange={handleChange} 
+                required 
+                disabled={form.is_corporate_address}
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+              />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 2</label>
-              <input name="address_line2" value={form.address_line2} onChange={handleChange} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <input 
+                name="address_line2" 
+                value={form.address_line2} 
+                onChange={handleChange} 
+                disabled={form.is_corporate_address}
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+              />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 3</label>
-              <input name="address_line3" value={form.address_line3} onChange={handleChange} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Pincode *</label>
-              <input name="pincode" value={form.pincode} onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <input 
+                name="address_line3" 
+                value={form.address_line3} 
+                onChange={handleChange} 
+                disabled={form.is_corporate_address}
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+              />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>City *</label>
-              <input name="city" value={form.city} onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <input 
+                name="city" 
+                value={form.city} 
+                onChange={handleChange} 
+                required 
+                disabled={form.is_corporate_address}
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+              />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>State *</label>
-              <input name="state" value={form.state} onChange={handleChange} required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <CustomStateSelect 
+                value={form.state} 
+                onChange={handleChange} 
+                disabled={form.is_corporate_address}
+              />
             </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Pincode *</label>
+              <input 
+                name="pincode" 
+                value={form.pincode} 
+                onChange={handleChange} 
+                required 
+                disabled={form.is_corporate_address}
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+              />
+            </div>
+
+
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>
             <h3 style={{ color: '#1F2937', margin: 0 }}>Site Contacts</h3>
             {!showSpoc2 && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowSpoc2(true)}
                 style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}
               >

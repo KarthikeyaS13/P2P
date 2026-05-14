@@ -548,10 +548,10 @@ export default function EditPO() {
 
                       {/* Fetched Cells */}
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>{it.supply_qty}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.supply_rate.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.supply_rate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.supply_gst_rate}%</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>{it.service_qty}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.service_rate.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.service_rate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.service_gst_rate}%</td>
 
                       {/* EDIT Cells */}
@@ -588,23 +588,23 @@ export default function EditPO() {
 
                       {/* AUTO CAL Cells */}
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>{it.rev_supply_qty}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_supply_rate.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_supply_rate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.rev_supply_gst_rate}%</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>{it.rev_service_qty}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_service_rate.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_service_rate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'center' }}>{it.rev_service_gst_rate}%</td>
 
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_taxable_supply.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_gst_supply.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_total_supply.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_taxable_supply.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_gst_supply.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_total_supply.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
 
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_taxable_service.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_gst_service.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_total_service.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_taxable_service.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_gst_service.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right' }}>₹{it.rev_total_service.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
 
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600 }}>₹{it.rev_total_taxable.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600 }}>₹{it.rev_total_gst.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, color: '#1E40AF' }}>₹{it.rev_total_invoice.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600 }}>₹{it.rev_total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600 }}>₹{it.rev_total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, color: '#1E40AF' }}>₹{it.rev_total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -614,11 +614,11 @@ export default function EditPO() {
             <div style={{ position: 'sticky', bottom: 0, marginTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '48px', background: 'rgba(249, 250, 251, 0.95)', backdropFilter: 'blur(8px)', padding: '20px 24px', borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 -4px 10px rgba(0,0,0,0.05)', zIndex: 15 }}>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.8rem' }}>Revised Taxable Amount</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#374151' }}>₹{items.reduce((s, i) => s + (i.rev_total_taxable || 0), 0).toLocaleString('en-IN')}</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#374151' }}>₹{items.reduce((s, i) => s + (i.rev_total_taxable || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.8rem' }}>Revised Grand Total</p>
-                <p style={{ fontSize: '2rem', fontWeight: 900, margin: 0, color: '#10B981' }}>₹{items.reduce((s, i) => s + (i.rev_total_invoice || 0), 0).toLocaleString('en-IN')}</p>
+                <p style={{ fontSize: '2rem', fontWeight: 900, margin: 0, color: '#10B981' }}>₹{items.reduce((s, i) => s + (i.rev_total_invoice || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
             </div>
 
@@ -651,9 +651,9 @@ export default function EditPO() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.8rem' }}>Overall Revised Subtotal</p>
-                <p style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px', color: '#374151' }}>₹{items.reduce((s, i) => s + (i.rev_total_taxable || 0), 0).toLocaleString('en-IN')}</p>
+                <p style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px', color: '#374151' }}>₹{items.reduce((s, i) => s + (i.rev_total_taxable || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.8rem' }}>Overall Revised Grand Total</p>
-                <p style={{ fontSize: '2rem', fontWeight: 900, margin: 0, color: '#10B981' }}>₹{items.reduce((s, i) => s + (i.rev_total_invoice || 0), 0).toLocaleString('en-IN')}</p>
+                <p style={{ fontSize: '2rem', fontWeight: 900, margin: 0, color: '#10B981' }}>₹{items.reduce((s, i) => s + (i.rev_total_invoice || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
             </div>
 
@@ -715,37 +715,37 @@ function SummaryTable({ data }) {
     {
       header: 'Supply Tax Value',
       accessorKey: 'supply_taxable',
-      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
       header: 'Supply GST',
       accessorKey: 'supply_gst',
-      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
       header: 'Service Tax Value',
       accessorKey: 'service_taxable',
-      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
       header: 'Service GST',
       accessorKey: 'service_gst',
-      cell: info => `₹${info.getValue().toLocaleString('en-IN')}`,
+      cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
       header: 'Total Tax Value',
       accessorKey: 'total_taxable',
-      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN')}</span>,
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>,
     },
     {
       header: 'Total GST',
       accessorKey: 'total_gst',
-      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN')}</span>,
+      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>,
     },
     {
       header: 'Total Invoice',
       accessorKey: 'total_invoice',
-      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString('en-IN')}</span>,
+      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>,
     }
   ], []);
 
@@ -773,7 +773,7 @@ function SummaryTable({ data }) {
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '12px 16px', textAlign: 'left', color: '#4B5563', fontWeight: 700, borderRight: '1px solid #F3F4F6' }}>
+                  <th key={header.id} style={{ padding: '12px 16px', textAlign: header.id === 'package_name' ? 'left' : 'right', color: '#4B5563', fontWeight: 700, borderRight: '1px solid #F3F4F6' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -784,7 +784,7 @@ function SummaryTable({ data }) {
             {table.getRowModel().rows.map(row => (
               <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} style={{ padding: '12px 16px', borderRight: '1px solid #F3F4F6' }}>
+                  <td key={cell.id} style={{ padding: '12px 16px', textAlign: cell.column.id === 'package_name' ? 'left' : 'right', borderRight: '1px solid #F3F4F6' }}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -793,14 +793,14 @@ function SummaryTable({ data }) {
           </tbody>
           <tfoot style={{ background: '#F9FAFB', fontWeight: 700, borderTop: '2px solid #E5E7EB' }}>
             <tr>
-              <td style={{ padding: '12px 16px' }}>TOTAL</td>
-              <td style={{ padding: '12px 16px' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN')}</td>
-              <td style={{ padding: '12px 16px' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN')}</td>
-              <td style={{ padding: '12px 16px' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN')}</td>
-              <td style={{ padding: '12px 16px' }}>₹{grandTotals.service_gst.toLocaleString('en-IN')}</td>
-              <td style={{ padding: '12px 16px' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN')}</td>
-              <td style={{ padding: '12px 16px' }}>₹{grandTotals.total_gst.toLocaleString('en-IN')}</td>
-              <td style={{ padding: '12px 16px', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN')}</td>
+              <td style={{ padding: '12px 16px', textAlign: 'left' }}>TOTAL</td>
+              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '12px 16px', textAlign: 'right', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tfoot>
         </table>
@@ -809,7 +809,7 @@ function SummaryTable({ data }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <div style={{ background: '#F0F9FF', padding: '20px 32px', borderRadius: '16px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '350px' }}>
           <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase' }}>Revised Grand Total</p>
-          <p style={{ margin: 0, color: '#0369A1', fontSize: '2.5rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN')}</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '2.5rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
     </div>
@@ -826,14 +826,14 @@ function ReviewDetailTable({ data }) {
     { header: 'Item Name', accessorKey: 'item_name', cell: info => info.getValue() === 'Item' ? '' : info.getValue() },
     { header: 'UOM', accessorKey: 'uom' },
     { header: 'S.Qty', accessorKey: 'rev_supply_qty' },
-    { header: 'S.Rate', accessorKey: 'rev_supply_rate', cell: info => `₹${info.getValue().toLocaleString('en-IN')}` },
+    { header: 'S.Rate', accessorKey: 'rev_supply_rate', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
     { header: 'S.GST%', accessorKey: 'rev_supply_gst_rate', cell: info => `${info.getValue()}%` },
     { header: 'Sv.Qty', accessorKey: 'rev_service_qty' },
-    { header: 'Sv.Rate', accessorKey: 'rev_service_rate', cell: info => `₹${info.getValue().toLocaleString('en-IN')}` },
+    { header: 'Sv.Rate', accessorKey: 'rev_service_rate', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
     { header: 'Sv.GST%', accessorKey: 'rev_service_gst_rate', cell: info => `${info.getValue()}%` },
-    { header: 'Taxable', accessorKey: 'rev_total_taxable', cell: info => `₹${info.getValue().toLocaleString('en-IN')}` },
-    { header: 'GST', accessorKey: 'rev_total_gst', cell: info => `₹${info.getValue().toLocaleString('en-IN')}` },
-    { header: 'Invoice', accessorKey: 'rev_total_invoice', cell: info => <span style={{ fontWeight: 700 }}>₹{info.getValue().toLocaleString('en-IN')}</span> },
+    { header: 'Taxable', accessorKey: 'rev_total_taxable', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+    { header: 'GST', accessorKey: 'rev_total_gst', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+    { header: 'Invoice', accessorKey: 'rev_total_invoice', cell: info => <span style={{ fontWeight: 700 }}>₹{info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> },
   ], []);
 
   const table = useReactTable({

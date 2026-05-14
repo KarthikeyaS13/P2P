@@ -18,7 +18,7 @@ export default function InvoiceApproval() {
   const user = getUser();
   const isAccounts = user?.role === 'accounts' || user?.role === 'admin';
 
-  const [activeTab, setActiveTab] = useState('database');
+  const [activeTab, setActiveTab] = useState('pending');
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -103,6 +103,15 @@ export default function InvoiceApproval() {
       console.error('Invoice detail error:', err);
       navigate('/invoice-approval');
     }
+  };
+
+  const showFullDescription = (desc, name) => {
+    Swal.fire({
+      title: name,
+      text: desc,
+      icon: 'info',
+      confirmButtonColor: 'var(--primary)',
+    });
   };
 
   const handleDownloadPDF = async (targetInv = null) => {
@@ -310,13 +319,16 @@ export default function InvoiceApproval() {
     },
     { header: 'Customer', accessorKey: 'customer_name' },
     { header: 'Date', accessorKey: 'invoice_date', cell: ({ getValue }) => new Date(getValue()).toLocaleDateString('en-IN') },
-    { header: 'Amount', accessorKey: 'grand_total', cell: ({ getValue }) => `₹${getValue()?.toLocaleString('en-IN')}` },
+    { header: 'Amount', accessorKey: 'grand_total', cell: ({ getValue }) => `₹${getValue()?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
     {
-      header: 'Balance Due', accessorKey: 'balance', cell: ({ getValue }) => (
-        <span style={{ color: (getValue() || 0) > 0 ? '#B91C1C' : '#059669', fontWeight: 600 }}>
-          ₹{(getValue() || 0).toLocaleString('en-IN')}
-        </span>
-      )
+      header: 'Balance Due', accessorKey: 'balance', cell: ({ getValue, row }) => {
+        const bal = row.original.status === 'requested' ? row.original.grand_total : (getValue() || 0);
+        return (
+          <span style={{ color: bal > 0 ? '#B91C1C' : '#059669', fontWeight: 600 }}>
+            ₹{bal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        );
+      }
     },
     {
       header: 'Status', accessorKey: 'status', cell: ({ getValue }) => {
@@ -361,7 +373,7 @@ export default function InvoiceApproval() {
       <div className="screen-enter">
         <div className="page-header no-print">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => navigate('/invoice-approval')} className="btn-ghost btn-back" style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button onClick={() => navigate(-1)} className="btn-ghost btn-back" style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
             </button>
             <div>
@@ -439,11 +451,6 @@ export default function InvoiceApproval() {
             )}
             <div className="card shadow-lg animate-fade" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
               <div id="tax-invoice-printable" style={{ padding: '48px', background: 'white', color: '#1E293B', position: 'relative' }}>
-                {inv.status !== 'requested' && (
-                  <div style={{ position: 'absolute', top: '250px', left: '50%', transform: 'translate(-50%, -50%) rotate(-15deg)', border: '6px solid #166534', color: '#166534', padding: '16px 48px', fontSize: '64px', fontWeight: 900, textTransform: 'uppercase', opacity: 0.08, pointerEvents: 'none', letterSpacing: '8px', zIndex: 0, borderRadius: '16px' }}>
-                    APPROVED
-                  </div>
-                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px', position: 'relative', zIndex: 1 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'inline-block', padding: '6px 12px', background: '#F1F5F9', borderRadius: '4px', fontSize: '10px', fontWeight: 900, color: '#475569', letterSpacing: '0.1em', marginBottom: '16px' }}>TAX INVOICE</div>
@@ -502,6 +509,8 @@ export default function InvoiceApproval() {
                   <table style={{ width: '100%', borderCollapse: 'separate' }}>
                     <thead style={{ background: '#0F172A', color: 'white' }}>
                       <tr>
+                        <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Package</th>
+                        <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Item Name</th>
                         <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
                         <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Qty</th>
                         <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Rate</th>
@@ -511,10 +520,23 @@ export default function InvoiceApproval() {
                     <tbody>
                       {(inv.items || []).map((it, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                          <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700 }}>{it.item_name}</td>
+                          <td style={{ padding: '16px', fontSize: '13px' }}>{it.package_name || '-'}</td>
+                          <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700, color: 'var(--primary)' }}>{it.item_name}</td>
+                          <td style={{ padding: '16px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
+                            <div style={{ 
+                              fontSize: '11px', 
+                              color: '#64748B', 
+                              maxWidth: '180px', 
+                              whiteSpace: 'nowrap', 
+                              overflow: 'hidden', 
+                              textOverflow: 'ellipsis' 
+                            }}>
+                              {it.description}
+                            </div>
+                          </td>
                           <td style={{ padding: '16px', textAlign: 'right' }}>{it.quantity}</td>
-                          <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN')}</td>
-                          <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN')}</td>
+                          <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -524,10 +546,10 @@ export default function InvoiceApproval() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '64px' }}>
                   <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>{inv.notes}</div>
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{inv.subtotal?.toLocaleString('en-IN')}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{inv.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderTop: '2px dashed #E2E8F0', marginTop: '12px' }}>
                       <span style={{ fontWeight: 900 }}>Grand Total</span>
-                      <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{inv.grand_total?.toLocaleString('en-IN')}</span>
+                      <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{inv.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 </div>
@@ -555,8 +577,8 @@ export default function InvoiceApproval() {
                 {[
                   { label: 'PO Received & Logged', date: inv.po_date, desc: 'Sales order confirmed', active: true },
                   { label: 'Delivery Challan Dispatched', date: inv.dispatch_date, desc: 'Material moved from stores', active: true },
-                  { label: 'Invoice Generated & Approved', date: inv.invoice_date, desc: 'Official tax document issued', active: true },
-                  { label: 'Payment Reconciliation', date: inv.balance <= 0 ? 'Recently' : null, desc: 'Ledger zeroed', active: inv.balance <= 0 }
+                  { label: 'Invoice Generated & Approved', date: inv.status !== 'requested' ? inv.invoice_date : null, desc: 'Official tax document issued', active: inv.status !== 'requested' },
+                  { label: 'Payment Reconciliation', date: (inv.balance <= 0 && inv.status !== 'requested') ? new Date().toISOString() : null, desc: 'Ledger zeroed', active: (inv.balance <= 0 && inv.status !== 'requested') }
                 ].map((step, idx) => (
                   <div key={idx} style={{ marginBottom: '40px', position: 'relative' }}>
                     <div style={{
@@ -592,7 +614,7 @@ export default function InvoiceApproval() {
                             <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>{p.transaction_ref || 'N/A'}</div>
                             <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>{p.payment_mode}</div>
                           </td>
-                          <td style={{ padding: '16px', textAlign: 'right', fontSize: '14px', fontWeight: 900, color: '#059669' }}>₹{p.amount.toLocaleString('en-IN')}</td>
+                          <td style={{ padding: '16px', textAlign: 'right', fontSize: '14px', fontWeight: 900, color: '#059669' }}>₹{p.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -609,15 +631,19 @@ export default function InvoiceApproval() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div className="card card--padded shadow-sm" style={{ background: '#0F172A', color: 'white' }}>
                 <h4 style={{ fontWeight: 800, color: '#94A3B8', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Outstanding Balance</h4>
-                <div style={{ fontSize: '32px', fontWeight: 900, marginTop: '8px' }}>₹{inv.balance?.toLocaleString('en-IN')}</div>
+                <div style={{ fontSize: '32px', fontWeight: 900, marginTop: '8px' }}>
+                  ₹{(inv.status === 'requested' ? inv.grand_total : (inv.balance || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
                 <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
                      <span style={{ color: '#94A3B8' }}>Total Billed</span>
-                     <span style={{ fontWeight: 700 }}>₹{inv.grand_total?.toLocaleString('en-IN')}</span>
+                     <span style={{ fontWeight: 700 }}>₹{inv.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                    </div>
                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                      <span style={{ color: '#94A3B8' }}>Total Received</span>
-                     <span style={{ fontWeight: 700, color: '#4ADE80' }}>₹{(inv.grand_total - inv.balance).toLocaleString('en-IN')}</span>
+                     <span style={{ fontWeight: 700, color: '#4ADE80' }}>
+                       ₹{(inv.status === 'requested' ? 0 : Math.max(0, inv.grand_total - (inv.balance || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                     </span>
                    </div>
                 </div>
               </div>
@@ -702,8 +728,8 @@ export default function InvoiceApproval() {
         </div>
       </div>
       <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
-        <button className={`tab-link ${activeTab === 'database' ? 'active' : ''}`} onClick={() => setActiveTab('database')}>Issued Invoices <span className="badge">{invoices.filter(i => i.status !== 'requested').length}</span></button>
         <button className={`tab-link ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')}>Requests from Sales <span className="badge badge--warn">{invoices.filter(i => i.status === 'requested').length}</span></button>
+        <button className={`tab-link ${activeTab === 'database' ? 'active' : ''}`} onClick={() => setActiveTab('database')}>Issued Invoices <span className="badge">{invoices.filter(i => i.status !== 'requested').length}</span></button>
       </div>
 
       <div className="card data-table-wrapper">
@@ -784,6 +810,8 @@ export default function InvoiceApproval() {
               <table style={{ width: '100%', borderCollapse: 'separate' }}>
                 <thead style={{ background: '#0F172A', color: 'white' }}>
                   <tr>
+                    <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Package</th>
+                    <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Item Name</th>
                     <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
                     <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Qty</th>
                     <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Rate</th>
@@ -793,10 +821,23 @@ export default function InvoiceApproval() {
                 <tbody>
                   {(hiddenInvoice.items || []).map((it, idx) => (
                     <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '16px', fontSize: '13px' }}>{it.package_name || '-'}</td>
                       <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700 }}>{it.item_name}</td>
+                      <td style={{ padding: '16px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
+                        <div style={{ 
+                          fontSize: '11px', 
+                          color: '#64748B', 
+                          maxWidth: '180px', 
+                          whiteSpace: 'nowrap', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis' 
+                        }}>
+                          {it.description}
+                        </div>
+                      </td>
                       <td style={{ padding: '16px', textAlign: 'right' }}>{it.quantity}</td>
-                      <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -806,111 +847,10 @@ export default function InvoiceApproval() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '64px' }}>
               <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>{hiddenInvoice.notes}</div>
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{hiddenInvoice.subtotal?.toLocaleString('en-IN')}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{hiddenInvoice.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderTop: '2px dashed #E2E8F0', marginTop: '12px' }}>
                   <span style={{ fontWeight: 900 }}>Grand Total</span>
-                  <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{hiddenInvoice.grand_total?.toLocaleString('en-IN')}</span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: '80px', textAlign: 'right' }}>
-              <div style={{ height: '60px', width: '200px', borderBottom: '2px solid #0F172A', marginLeft: 'auto', marginBottom: '8px' }}>
-                {hiddenInvoice.signature_data && <img src={hiddenInvoice.signature_data} style={{ width: '150px' }} />}
-              </div>
-              <div style={{ fontWeight: 900 }}>Authorised Signatory</div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Hidden container for silent PDF generation */}
-      {hiddenInvoice && (
-        <div style={{ position: 'fixed', left: '-9999px', top: '-9999px', width: '210mm', zIndex: -100 }}>
-          <div id="silent-invoice-printable" style={{ padding: '48px', background: 'white', color: '#1E293B' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'inline-block', padding: '6px 12px', background: '#F1F5F9', borderRadius: '4px', fontSize: '10px', fontWeight: 900, color: '#475569', letterSpacing: '0.1em', marginBottom: '16px' }}>TAX INVOICE</div>
-                <h2 style={{ fontSize: '42px', fontWeight: 900, margin: 0, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1 }}>{hiddenInvoice.invoice_number}</h2>
-                <div style={{ display: 'flex', gap: '24px', marginTop: '20px' }}>
-                  <div>
-                    <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Date of Issue</div>
-                    <div style={{ fontSize: '15px', fontWeight: 700 }}>{new Date(hiddenInvoice.invoice_date).toLocaleDateString('en-IN')}</div>
-                  </div>
-                  <div style={{ width: '1px', background: '#E2E8F0' }}></div>
-                  <div>
-                    <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Payment Due</div>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#DC2626' }}>{hiddenInvoice.due_date ? new Date(hiddenInvoice.due_date).toLocaleDateString('en-IN') : '-'}</div>
-                  </div>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right', maxWidth: '280px' }}>
-                <img src="/logo.png" alt="Sudha Analyticals" style={{ height: '60px', marginBottom: '8px' }} />
-                <div style={{ fontSize: '20px', fontWeight: 900, color: '#0F172A', lineHeight: 1.1 }}>SUDHA ANALYTICALS</div>
-                <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.6', marginTop: '12px' }}>
-                  Plot 18A, Sy No 118, Madhapur<br />Hyderabad, Telangana 500037<br />
-                  <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 8px', background: '#F8FAFC', borderRadius: '4px', border: '1px solid #E2E8F0', fontWeight: 700, color: '#1E293B' }}>GSTIN: 36AGTPG0351P1ZY</span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: '#E2E8F0', border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden', marginBottom: '40px' }}>
-              <div style={{ background: '#F8FAFC', padding: '16px' }}>
-                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Purchase Order</div>
-                <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenInvoice.po_no}</div>
-                <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenInvoice.po_date).toLocaleDateString('en-IN')}</div>
-              </div>
-              <div style={{ background: '#F8FAFC', padding: '16px' }}>
-                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Delivery Challan</div>
-                <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenInvoice.dc_no}</div>
-                <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenInvoice.dispatch_date).toLocaleDateString('en-IN')}</div>
-              </div>
-              <div style={{ background: '#F8FAFC', padding: '16px' }}>
-                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Place of Supply</div>
-                <div style={{ fontSize: '16px', fontWeight: 700 }}>{hiddenInvoice.place_of_supply || 'Telangana'}</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '64px', marginBottom: '48px' }}>
-              <div>
-                <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', borderBottom: '2px solid #F1F5F9', paddingBottom: '6px' }}>Billed To</h4>
-                <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155', whiteSpace: 'pre-wrap' }}>{hiddenInvoice.billing_address}</div>
-              </div>
-              <div>
-                <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', borderBottom: '2px solid #F1F5F9', paddingBottom: '6px' }}>Shipped To</h4>
-                <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155', whiteSpace: 'pre-wrap' }}>{hiddenInvoice.shipping_address}</div>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '40px' }}>
-              <table style={{ width: '100%', borderCollapse: 'separate' }}>
-                <thead style={{ background: '#0F172A', color: 'white' }}>
-                  <tr>
-                    <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
-                    <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Qty</th>
-                    <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Rate</th>
-                    <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(hiddenInvoice.items || []).map((it, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700 }}>{it.item_name}</td>
-                      <td style={{ padding: '16px', textAlign: 'right' }}>{it.quantity}</td>
-                      <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '64px' }}>
-              <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>{hiddenInvoice.notes}</div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{hiddenInvoice.subtotal?.toLocaleString('en-IN')}</span></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderTop: '2px dashed #E2E8F0', marginTop: '12px' }}>
-                  <span style={{ fontWeight: 900 }}>Grand Total</span>
-                  <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{hiddenInvoice.grand_total?.toLocaleString('en-IN')}</span>
+                  <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{hiddenInvoice.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>

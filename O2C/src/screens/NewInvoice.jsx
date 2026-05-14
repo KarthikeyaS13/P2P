@@ -23,7 +23,6 @@ export default function NewInvoice() {
 
   // Enterprise Fields
   const [placeOfSupply, setPlaceOfSupply] = useState('Hyderabad');
-  const [paymentTerms, setPaymentTerms] = useState('Net 30 Days');
   const [billingAddress, setBillingAddress] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
 
@@ -103,7 +102,10 @@ export default function NewInvoice() {
 
         return {
           ...di,
+          dc_line_item_id: di.id,
+          package_name: pi.package || di.package_name || '-',
           item_name: pi.item_name || di.item_name || 'Item',
+          description: pi.item_description || di.description || '',
           quantity: remaining, // Qty being invoiced NOW
           delivered_qty: delivered,
           already_invoiced_qty: alreadyInvoiced,
@@ -162,7 +164,7 @@ export default function NewInvoice() {
         due_date: dueDate,
         notes,
         place_of_supply: placeOfSupply,
-        payment_terms: paymentTerms,
+        payment_terms: 'Net 30 Days',
         billing_address: billingAddress,
         shipping_address: shippingAddress,
         subtotal: dcDetails.enrichedItems.reduce((acc, it) => acc + it.taxable_value, 0),
@@ -176,7 +178,7 @@ export default function NewInvoice() {
       const res = await axios.post('http://localhost:5000/api/invoices', payload, { headers });
 
       const result = res.data;
-      
+
       Swal.fire({ icon: 'success', title: 'Invoice Request Created', text: `Invoice Request ${result.invoice_number} created successfully!`, timer: 2000, showConfirmButton: false });
       const targetPath = isAccounts ? `/invoice-approval/${result.id}` : `/invoice-request/${result.id}`;
       navigate(targetPath);
@@ -185,6 +187,18 @@ export default function NewInvoice() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const showFullDescription = (desc, name) => {
+    Swal.fire({
+      title: name,
+      text: desc,
+      icon: 'info',
+      confirmButtonColor: 'var(--primary)',
+      customClass: {
+        container: 'swal-wide'
+      }
+    });
   };
 
   if (loading) return <div className="screen-enter"><p>Loading...</p></div>;
@@ -216,8 +230,8 @@ export default function NewInvoice() {
               {isAccounts ? 'Issue Official Invoice' : 'Invoice Request'}
             </h1>
             <p className="page-header__subtitle">
-              {filterPO ? `Filtering for PO: ${filterPO}` : (isAccounts 
-                ? 'Finalize billing and generate official tax document' 
+              {filterPO ? `Filtering for PO: ${filterPO}` : (isAccounts
+                ? 'Finalize billing and generate official tax document'
                 : 'Raise a billing request for Accounts department approval')}
             </p>
           </div>
@@ -270,10 +284,6 @@ export default function NewInvoice() {
                 <span className="material-symbols-outlined calendar-icon">calendar_today</span>
               </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Payment Terms</label>
-              <input className="form-input" value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)} />
-            </div>
           </div>
 
           {dcDetails && (
@@ -298,9 +308,13 @@ export default function NewInvoice() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Item Description</th>
+                        <th style={{ textAlign: 'left' }}>Package</th>
+                        <th style={{ textAlign: 'left' }}>Item Name</th>
+                        <th style={{ textAlign: 'left' }}>Description</th>
                         <th className="text-right">Delivered Qty</th>
-                        <th className="text-right">Unit </th>
+                        <th className="text-right">Invoiced Qty</th>
+                        <th className="text-right">Billable Qty</th>
+                        <th className="text-right" style={{ width: '120px' }}>Invoice Qty</th>
                         <th className="text-right">Rate</th>
                         <th className="text-right">GST %</th>
                         <th className="text-right">Taxable</th>
@@ -309,16 +323,38 @@ export default function NewInvoice() {
                     </thead>
                     <tbody>
                       {dcDetails.enrichedItems.map((it, i) => (
-                        <tr key={i}>
+                        <tr key={i} style={{ opacity: it.remaining_qty === 0 ? 0.6 : 1 }}>
                           <td>
-                            <div style={{ fontWeight: 600 }}>{it.item_name}</div>
-                            <div style={{ fontSize: '11px', color: '#6B7280' }}>HSN: {it.hsn || '-'}</div>
+                            <div style={{ fontWeight: 600, color: '#475569' }}>{it.package_name}</div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700, color: 'var(--primary)' }}>{it.item_name}</div>
+                            <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>HSN: {it.hsn || '-'}</div>
+                          </td>
+                          <td style={{ cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
+                            <div style={{ 
+                              fontSize: '11px', 
+                              color: '#64748B', 
+                              maxWidth: '180px', 
+                              whiteSpace: 'nowrap', 
+                              overflow: 'hidden', 
+                              textOverflow: 'ellipsis' 
+                            }}>
+                              {it.description}
+                            </div>
                           </td>
                           <td className="text-right">
-                            <div style={{ fontWeight: 700 }}>{it.delivered_qty} {it.uom}</div>
-                            <div style={{ fontSize: '11px', color: '#64748B' }}>Invoiced: {it.already_invoiced_qty}</div>
+                            <div style={{ fontWeight: 700 }}>{it.delivered_qty} {it.uom || ''}</div>
                           </td>
-                          <td className="text-right" style={{ width: '120px' }}>
+                          <td className="text-right">
+                            <div style={{ fontWeight: 700, color: '#3b82f6' }}>{it.already_invoiced_qty} {it.uom || ''}</div>
+                          </td>
+                          <td className="text-right">
+                            <div style={{ fontWeight: 700, color: it.remaining_qty === 0 ? 'var(--green)' : '#ef4444' }}>
+                              {it.remaining_qty === 0 ? 'Fully Billed' : `${it.remaining_qty} ${it.uom || ''}`}
+                            </div>
+                          </td>
+                          <td className="text-right">
                             <input
                               type="number"
                               className="form-input text-right"
@@ -326,13 +362,11 @@ export default function NewInvoice() {
                               value={it.quantity}
                               max={it.remaining_qty}
                               min={0}
+                              disabled={it.remaining_qty === 0}
                               onChange={(e) => handleQtyChange(i, e.target.value)}
                             />
-                            <div style={{ fontSize: '10px', color: it.remaining_qty - it.quantity <= 0 ? 'var(--green)' : 'var(--primary)', fontWeight: 700, marginTop: '4px' }}>
-                              {it.remaining_qty - it.quantity <= 0 ? 'Fully Billed' : `Rem: ${it.remaining_qty - it.quantity}`}
-                            </div>
                           </td>
-                          <td className="text-right">₹{it.rate_per_unit.toLocaleString('en-IN')}</td>
+                          <td className="text-right">₹{it.rate_per_unit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                           <td className="text-right">{it.gst_percent}%</td>
                           <td className="text-right">₹{it.taxable_value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                           <td className="text-right font-medium">₹{it.total_value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
@@ -368,9 +402,9 @@ export default function NewInvoice() {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
             <button type="button" className="btn btn-outline" onClick={() => navigate(-1)}>Discard</button>
-            <button type="submit" className="btn btn-primary" disabled={submitting || !dcDetails}>
-              {submitting 
-                ? (isAccounts ? 'Generating...' : 'Sending Request...') 
+            <button type="submit" className="btn btn-primary" disabled={submitting || !dcDetails || subtotal === 0}>
+              {submitting
+                ? (isAccounts ? 'Generating...' : 'Sending Request...')
                 : (isAccounts ? 'Issue & Generate Official Invoice' : 'Send Invoice Request to Accounts')}
             </button>
           </div>
