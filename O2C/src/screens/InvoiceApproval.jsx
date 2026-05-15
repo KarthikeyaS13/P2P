@@ -309,6 +309,28 @@ export default function InvoiceApproval() {
     }
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const signatureData = event.target.result;
+      try {
+        const token = sessionStorage.getItem('token');
+        await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/signature`,
+          { signature_data: signatureData },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setSelectedInvoice({ ...selectedInvoice, signature_data: signatureData });
+        setShowSignatureModal(false);
+        Swal.fire({ icon: 'success', title: 'Signature Uploaded', text: 'Signature uploaded and applied!', timer: 2000, showConfirmButton: false });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Error', text: "Failed to upload signature" });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const invoiceColumns = useMemo(() => [
     {
       header: 'Invoice No', accessorKey: 'invoice_number', cell: ({ getValue, row }) => (
@@ -707,7 +729,28 @@ export default function InvoiceApproval() {
               <canvas ref={canvasRef} width={436} height={180} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} style={{ display: 'block' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-              <button type="button" className="btn btn-outline" onClick={clearSignature}>Clear Canvas</button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="btn btn-outline" onClick={clearSignature} style={{ fontSize: '12px' }}>Clear</button>
+                <label style={{ 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '6px', 
+                  color: '#6366F1', 
+                  fontSize: '11px', 
+                  fontWeight: 700,
+                  background: '#F1F5F9',
+                  padding: '0 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #E2E8F0',
+                  height: '36px'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload</span>
+                  UPLOAD
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
+                </label>
+              </div>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setShowSignatureModal(false)}>Cancel</button>
                 <button type="button" className="btn btn-primary" onClick={saveSignature}>Save & Apply</button>

@@ -1191,9 +1191,9 @@ app.post('/api/invoices', authenticate, (req, res) => {
     // Backend validation: Check if requested_qty > remaining_qty
     for (const it of validItems) {
       if (it.dc_line_item_id) {
-         const dcItem = db.prepare('SELECT quantity_dispatched, invoiced_qty FROM dc_line_items WHERE id = ?').get(it.dc_line_item_id);
+         const dcItem = db.prepare('SELECT quantity_dispatched, received_qty, invoiced_qty FROM dc_line_items WHERE id = ?').get(it.dc_line_item_id);
          if (dcItem) {
-           const delivered = parseFloat(dcItem.quantity_dispatched) || 0;
+           const delivered = parseFloat(dcItem.received_qty ?? dcItem.quantity_dispatched) || 0;
            const invoiced = parseFloat(dcItem.invoiced_qty) || 0;
            const remaining = Math.max(0, delivered - invoiced);
            if (it.quantity > remaining) {
@@ -1252,8 +1252,8 @@ app.post('/api/invoices', authenticate, (req, res) => {
 
     // Check DC Invoicing Status
     if (dc_id) {
-      const dcItems = db.prepare('SELECT quantity_dispatched, invoiced_qty FROM dc_line_items WHERE dc_id = ?').all(dc_id);
-      const isFullyInvoiced = dcItems.every(item => (parseFloat(item.invoiced_qty) || 0) >= (parseFloat(item.quantity_dispatched) || 0));
+      const dcItems = db.prepare('SELECT quantity_dispatched, received_qty, invoiced_qty FROM dc_line_items WHERE dc_id = ?').all(dc_id);
+      const isFullyInvoiced = dcItems.every(item => (parseFloat(item.invoiced_qty) || 0) >= (parseFloat(item.received_qty ?? item.quantity_dispatched) || 0));
       const isPartiallyInvoiced = dcItems.some(item => (parseFloat(item.invoiced_qty) || 0) > 0);
       
       let invStatus = 'pending';

@@ -291,6 +291,16 @@ export default function RaiseDC() {
     }, 0);
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setSignatureImage(event.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleRaiseDC = () => {
     if (!details) return;
     setShowPreview(true);
@@ -1011,10 +1021,30 @@ export default function RaiseDC() {
                           <button
                             className="btn btn-primary"
                             onClick={handleInsertSignature}
-                            style={{ width: '100%', height: '24px', fontSize: '12px', background: '#2563EB' }}
+                            style={{ width: '100%', height: '24px', fontSize: '12px', background: '#2563EB', marginBottom: '8px' }}
                           >
                             Insert Signature
                           </button>
+                          <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '8px' }}>
+                            <label style={{ 
+                              cursor: 'pointer', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              gap: '6px', 
+                              color: '#6366F1', 
+                              fontSize: '11px', 
+                              fontWeight: 700,
+                              background: '#F1F5F9',
+                              padding: '4px 0',
+                              borderRadius: '4px',
+                              border: '1px solid #E2E8F0'
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>upload</span>
+                              UPLOAD FROM SYSTEM
+                              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
+                            </label>
+                          </div>
                         </div>
                       ) : (
                         <div style={{ marginBottom: '10px', position: 'relative' }}>

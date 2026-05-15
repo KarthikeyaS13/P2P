@@ -91,7 +91,7 @@ export default function NewInvoice() {
         const rate = pi.supply_rate || 0;
         const gstPct = pi.supply_gst_rate || 18;
 
-        const delivered = parseFloat(di.quantity_dispatched) || 0;
+        const delivered = parseFloat(di.received_qty ?? di.quantity_dispatched) || 0;
         const alreadyInvoiced = parseFloat(di.invoiced_qty) || 0;
         const remaining = Math.max(0, delivered - alreadyInvoiced);
 
@@ -302,7 +302,7 @@ export default function NewInvoice() {
               <div style={{ marginTop: '24px' }}>
                 <h3 className="text-h3" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>inventory_2</span>
-                  Billable Items (Based on Delivered Qty)
+                  Billable Items (Based on Site-Received Qty)
                 </h3>
                 <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
                   <table className="data-table">
@@ -311,7 +311,7 @@ export default function NewInvoice() {
                         <th style={{ textAlign: 'left' }}>Package</th>
                         <th style={{ textAlign: 'left' }}>Item Name</th>
                         <th style={{ textAlign: 'left' }}>Description</th>
-                        <th className="text-right">Delivered Qty</th>
+                        <th className="text-right">Received Qty</th>
                         <th className="text-right">Invoiced Qty</th>
                         <th className="text-right">Billable Qty</th>
                         <th className="text-right" style={{ width: '120px' }}>Invoice Qty</th>
