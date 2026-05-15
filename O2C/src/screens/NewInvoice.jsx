@@ -103,7 +103,7 @@ export default function NewInvoice() {
         return {
           ...di,
           dc_line_item_id: di.id,
-          package_name: pi.package || di.package_name || '-',
+          package_name: pi.package_name || di.package_name || '-',
           item_name: pi.item_name || di.item_name || 'Item',
           description: pi.item_description || di.description || '',
           quantity: remaining, // Qty being invoiced NOW
@@ -311,13 +311,14 @@ export default function NewInvoice() {
                         <th style={{ textAlign: 'left' }}>Package</th>
                         <th style={{ textAlign: 'left' }}>Item Name</th>
                         <th style={{ textAlign: 'left' }}>Description</th>
-                        <th className="text-right">Received Qty</th>
-                        <th className="text-right">Invoiced Qty</th>
-                        <th className="text-right">Billable Qty</th>
-                        <th className="text-right" style={{ width: '120px' }}>Invoice Qty</th>
+                        <th className="text-right">Received</th>
+                        <th className="text-right">Invoiced</th>
+                        <th className="text-right">Billable</th>
+                        <th className="text-right" style={{ width: '100px' }}>Invoice Qty</th>
                         <th className="text-right">Rate</th>
-                        <th className="text-right">GST %</th>
+                        <th className="text-right">GST Rate</th>
                         <th className="text-right">Taxable</th>
+                        <th className="text-right">GST Amt</th>
                         <th className="text-right">Total</th>
                       </tr>
                     </thead>
@@ -344,14 +345,14 @@ export default function NewInvoice() {
                             </div>
                           </td>
                           <td className="text-right">
-                            <div style={{ fontWeight: 700 }}>{it.delivered_qty} {it.uom || ''}</div>
+                            <div style={{ fontWeight: 700 }}>{it.delivered_qty}</div>
                           </td>
                           <td className="text-right">
-                            <div style={{ fontWeight: 700, color: '#3b82f6' }}>{it.already_invoiced_qty} {it.uom || ''}</div>
+                            <div style={{ fontWeight: 700, color: '#3b82f6' }}>{it.already_invoiced_qty}</div>
                           </td>
                           <td className="text-right">
                             <div style={{ fontWeight: 700, color: it.remaining_qty === 0 ? 'var(--green)' : '#ef4444' }}>
-                              {it.remaining_qty === 0 ? 'Fully Billed' : `${it.remaining_qty} ${it.uom || ''}`}
+                              {it.remaining_qty === 0 ? '0' : it.remaining_qty}
                             </div>
                           </td>
                           <td className="text-right">
@@ -368,8 +369,9 @@ export default function NewInvoice() {
                           </td>
                           <td className="text-right">₹{it.rate_per_unit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                           <td className="text-right">{it.gst_percent}%</td>
-                          <td className="text-right">₹{it.taxable_value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                          <td className="text-right font-medium">₹{it.total_value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td className="text-right">₹{it.taxable_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="text-right">₹{it.gst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="text-right font-medium" style={{ color: 'var(--primary)', fontWeight: 800 }}>₹{it.total_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -379,16 +381,16 @@ export default function NewInvoice() {
                 <div className="summary-card">
                   <h4 style={{ fontSize: '0.857rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.7)', marginBottom: '12px' }}>Invoice Financial Summary</h4>
                   <div className="summary-card__row">
-                    <span>Subtotal (Taxable Value)</span>
-                    <span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span>Subtotal</span>
+                    <span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="summary-card__row">
                     <span>GST Total</span>
-                    <span>₹{gstTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span>₹{gstTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="summary-card__row" style={{ borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '12px', marginTop: '4px' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Grand Total</span>
-                    <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Estimated Grand Total</span>
+                    <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>

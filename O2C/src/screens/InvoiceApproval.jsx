@@ -11,6 +11,7 @@ import {
   getFilteredRowModel,
   flexRender,
 } from '@tanstack/react-table';
+import AuditTrailModal from '../components/AuditTrailModal';
 
 export default function InvoiceApproval() {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ export default function InvoiceApproval() {
   const [draftNotes, setDraftNotes] = useState('');
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showAuditModal, setShowAuditModal] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
     payment_date: new Date().toISOString().split('T')[0],
@@ -91,7 +93,7 @@ export default function InvoiceApproval() {
       if (res.data.verification_state) {
         try {
           setVerificationState(JSON.parse(res.data.verification_state));
-        } catch(e) {}
+        } catch (e) { }
       } else {
         setVerificationState({
           gstin: false, address: false, dc: false, po: false,
@@ -118,7 +120,7 @@ export default function InvoiceApproval() {
     const inv = targetInv || selectedInvoice;
     const elementId = targetInv ? 'silent-invoice-printable' : 'tax-invoice-printable';
     const element = document.getElementById(elementId);
-    
+
     if (!element) return;
     try {
       const { default: html2canvas } = await import('html2canvas');
@@ -142,7 +144,7 @@ export default function InvoiceApproval() {
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`http://localhost:5000/api/invoices/${invId}`, { headers });
       setHiddenInvoice(res.data);
-      
+
       // Wait for DOM to render the hidden div
       setTimeout(async () => {
         await handleDownloadPDF(res.data);
@@ -162,7 +164,7 @@ export default function InvoiceApproval() {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/payment`, paymentForm, { headers });
-      
+
       // Reset form fields after successful post
       setPaymentForm({
         amount: '',
@@ -170,7 +172,7 @@ export default function InvoiceApproval() {
         payment_mode: 'NEFT',
         transaction_ref: ''
       });
-      
+
       setShowPaymentModal(false);
       fetchInvoiceDetails(selectedInvoice.id);
       fetchData();
@@ -359,15 +361,26 @@ export default function InvoiceApproval() {
       }
     },
     {
-      header: () => <div style={{ textAlign: 'center' }}>Actions</div>, id: 'actions', cell: ({ row }) => (
+      header: () => <div style={{ textAlign: 'center' }}>{activeTab === 'database' ? 'Update Receipt' : 'Actions'}</div>, 
+      id: 'actions', 
+      cell: ({ row }) => (
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <button className="btn-ghost btn-sm" onClick={() => navigate(`/invoice-approval/${row.original.id}`)} title="View Preview" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
+          <button 
+            className="btn-ghost btn-sm" 
+            onClick={() => navigate(`/invoice-approval/${row.original.id}`)} 
+            title={activeTab === 'database' ? 'Update Receipt' : 'View Preview'} 
+            style={activeTab === 'database' ? { width: 'auto', padding: '0 8px' } : { width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+          >
+            {activeTab === 'database' ? (
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Update Receipt</span>
+            ) : (
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
+            )}
           </button>
         </div>
       )
     }
-  ], [navigate]);
+  ], [navigate, activeTab]);
 
   const tableData = useMemo(() => {
     if (activeTab === 'database') {
@@ -404,11 +417,29 @@ export default function InvoiceApproval() {
               </h1>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <p className="page-header__subtitle" style={{ margin: 0 }}>{inv.invoice_number} • {inv.customer_name}</p>
-                {inv.status !== 'requested' && <span className="status-pill" style={{ background: '#DCFCE7', color: '#166534', fontSize: '10px' }}>GENERATED</span>}
+                {inv.status !== 'requested' && <span className="status-pill" style={{ background: '#DCFCE7', color: '#166534', fontSize: '10px' }}>APPROVED & LOCKED</span>}
+                {inv.signature_hash && (
+                  <span className="status-pill" style={{
+                    background: inv.is_tampered ? '#FEE2E2' : '#F0F9FF',
+                    color: inv.is_tampered ? '#991B1B' : '#0EA5E9',
+                    fontSize: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                      {inv.is_tampered ? 'warning' : 'verified_user'}
+                    </span>
+                    {inv.is_tampered ? 'INTEGRITY COMPROMISED' : 'INTEGRITY VERIFIED'}
+                  </span>
+                )}
               </div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="btn btn-outline no-print" onClick={() => setShowAuditModal(true)}>
+              <span className="material-symbols-outlined">history</span> View Audit Trail
+            </button>
             {inv.status !== 'requested' && (
               <button className="btn btn-outline no-print" onClick={() => handleDownloadPDF()}>
                 <span className="material-symbols-outlined">download</span> Download PDF
@@ -417,7 +448,7 @@ export default function InvoiceApproval() {
             {inv.status !== 'requested' && (
               <>
                 <button className="btn btn-outline no-print" onClick={() => setDetailsTab('timeline')}>
-                  <span className="material-symbols-outlined">payments</span> Record Payment
+                  <span className="material-symbols-outlined">payments</span> Record Receipt
                 </button>
                 {!selectedInvoice.signature_data ? (
                   <button className="btn btn-primary no-print" onClick={() => setShowSignatureModal(true)}>
@@ -443,32 +474,32 @@ export default function InvoiceApproval() {
         </div>
 
         {detailsTab === 'preview' ? (
-          <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {inv.status === 'requested' && (
               <div className="card shadow-sm animate-fade" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
-                 <button 
-                   className="btn" 
-                   onClick={handleApprove} 
-                   style={{ 
-                     background: '#10B981', 
-                     color: 'white',
-                     border: 'none',
-                     fontWeight: 800,
-                     display: 'flex',
-                     alignItems: 'center',
-                     gap: '8px',
-                     padding: '12px 24px',
-                     borderRadius: '8px',
-                     transition: 'all 0.2s',
-                     fontSize: '14px'
-                   }} 
-                 >
-                   <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>verified</span> 
-                   Approve & Generate Invoice
-                 </button>
-                 <button className="btn btn-outline" style={{ borderColor: '#EF4444', color: '#EF4444', fontWeight: 700 }} onClick={handleReject}>
-                   <span className="material-symbols-outlined" style={{ marginRight: '8px' }}>cancel</span> Reject Request
-                 </button>
+                <button
+                  className="btn"
+                  onClick={handleApprove}
+                  style={{
+                    background: '#10B981',
+                    color: 'white',
+                    border: 'none',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    transition: 'all 0.2s',
+                    fontSize: '14px'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>verified</span>
+                  Approve & Generate Invoice
+                </button>
+                <button className="btn btn-outline" style={{ borderColor: '#EF4444', color: '#EF4444', fontWeight: 700 }} onClick={handleReject}>
+                  <span className="material-symbols-outlined" style={{ marginRight: '8px' }}>cancel</span> Reject Request
+                </button>
               </div>
             )}
             <div className="card shadow-lg animate-fade" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
@@ -531,34 +562,40 @@ export default function InvoiceApproval() {
                   <table style={{ width: '100%', borderCollapse: 'separate' }}>
                     <thead style={{ background: '#0F172A', color: 'white' }}>
                       <tr>
-                        <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Package</th>
-                        <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Item Name</th>
-                        <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
-                        <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Qty</th>
-                        <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Rate</th>
-                        <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Total</th>
+                        <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: '10px', textTransform: 'uppercase' }}>Package</th>
+                        <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: '10px', textTransform: 'uppercase' }}>Item Name</th>
+                        <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
+                        <th style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px' }}>Qty</th>
+                        <th style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px' }}>Rate</th>
+                        <th style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px' }}>Taxable Value</th>
+                        <th style={{ textAlign: 'center', padding: '10px 14px', fontSize: '10px' }}>GST Rate</th>
+                        <th style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px' }}>GST Amount</th>
+                        <th style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px' }}>TOTAL</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(inv.items || []).map((it, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                          <td style={{ padding: '16px', fontSize: '13px' }}>{it.package_name || '-'}</td>
-                          <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700, color: 'var(--primary)' }}>{it.item_name}</td>
-                          <td style={{ padding: '16px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
-                            <div style={{ 
-                              fontSize: '11px', 
-                              color: '#64748B', 
-                              maxWidth: '180px', 
-                              whiteSpace: 'nowrap', 
-                              overflow: 'hidden', 
-                              textOverflow: 'ellipsis' 
+                          <td style={{ padding: '10px 16px', fontSize: '13px' }}>{it.package_name || '-'}</td>
+                          <td style={{ padding: '10px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--primary)' }}>{it.item_name}</td>
+                          <td style={{ padding: '10px 16px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
+                            <div style={{
+                              fontSize: '11px',
+                              color: '#64748B',
+                              maxWidth: '140px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
                             }}>
                               {it.description}
                             </div>
                           </td>
-                          <td style={{ padding: '16px', textAlign: 'right' }}>{it.quantity}</td>
-                          <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                          <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>{it.quantity}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>₹{it.taxable_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'center' }}>{it.gst_percent}%</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>₹{it.gst_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 800, color: 'var(--primary)' }}>₹{it.total_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -568,10 +605,17 @@ export default function InvoiceApproval() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '64px' }}>
                   <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>{inv.notes}</div>
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}><span>Subtotal</span><span>₹{inv.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: '14px' }}>
+                      <span style={{ color: '#64748B' }}>Subtotal</span>
+                      <span style={{ fontWeight: 700 }}>₹{inv.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: '14px' }}>
+                      <span style={{ color: '#64748B' }}>GST Total</span>
+                      <span style={{ fontWeight: 700 }}>₹{inv.gst_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderTop: '2px dashed #E2E8F0', marginTop: '12px' }}>
-                      <span style={{ fontWeight: 900 }}>Grand Total</span>
-                      <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '20px' }}>₹{inv.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span style={{ fontWeight: 900, fontSize: '15px' }}>TOTAL (Incl. GST)</span>
+                      <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '24px' }}>₹{inv.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 </div>
@@ -582,6 +626,32 @@ export default function InvoiceApproval() {
                   </div>
                   <div style={{ fontWeight: 900 }}>Authorised Signatory</div>
                 </div>
+
+                {inv.signature_hash && (
+                  <div style={{
+                    marginTop: '40px',
+                    paddingTop: '20px',
+                    borderTop: '1px solid #E2E8F0',
+                    fontSize: '9px',
+                    color: '#64748B',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontFamily: 'monospace'
+                  }}>
+                    <div>
+                      <strong>DIGITALLY VERIFIED INVOICE</strong><br />
+                      {/* HASH: {inv.signature_hash}<br /> */}
+                      APPROVED BY: {inv.signed_by || 'Accounts'}<br />
+                      APPROVED AT: {inv.signed_at ? new Date(inv.signed_at).toLocaleString('en-IN') : '-'}
+                    </div>
+                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                      <span>SECURE SYSTEM ID: {inv.id}</span>
+                      <span style={{ fontWeight: 700, color: inv.is_tampered ? '#EF4444' : '#10B981' }}>
+                        STATUS: {inv.is_tampered ? 'COMPROMISED' : 'VERIFIED'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -592,7 +662,7 @@ export default function InvoiceApproval() {
                 <h3 className="text-h3" style={{ margin: 0 }}>O2C Lifecycle Timeline</h3>
                 <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 700 }}>REF: {inv.invoice_number}</span>
               </div>
-              
+
               <div style={{ position: 'relative', paddingLeft: '32px' }}>
                 <div style={{ position: 'absolute', left: '11px', top: '10px', bottom: '10px', width: '2px', background: '#F1F5F9' }}></div>
 
@@ -657,16 +727,16 @@ export default function InvoiceApproval() {
                   ₹{(inv.status === 'requested' ? inv.grand_total : (inv.balance || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
-                     <span style={{ color: '#94A3B8' }}>Total Billed</span>
-                     <span style={{ fontWeight: 700 }}>₹{inv.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                   </div>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                     <span style={{ color: '#94A3B8' }}>Total Received</span>
-                     <span style={{ fontWeight: 700, color: '#4ADE80' }}>
-                       ₹{(inv.status === 'requested' ? 0 : Math.max(0, inv.grand_total - (inv.balance || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                     </span>
-                   </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                    <span style={{ color: '#94A3B8' }}>Total Billed</span>
+                    <span style={{ fontWeight: 700 }}>₹{inv.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <span style={{ color: '#94A3B8' }}>Total Received</span>
+                    <span style={{ fontWeight: 700, color: '#4ADE80' }}>
+                      ₹{(inv.status === 'requested' ? 0 : Math.max(0, inv.grand_total - (inv.balance || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -731,14 +801,14 @@ export default function InvoiceApproval() {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" className="btn btn-outline" onClick={clearSignature} style={{ fontSize: '12px' }}>Clear</button>
-                <label style={{ 
-                  cursor: 'pointer', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  gap: '6px', 
-                  color: '#6366F1', 
-                  fontSize: '11px', 
+                <label style={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  color: '#6366F1',
+                  fontSize: '11px',
                   fontWeight: 700,
                   background: '#F1F5F9',
                   padding: '0 12px',
@@ -758,6 +828,13 @@ export default function InvoiceApproval() {
             </div>
           </div></div>
         )}
+        <AuditTrailModal
+          isOpen={showAuditModal}
+          onClose={() => setShowAuditModal(false)}
+          moduleName="Invoice"
+          referenceId={selectedInvoice?.id}
+          isTampered={selectedInvoice?.is_tampered}
+        />
       </div>
     );
   }
@@ -867,13 +944,13 @@ export default function InvoiceApproval() {
                       <td style={{ padding: '16px', fontSize: '13px' }}>{it.package_name || '-'}</td>
                       <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700 }}>{it.item_name}</td>
                       <td style={{ padding: '16px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
-                        <div style={{ 
-                          fontSize: '11px', 
-                          color: '#64748B', 
-                          maxWidth: '180px', 
-                          whiteSpace: 'nowrap', 
-                          overflow: 'hidden', 
-                          textOverflow: 'ellipsis' 
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#64748B',
+                          maxWidth: '180px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
                         }}>
                           {it.description}
                         </div>
@@ -904,6 +981,20 @@ export default function InvoiceApproval() {
               </div>
               <div style={{ fontWeight: 900 }}>Authorised Signatory</div>
             </div>
+
+            {hiddenInvoice.signature_hash && (
+              <div style={{
+                marginTop: '40px',
+                paddingTop: '20px',
+                borderTop: '1px solid #E2E8F0',
+                fontSize: '9px',
+                color: '#64748B',
+                fontFamily: 'monospace'
+              }}>
+                <strong>DIGITALLY VERIFIED INVOICE</strong><br />
+                HASH: {hiddenInvoice.signature_hash} | APPROVED BY: {hiddenInvoice.signed_by} | AT: {new Date(hiddenInvoice.signed_at).toLocaleString('en-IN')}
+              </div>
+            )}
           </div>
         </div>
       )}

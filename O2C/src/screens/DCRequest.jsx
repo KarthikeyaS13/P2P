@@ -283,8 +283,11 @@ export default function DCRequest() {
 
   const fmt = (v) => '₹' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  const totalItemsAvailable = items.length;
+  const totalRequestQty = items.reduce((sum, it) => sum + (Number(it.requestQty) || 0), 0);
+
   return (
-    <div className="screen-enter">
+    <div className="screen-enter" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button
@@ -313,7 +316,7 @@ export default function DCRequest() {
       <div className="card card--padded animate-fade" style={{ background: 'white', marginBottom: '24px', border: '1px solid #E5E7EB' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '20px' }}>
           <div className="form-group">
-            <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Source Purchase Order</label>
+            <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700 }}>Source Purchase Order</label>
             <select className="form-select" value={selectedPOId} onChange={handlePOChange} style={{ height: '42px', fontSize: '14px' }}>
               <option value="">
                 {loadingPOs ? 'Loading approved POs...' : approvedPOs.length === 0 ? 'No approved POs available' : '-- Select a Purchase Order --'}
@@ -324,11 +327,11 @@ export default function DCRequest() {
             </select>
           </div>
           <div className="form-group">
-            <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Delivery Location</label>
+            <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700 }}>Delivery Location</label>
             <input className="form-input" type="text" readOnly value={locationDetails.name} placeholder="Select PO to see location" style={{ height: '42px', fontSize: '14px', background: '#F9FAFB' }} />
           </div>
           <div className="form-group">
-            <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Requested Dispatch Date</label>
+            <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700 }}>Requested Dispatch Date</label>
             <div className="date-picker-container">
               <DatePicker
                 selected={dispatchDate ? new Date(dispatchDate) : null}
@@ -346,26 +349,29 @@ export default function DCRequest() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', marginBottom: '24px' }}>
         <div className="card card--padded animate-fade" style={{ background: 'white' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 className="text-h3">Select Items for Dispatch</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+            <h3 className="text-h3" style={{ margin: 0 }}>Select Items for Dispatch</h3>
+            <span style={{ color: '#9CA3AF', fontSize: '0.75rem', fontWeight: 500, fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px', background: '#F9FAFB', padding: '4px 10px', borderRadius: '4px', border: '1px solid #F3F4F6' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>keyboard_tab</span>
+              Press Tab to move to the next cell
+            </span>
           </div>
-
-          <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '12px', maxHeight: '650px', overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-              <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB', position: 'sticky', top: 0, zIndex: 10 }}>
-                <tr style={{ whiteSpace: 'nowrap' }}>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Sl no</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Ref No</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Package</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Heading</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Sub Heading</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Item Name</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>Description</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px' }}>UOM</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', textAlign: 'right' }}>Supply QTY</th>
-                  <th style={{ padding: '12px 8px', color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', textAlign: 'right' }}>Despatched</th>
-                  <th style={{ padding: '12px 8px', color: '#059669', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', background: '#ECFDF5', textAlign: 'right' }}>To be Despatched</th>
-                  <th style={{ padding: '12px 8px', color: '#1D4ED8', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', background: '#EFF6FF', textAlign: 'center' }}>New DC Qty</th>
+          <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '8px', maxHeight: '480px', background: 'white' }}>
+            <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.8rem' }}>
+              <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB', position: 'sticky', top: 0, zIndex: 40 }}>
+                <tr style={{ whiteSpace: 'nowrap', height: '36px' }}>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 800, textTransform: 'uppercase', fontSize: '12px', width: '35px', position: 'sticky', left: 0, zIndex: 50, background: '#F3F4F6', borderRight: '2px solid #D1D5DB', height: '36px' }}>Sl</th>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', width: '70px', height: '36px', border: '1px solid #E5E7EB' }}>Ref No</th>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', minWidth: '150px', height: '36px', border: '1px solid #E5E7EB' }}>Package Name</th>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', minWidth: '180px', height: '36px', border: '1px solid #E5E7EB' }}>Heading</th>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', minWidth: '200px', height: '36px', border: '1px solid #E5E7EB' }}>Sub Heading</th>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', minWidth: '250px', height: '36px', border: '1px solid #E5E7EB' }}>Item Name</th>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', minWidth: '300px', height: '36px', border: '1px solid #E5E7EB' }}>Description</th>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', width: '50px', height: '36px', border: '1px solid #E5E7EB' }}>UOM</th>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', textAlign: 'right', width: '70px', height: '36px', border: '1px solid #E5E7EB' }}>Quantity</th>
+                  <th style={{ padding: '0 8px', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', textAlign: 'right', width: '70px', height: '36px', border: '1px solid #E5E7EB' }}>Dispatched</th>
+                  <th style={{ padding: '0 8px', color: '#059669', fontWeight: 800, textTransform: 'uppercase', fontSize: '12px', background: '#ECFDF5', textAlign: 'right', width: '80px', height: '36px', border: '1px solid #E5E7EB' }}>Pending</th>
+                  <th style={{ padding: '0 8px', color: '#1D4ED8', fontWeight: 800, textTransform: 'uppercase', fontSize: '12px', background: '#EFF6FF', textAlign: 'center', width: '90px', height: '36px', border: '1px solid #E5E7EB' }}>New DC Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -375,46 +381,89 @@ export default function DCRequest() {
                   <tr><td colSpan="12" style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>No supply items found in this PO</td></tr>
                 ) : (
                   items.map((it, idx) => (
-                    <tr key={it.id || idx} style={{ borderBottom: '1px solid #F3F4F6', whiteSpace: 'nowrap' }}>
-                      <td style={{ padding: '10px 8px', color: '#6B7280' }}>{it.line_number || idx + 1}</td>
-                      <td style={{ padding: '10px 8px' }}>{it.ref_no || '-'}</td>
-                      <td style={{ padding: '10px 8px', fontWeight: 600 }}>{it.package_name || '-'}</td>
-                      <td style={{ padding: '10px 8px' }}>{it.heading || '-'}</td>
-                      <td style={{ padding: '10px 8px' }}>{it.sub_heading || '-'}</td>
-                      <td style={{ padding: '10px 8px', fontWeight: 600 }}>{it.item_name === 'Item' ? '' : it.item_name}</td>
+                    <tr key={it.id || idx} style={{ height: '32px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#1e293b', textAlign: 'center', fontWeight: 800, position: 'sticky', left: 0, zIndex: 10, background: '#f1f5f9', borderRight: '2px solid #D1D5DB', height: '32px', fontSize: '0.75rem' }}>{it.line_number || idx + 1}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.ref_no || '-'}</td>
+                      <td
+                        style={{ padding: '0 8px', border: '1px solid #E5E7EB', fontWeight: 600, maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer', height: '32px', fontSize: '0.75rem' }}
+                        onClick={() => it.package_name && it.package_name.length > 20 && Swal.fire({ title: 'Package', text: it.package_name })}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '32px' }}>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.package_name || '-'}</span>
+                          {it.package_name && it.package_name.length > 20 && <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#3b82f6', opacity: 0.6 }}>open_in_new</span>}
+                        </div>
+                      </td>
+                      <td
+                        style={{ padding: '0 8px', border: '1px solid #E5E7EB', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer', height: '32px', fontSize: '0.75rem' }}
+                        onClick={() => it.heading && it.heading.length > 25 && Swal.fire({ title: 'Heading', text: it.heading })}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '32px' }}>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.heading || '-'}</span>
+                          {it.heading && it.heading.length > 25 && <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#3b82f6', opacity: 0.6 }}>open_in_new</span>}
+                        </div>
+                      </td>
+                      <td
+                        style={{ padding: '0 8px', border: '1px solid #E5E7EB', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer', height: '32px', fontSize: '0.75rem' }}
+                        onClick={() => it.sub_heading && it.sub_heading.length > 30 && Swal.fire({ title: 'Sub Heading', text: it.sub_heading })}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '32px' }}>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.sub_heading || '-'}</span>
+                          {it.sub_heading && it.sub_heading.length > 30 && <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#3b82f6', opacity: 0.6 }}>open_in_new</span>}
+                        </div>
+                      </td>
+                      <td
+                        style={{ padding: '0 8px', border: '1px solid #E5E7EB', fontWeight: 600, maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer', height: '32px', fontSize: '0.75rem' }}
+                        onClick={() => it.item_name && it.item_name.length > 35 && Swal.fire({ title: 'Item Name', text: it.item_name })}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '32px' }}>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.item_name === 'Item' ? '' : it.item_name}</span>
+                          {it.item_name && it.item_name.length > 35 && <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#3b82f6', opacity: 0.6 }}>open_in_new</span>}
+                        </div>
+                      </td>
                       <td
                         style={{
-                          padding: '10px 8px',
-                          color: '#4B5563',
-                          maxWidth: '200px',
+                          padding: '0 8px', border: '1px solid #E5E7EB',
+                          color: '#111827',
+                          maxWidth: '300px',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           cursor: 'pointer',
+                          height: '32px', fontSize: '0.75rem'
                         }}
-                        onClick={() => Swal.fire({ icon: 'info', title: 'Description', text: it.description || 'No description available' })}
+                        onClick={() => it.description && it.description.length > 40 && Swal.fire({ icon: 'info', title: 'Description', text: it.description || 'No description available' })}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '32px' }}>
                           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description || '-'}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--primary)', opacity: 0.6 }}>open_in_new</span>
+                          {it.description && it.description.length > 40 && <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#3b82f6', opacity: 0.6 }}>open_in_new</span>}
                         </div>
                       </td>
-                      <td style={{ padding: '10px 8px' }}>{it.uom || '-'}</td>
-                      <td style={{ padding: '10px 8px', textAlign: 'right' }}>{it.supply_qty}</td>
-                      <td style={{ padding: '10px 8px', color: '#6B7280', textAlign: 'right' }}>{it.qty_delivered || 0}</td>
-                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#059669', background: '#F0FDF4', textAlign: 'right' }}>{it.available}</td>
-                      <td style={{ padding: '10px 8px', background: '#EFF6FF', textAlign: 'center' }}>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem', textAlign: 'center' }}>{it.uom || '-'}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>{it.supply_qty}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#6B7280', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>{it.qty_delivered || 0}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', fontWeight: 700, color: '#059669', background: '#F0FDF4', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>{it.available}</td>
+                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#EFF6FF', height: '32px' }}>
                         <input
                           type="number"
                           className="form-input"
                           value={it.requestQty}
                           onChange={(e) => handleQtyChange(idx, e.target.value)}
-                          style={{ width: '80px', padding: '4px 8px', fontSize: '14px', textAlign: 'center', border: '1px solid #BFDBFE' }}
+                          style={{ width: '100%', border: 'none', padding: '0 8px', fontSize: '0.75rem', textAlign: 'center', height: '32px', background: 'transparent', outline: 'none' }}
                         />
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
+              <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB', position: 'sticky', bottom: 0, zIndex: 5 }}>
+                <tr>
+                  <td colSpan="11" style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, fontSize: '12px', color: '#4B5563' }}>
+                    {totalItemsAvailable} ITEMS — TOTAL QUANTITY FOR DISPATCH
+                  </td>
+                  <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 900, fontSize: '14px', color: '#1D4ED8', background: '#EFF6FF' }}>
+                    {totalRequestQty}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -428,7 +477,7 @@ export default function DCRequest() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
             <div className="form-group">
-              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Vehicle Number</label>
+              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700 }}>Vehicle Number</label>
               <input
                 className="form-input"
                 placeholder="e.g. TS 09 EX 1234"
@@ -437,7 +486,7 @@ export default function DCRequest() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Driver Name</label>
+              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700 }}>Driver Name</label>
               <input
                 className="form-input"
                 placeholder="Enter driver name"
@@ -446,7 +495,7 @@ export default function DCRequest() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Driver Phone</label>
+              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700 }}>Driver Phone</label>
               <input
                 className="form-input"
                 placeholder="10-digit number"
@@ -461,36 +510,60 @@ export default function DCRequest() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', marginBottom: '24px', padding: '20px 0', borderTop: '1px solid #F1F5F9', borderBottom: '1px solid #F1F5F9' }}>
             <div className="form-group">
-              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Dispatch Proof (Photo)</label>
-              <div
-                style={{
-                  border: '2px dashed #CBD5E1',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  textAlign: 'center',
-                  background: '#F8FAFC',
-                  cursor: 'pointer',
-                  position: 'relative'
-                }}
-                onClick={() => document.getElementById('dc-proof-upload').click()}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#64748B' }}>
-                  {proofFile ? 'check_circle' : 'add_a_photo'}
-                </span>
-                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
-                  {proofFile ? proofFile.name : 'Click to upload proof'}
+              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700 }}>Dispatch Proof (Photo)</label>
+              {!proofFile ? (
+                <div
+                  style={{
+                    border: '2px dashed #CBD5E1',
+                    borderRadius: '8px',
+                    padding: '24px 12px',
+                    textAlign: 'center',
+                    background: '#F8FAFC',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    borderStyle: 'dashed'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = '#CBD5E1'}
+                  onClick={() => document.getElementById('dc-proof-upload').click()}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#94A3B8' }}>add_a_photo</span>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '8px', fontWeight: 600 }}>Click to upload proof photo</div>
+                  <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '2px' }}>PNG, JPG or WebP supported</div>
+                  <input
+                    id="dc-proof-upload"
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={e => setProofFile(e.target.files[0])}
+                  />
                 </div>
-                <input
-                  id="dc-proof-upload"
-                  type="file"
-                  hidden
-                  accept="image/*"
-                  onChange={e => setProofFile(e.target.files[0])}
-                />
-              </div>
+              ) : (
+                <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E2E8F0', background: 'white', padding: '8px' }}>
+                  <img
+                    src={URL.createObjectURL(proofFile)}
+                    alt="Dispatch Proof"
+                    style={{ width: '100%', height: '100px', objectFit: 'contain', borderRadius: '4px' }}
+                  />
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    background: 'rgba(15, 23, 42, 0.8)', color: 'white',
+                    fontSize: '10px', padding: '4px 8px', display: 'flex',
+                    justifyContent: 'space-between', alignItems: 'center'
+                  }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>{proofFile.name}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setProofFile(null); }}
+                      style={{ background: 'transparent', border: 'none', color: '#FDA4AF', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="form-group">
-              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Logistics Remarks</label>
+              <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700 }}>Logistics Remarks</label>
               <textarea
                 className="form-input"
                 placeholder="Add any specific delivery or transport notes..."
@@ -505,12 +578,12 @@ export default function DCRequest() {
           <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '40px' }}>
             <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Official DC Number</label>
+                <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Official DC Number</label>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
                     <input type="radio" name="dc_type" checked={dcNumbering.type === 'auto'} onChange={() => setDcNumbering({ ...dcNumbering, type: 'auto' })} /> Auto
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
                     <input type="radio" name="dc_type" checked={dcNumbering.type === 'manual'} onChange={() => setDcNumbering({ ...dcNumbering, type: 'manual' })} /> Manual
                   </label>
                 </div>
@@ -529,14 +602,14 @@ export default function DCRequest() {
                   onChange={e => setDcNumbering({ ...dcNumbering, manualValue: e.target.value })}
                 />
               )}
-              <p style={{ fontSize: '11px', color: '#64748B', marginTop: '8px' }}>
+              <p style={{ fontSize: '12px', color: '#64748B', marginTop: '8px' }}>
                 {dcNumbering.type === 'auto' ? '' : 'Attach your internal/official DC number to this request.'}
               </p>
             </div>
 
             <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Dispatch Source</label>
+                <label className="form-label" style={{ color: 'var(--secondary)', fontSize: '12px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Dispatch Source</label>
                 <select
                   className="form-select"
                   value={dispatchSource}
@@ -710,48 +783,82 @@ export default function DCRequest() {
             </div>
 
             <div style={{ padding: '24px', maxHeight: '70vh', overflow: 'auto' }}>
-              <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
-                <thead>
-                  <tr>
-                    <th>Sl no</th>
-                    <th>Ref No</th>
-                    <th>Package</th>
-                    <th>Heading</th>
-                    <th>Sub Heading</th>
-                    <th>Item Name</th>
-                    <th>Description</th>
-                    <th>UOM</th>
-                    <th style={{ textAlign: 'right' }}>Supply QTY</th>
-                    <th style={{ textAlign: 'right' }}>Despatched</th>
-                    <th style={{ textAlign: 'right' }}>To be Dispatched</th>
-                    <th style={{ background: '#EFF6FF', color: '#1D4ED8', textAlign: 'center' }}>New DC Qty</th>
+              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB', position: 'sticky', top: 0, zIndex: 10, }}>
+                  <tr style={{ height: '36px' }}>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 800, textTransform: 'uppercase', fontSize: '12px', height: '36px' }}>Sl no</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', height: '36px' }}>Ref No</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', height: '36px' }}>Package</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', height: '36px' }}>Heading</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', height: '36px' }}>Sub Heading</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', height: '36px' }}>Item Name</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', height: '36px' }}>Description</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', height: '36px' }}>UOM</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', textAlign: 'right', height: '36px' }}>Supply QTY</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#111827', fontWeight: 700, textTransform: 'uppercase', fontSize: '12px', textAlign: 'right', height: '36px' }}>Despatched</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#059669', fontWeight: 800, textTransform: 'uppercase', fontSize: '12px', textAlign: 'right', height: '36px', background: '#ECFDF5' }}>To be Dispatched</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#EFF6FF', color: '#1D4ED8', fontWeight: 800, textTransform: 'uppercase', fontSize: '12px', textAlign: 'center', height: '36px' }}>New DC Qty</th>
                   </tr>
                 </thead>
                 <tbody>
                   {selectedForSummary.map((it, idx) => (
-                    <tr key={idx}>
-                      <td style={{ color: '#6B7280' }}>{it.line_number || idx + 1}</td>
-                      <td>{it.ref_no || '-'}</td>
-                      <td>{it.package_name || '-'}</td>
-                      <td>{it.heading || '-'}</td>
-                      <td>{it.sub_heading || '-'}</td>
-                      <td style={{ fontWeight: 600 }}>{it.item_name === 'Item' ? '' : it.item_name}</td>
-                      <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description || '-'}</td>
-                      <td>{it.uom || '-'}</td>
-                      <td style={{ textAlign: 'right' }}>{it.supply_qty}</td>
-                      <td style={{ textAlign: 'right' }}>{it.qty_delivered || 0}</td>
-                      <td style={{ fontWeight: 700, color: '#059669', textAlign: 'right' }}>{it.available}</td>
-                      <td style={{ fontWeight: 800, color: '#1D4ED8', background: '#F0F7FF', textAlign: 'center' }}>{it.requestQty}</td>
+                    <tr key={idx} style={{ height: '32px' }}>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', color: '#6B7280', height: '32px', fontSize: '0.75rem' }}>{it.line_number || idx + 1}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.ref_no || '-'}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.package_name || '-'}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.heading || '-'}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.sub_heading || '-'}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', fontWeight: 600, height: '32px', fontSize: '0.75rem' }}>{it.item_name === 'Item' ? '' : it.item_name}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', height: '32px', fontSize: '0.75rem' }}>{it.description || '-'}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem', textAlign: 'center' }}>{it.uom || '-'}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>{it.supply_qty}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>{it.qty_delivered || 0}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', fontWeight: 700, color: '#059669', textAlign: 'right', height: '32px', fontSize: '0.75rem', background: '#F0FDF4' }}>{it.available}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', fontWeight: 800, color: '#1D4ED8', background: '#F0F7FF', textAlign: 'center', height: '32px', fontSize: '0.75rem' }}>{it.requestQty}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB' }}>
                   <tr>
-                    <td colSpan="11" style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: '14px', color: '#4B5563' }}>TOTAL QUANTITY FOR DISPATCH</td>
+                    <td colSpan="11" style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: '14px', color: '#111827' }}>
+                      {selectedForSummary.length} ITEMS — TOTAL QUANTITY FOR DISPATCH
+                    </td>
                     <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 900, fontSize: '16px', color: '#1D4ED8', background: '#EFF6FF' }}>{totalQuantity}</td>
                   </tr>
                 </tfoot>
               </table>
+
+              <div style={{ marginTop: '32px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                  <h4 style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', color: '#64748B', marginBottom: '12px' }}>Logistics Details</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <div style={{ fontSize: '10px', color: '#94A3B8' }}>Vehicle Number</div>
+                      <div style={{ fontSize: '13px', fontWeight: 700 }}>{logistics.vehicle_no}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', color: '#94A3B8' }}>Driver Contact</div>
+                      <div style={{ fontSize: '13px', fontWeight: 700 }}>{logistics.driver_name} ({logistics.driver_phone})</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                  <h4 style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', color: '#64748B', marginBottom: '12px' }}>Dispatch Proof</h4>
+                  {proofFile ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img
+                        src={URL.createObjectURL(proofFile)}
+                        alt="Proof Preview"
+                        style={{ height: '50px', width: '70px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #CBD5E1' }}
+                      />
+                      <div style={{ fontSize: '12px', color: '#0F172A', fontWeight: 600 }}>{proofFile.name}</div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: '#94A3B8', fontStyle: 'italic' }}>No proof photo uploaded</div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div style={{ padding: '24px', background: '#F9FAFB', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>

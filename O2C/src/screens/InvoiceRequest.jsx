@@ -157,7 +157,7 @@ export default function InvoiceRequest() {
           </span>
         </div>
 
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div className="card shadow-md" style={{ padding: '32px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '32px' }}>
               <div>
@@ -177,26 +177,30 @@ export default function InvoiceRequest() {
             </div>
 
             <label style={{ fontSize: '11px', color: '#64748B', fontWeight: 800, textTransform: 'uppercase' }}>Items Requested for Billing</label>
-            <table className="data-table" style={{ marginTop: '12px', marginBottom: '32px' }}>
+            <table className="data-table" style={{ marginTop: '12px', marginBottom: '32px', fontSize: '12px' }}>
               <thead style={{ background: '#F8FAFC' }}>
                 <tr>
-                  <th style={{ textAlign: 'left' }}>Package</th>
-                  <th style={{ textAlign: 'left' }}>Item Name</th>
-                  <th style={{ textAlign: 'left' }}>Description</th>
-                  <th style={{ textAlign: 'right' }}>Qty</th>
-                  <th style={{ textAlign: 'right' }}>Taxable Val</th>
+                  <th style={{ textAlign: 'left', padding: '8px' }}>Package</th>
+                  <th style={{ textAlign: 'left', padding: '8px' }}>Item Name</th>
+                  <th style={{ textAlign: 'left', padding: '8px' }}>Description</th>
+                  <th style={{ textAlign: 'right', padding: '8px' }}>Qty</th>
+                  <th style={{ textAlign: 'right', padding: '8px' }}>Rate</th>
+                  <th style={{ textAlign: 'right', padding: '8px', fontSize: '10px' }}>Taxable Val</th>
+                  <th style={{ textAlign: 'center', padding: '8px', fontSize: '10px' }}>GST Rate</th>
+                  <th style={{ textAlign: 'right', padding: '8px', fontSize: '10px' }}>GST Amt</th>
+                  <th style={{ textAlign: 'right', padding: '8px', fontSize: '10px' }}>TOTAL</th>
                 </tr>
               </thead>
               <tbody>
                 {inv.items?.map((it, i) => (
-                  <tr key={i}>
-                    <td style={{ fontWeight: 600, color: '#475569' }}>{it.package_name || '-'}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{it.item_name || '-'}</td>
-                    <td style={{ cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
+                  <tr key={i} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                    <td style={{ padding: '8px', fontWeight: 600, color: '#475569' }}>{it.package_name || '-'}</td>
+                    <td style={{ padding: '8px', fontWeight: 700, color: 'var(--primary)' }}>{it.item_name || '-'}</td>
+                    <td style={{ padding: '8px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
                       <div style={{ 
                         fontSize: '11px', 
                         color: '#64748B', 
-                        maxWidth: '180px', 
+                        maxWidth: '140px', 
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden', 
                         textOverflow: 'ellipsis' 
@@ -204,8 +208,12 @@ export default function InvoiceRequest() {
                         {it.description}
                       </div>
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700 }}>{it.quantity}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700 }}>₹{it.taxable_value?.toLocaleString()}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{it.quantity}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>₹{it.rate?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>₹{it.taxable_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '8px', textAlign: 'center', fontWeight: 700 }}>{it.gst_percent}%</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>₹{it.gst_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 800, color: 'var(--primary)' }}>₹{it.total_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -213,8 +221,8 @@ export default function InvoiceRequest() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #E2E8F0', paddingTop: '24px' }}>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 700 }}>Estimated Total Value</div>
-                <div style={{ fontSize: '32px', fontWeight: 900, color: '#0F172A' }}>₹{inv.grand_total?.toLocaleString()}</div>
+                <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 700 }}>Estimated Grand Total</div>
+                <div style={{ fontSize: '32px', fontWeight: 900, color: '#0F172A' }}>₹{inv.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               </div>
             </div>
             

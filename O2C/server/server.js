@@ -7,6 +7,7 @@ const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const xlsx = require('xlsx');
+const crypto = require('crypto');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'o2c-super-secret-key-2026';
 const app = express();
@@ -148,7 +149,12 @@ const migrations = [
   "ALTER TABLE purchase_orders ADD COLUMN nt_count INTEGER DEFAULT 0",
   "CREATE TABLE IF NOT EXISTS master_addresses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, addr_line1 TEXT, addr_line2 TEXT, city TEXT, state TEXT, pincode TEXT, landmark TEXT, is_default BOOLEAN DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
   "ALTER TABLE invoice_items ADD COLUMN package_name TEXT",
-  "ALTER TABLE invoice_items ADD COLUMN description TEXT"
+  "ALTER TABLE invoice_items ADD COLUMN description TEXT",
+  "CREATE TABLE IF NOT EXISTS enterprise_audit_trail (id INTEGER PRIMARY KEY AUTOINCREMENT, module_name TEXT, action_type TEXT, performed_by TEXT, reference_id TEXT, old_value TEXT, new_value TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)",
+  "ALTER TABLE invoices ADD COLUMN signature_hash TEXT",
+  "ALTER TABLE invoices ADD COLUMN signed_at DATETIME",
+  "ALTER TABLE invoices ADD COLUMN signed_by TEXT",
+  "ALTER TABLE invoices ADD COLUMN integrity_status TEXT DEFAULT 'verified'"
 ];
 
 migrations.forEach(sql => {
@@ -293,11 +299,56 @@ function requireRole(roles) {
   });
 }
 
-function auditLog(userId, action, module, recordId, details) {
+function auditLog(performed_by, action_type, module_name, reference_id, old_value, new_value) {
   try {
-    db.prepare('INSERT INTO audit_log (user_id, action, module, record_id, details) VALUES (?,?,?,?,?)').run(userId, action, module, recordId||null, details ? JSON.stringify(details) : null);
-  } catch(e) { console.error('[Audit]', e.message); }
+    db.prepare(`
+      INSERT INTO enterprise_audit_trail (performed_by, action_type, module_name, reference_id, old_value, new_value) 
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      performed_by, 
+      action_type, 
+      module_name, 
+      String(reference_id), 
+      old_value ? JSON.stringify(old_value) : null, 
+      new_value ? JSON.stringify(new_value) : null
+    );
+  } catch(e) { console.error('[Audit Error]', e.message); }
 }
+
+function generateInvoiceHash(invoice) {
+  const dataToHash = {
+    invoice_number: invoice.invoice_number,
+    po_no: invoice.po_no,
+    items: invoice.items?.map(it => ({
+      item_name: it.item_name,
+      quantity: it.quantity,
+      rate: it.rate,
+      taxable_value: it.taxable_value,
+      total_value: it.total_value
+    })),
+    subtotal: invoice.subtotal,
+    gst_total: invoice.gst_total,
+    grand_total: invoice.grand_total,
+    approved_by: invoice.signed_by || 'Accounts',
+    timestamp: invoice.signed_at || new Date().toISOString()
+  };
+  
+  return crypto.createHash('sha256').update(JSON.stringify(dataToHash)).digest('hex');
+}
+
+app.get('/api/audit-logs/:module/:id', authenticate, (req, res) => {
+  const { module, id } = req.params;
+  try {
+    const logs = db.prepare(`
+      SELECT * FROM enterprise_audit_trail 
+      WHERE module_name = ? AND reference_id = ? 
+      ORDER BY timestamp DESC
+    `).all(module, id);
+    res.json(logs);
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // --- Master Addresses API ---
 app.get('/api/master-addresses', authenticate, (req, res) => {
@@ -605,8 +656,8 @@ app.delete('/api/customers/:id', requireRole(['admin']), (req, res) => {
       return true;
     });
 
-    deleteTx();
-    auditLog(req.user.id, 'DELETE', 'customers', customerId, { note: 'Hard delete (cascading)' });
+    db.exec('COMMIT');
+    auditLog(req.user.username, 'DELETE', 'Customer', customerId, { note: 'Hard delete (cascading)' }, null);
     res.json({ success: true, message: 'Customer deleted' });
   } catch (err) {
     console.error('DELETE ERROR:', err);
@@ -925,6 +976,7 @@ app.post('/api/pos', authenticate, (req, res) => {
     );
 
     const poId = r.lastInsertRowid;
+    auditLog(req.user.username, 'CREATE', 'PurchaseOrder', poId, null, req.body);
 
     const itemStmt = db.prepare(`
       INSERT INTO po_line_items (
@@ -1006,6 +1058,7 @@ app.put('/api/pos/:id', requireRole(['sales','admin','accounts','management']), 
   const { status, items } = req.body;
   try {
     db.exec('BEGIN');
+    const oldPO = db.prepare("SELECT * FROM purchase_orders WHERE id = ?").get(req.params.id);
     if (status) db.prepare(`UPDATE purchase_orders SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(status, req.params.id);
     if (items && items.length) {
       db.prepare(`DELETE FROM po_line_items WHERE po_id=?`).run(req.params.id);
@@ -1064,6 +1117,7 @@ app.put('/api/pos/:id', requireRole(['sales','admin','accounts','management']), 
       db.prepare(`UPDATE purchase_orders SET subtotal=?, gst_total=?, grand_total=?, total_value=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(subtotal, gst_total, subtotal + gst_total, subtotal + gst_total, req.params.id);
     }
     db.exec('COMMIT');
+    auditLog(req.user.username, 'UPDATE', 'PurchaseOrder', req.params.id, oldPO, req.body);
     res.json({ success: true });
   } catch(err) { db.exec('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
@@ -1076,7 +1130,7 @@ app.delete('/api/pos/:id', requireRole(['admin']), (req, res) => {
     db.prepare(`DELETE FROM po_line_items WHERE po_id=?`).run(req.params.id);
     db.prepare(`DELETE FROM purchase_orders WHERE id=?`).run(req.params.id);
     db.exec('COMMIT');
-    auditLog(req.user.id, 'DELETE', 'PO', req.params.id, {});
+    auditLog(req.user.username, 'DELETE', 'PurchaseOrder', req.params.id, { note: 'Hard delete (cascading)' }, null);
     res.json({ success: true });
   } catch(err) { db.exec('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
@@ -1281,6 +1335,7 @@ app.post('/api/invoices', authenticate, (req, res) => {
     }
 
     db.exec('COMMIT');
+    auditLog(req.user.username, initialStatus === 'raised' ? 'CREATE' : 'REQUEST', 'Invoice', invoiceId, null, { invoice_number, grand_total });
     res.json({ success: true, invoice_number, id: invoiceId });
   } catch(err) {
     if (db.inTransaction) db.exec('ROLLBACK');
@@ -1337,7 +1392,16 @@ app.get('/api/invoices/:id', authenticate, (req, res) => {
     const items = db.prepare(`SELECT * FROM invoice_items WHERE invoice_id = ?`).all(req.params.id);
     const payments = db.prepare(`SELECT * FROM ar_payments WHERE invoice_id = ? ORDER BY created_at DESC`).all(req.params.id);
 
-    res.json({ ...invoice, items, payments });
+    let is_tampered = false;
+    if (invoice.signature_hash) {
+      const currentHash = generateInvoiceHash({ ...invoice, items });
+      if (currentHash !== invoice.signature_hash) {
+        is_tampered = true;
+        auditLog('SYSTEM', 'TAMPER_DETECTED', 'Invoice', invoice.id, { stored: invoice.signature_hash, current: currentHash }, null);
+      }
+    }
+
+    res.json({ ...invoice, items, payments, is_tampered });
   } catch(err) {
     console.error('ERROR:', err);
     res.status(500).json({ error: err.message });
@@ -1358,6 +1422,69 @@ app.get('/api/pos/:id/payments', authenticate, (req, res) => {
     res.json(payments);
   } catch (err) {
     console.error('ERROR in /api/pos/:id/payments:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/pos/:id/supplied-details', authenticate, (req, res) => {
+  try {
+    const details = db.prepare(`
+      SELECT 
+        dc.dc_number,
+        dc.manual_dc_number,
+        dc.dispatch_date,
+        dc.status,
+        dc.delivery_status,
+        dc.vehicle_no,
+        SUM(dli.quantity_dispatched) as total_qty,
+        SUM(dli.quantity_dispatched * (
+          CASE 
+            WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+            WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+            ELSE 0 
+          END
+        )) as total_value
+      FROM delivery_challans dc
+      JOIN dc_line_items dli ON dc.id = dli.dc_id
+      JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+      WHERE dc.po_id = ? AND dc.status != 'cancelled'
+      GROUP BY dc.id
+      ORDER BY dc.dispatch_date DESC
+    `).all(req.params.id);
+    res.json(details);
+  } catch (err) {
+    console.error('ERROR in /api/pos/:id/supplied-details:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/pos/:id/pending-details', authenticate, (req, res) => {
+  try {
+    const details = db.prepare(`
+      SELECT 
+        pli.item_name,
+        pli.package_name,
+        pli.description,
+        pli.supply_qty,
+        pli.qty_delivered,
+        (pli.supply_qty - pli.qty_delivered) as pending_qty,
+        (CASE 
+          WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+          WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+          ELSE 0 
+        END) as rate,
+        (pli.supply_qty - pli.qty_delivered) * (CASE 
+          WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+          WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+          ELSE 0 
+        END) as pending_value
+      FROM po_line_items pli
+      WHERE pli.po_id = ? AND (pli.supply_qty - pli.qty_delivered) > 0
+      ORDER BY pli.line_number ASC
+    `).all(req.params.id);
+    res.json(details);
+  } catch (err) {
+    console.error('ERROR in /api/pos/:id/pending-details:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1386,6 +1513,23 @@ app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
     }
 
     db.prepare("UPDATE invoices SET invoice_number = ?, status = 'raised', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(invoice_number, id);
+    
+    // Phase 3: Hashing for integrity
+    const invoiceFull = db.prepare(`
+      SELECT i.*, p.po_number as po_no, p.po_date 
+      FROM invoices i
+      JOIN purchase_orders p ON i.po_id = p.id
+      WHERE i.id = ?
+    `).get(id);
+    invoiceFull.items = db.prepare("SELECT * FROM invoice_items WHERE invoice_id = ?").all(id);
+    invoiceFull.signed_by = req.user.username;
+    invoiceFull.signed_at = new Date().toISOString();
+    
+    const hash = generateInvoiceHash(invoiceFull);
+    db.prepare("UPDATE invoices SET signature_hash = ?, signed_at = ?, signed_by = ?, integrity_status = 'verified' WHERE id = ?")
+      .run(hash, invoiceFull.signed_at, invoiceFull.signed_by, id);
+
+    auditLog(req.user.username, 'APPROVE', 'Invoice', id, null, { invoice_number, hash });
     
     // Insert into AR database (if not already exists)
     const existingAR = db.prepare("SELECT id FROM ar_entries WHERE invoice_id = ?").get(id);
@@ -1420,6 +1564,10 @@ app.put('/api/invoices/:id/draft', authenticate, (req, res) => {
   const { id } = req.params;
   const { verification_state, notes } = req.body;
   try {
+    const inv = db.prepare("SELECT status FROM invoices WHERE id = ?").get(id);
+    if (inv && inv.status !== 'requested') {
+      return res.status(403).json({ error: 'Cannot modify an approved/locked invoice.' });
+    }
     db.prepare("UPDATE invoices SET verification_state = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(verification_state ? JSON.stringify(verification_state) : null, notes, id);
     res.json({ success: true });
   } catch (err) {
@@ -1459,6 +1607,7 @@ app.post('/api/invoices/:id/payment', authenticate, (req, res) => {
     }
 
     db.exec('COMMIT');
+    auditLog(req.user.username, 'PAYMENT', 'Invoice', invoiceId, null, req.body);
     res.json({ success: true });
   } catch(err) {
     if (db.inTransaction) db.exec('ROLLBACK');
@@ -1472,6 +1621,7 @@ app.post('/api/invoices/:id/signature', authenticate, (req, res) => {
   const { signature_data } = req.body;
   try {
     db.prepare('UPDATE invoices SET signature_data = ? WHERE id = ?').run(signature_data, id);
+    auditLog(req.user.username, 'SIGN', 'Invoice', id, null, { note: 'Applied signature' });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2048,7 +2198,8 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
     db.prepare("UPDATE purchase_orders SET status = 'dc_raised' WHERE id = ?").run(po.id);
 
     db.exec('COMMIT');
-    res.json({ success: true, dc_number, id: dcId });
+    auditLog(req.user.username, 'CREATE', 'DeliveryChallan', dcId, null, { dc_number, po_id: po.id });
+    res.json({ success: true, dc_number, dc_id: dcId });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
     console.error('ERROR RAISING DC:', err);
@@ -2120,7 +2271,7 @@ app.get('/api/po-flow', authenticate, (req, res) => {
           WHERE dc.po_id = p.id AND dc.status != 'cancelled'
         ), 0) as supplied_value,
         COALESCE((
-          SELECT SUM((dli.quantity_dispatched - IFNULL(dli.invoiced_qty, 0)) * (
+          SELECT SUM(dli.quantity_dispatched * (
             CASE 
               WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
               WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
@@ -2131,17 +2282,21 @@ app.get('/api/po-flow', authenticate, (req, res) => {
           JOIN delivery_challans dc ON dli.dc_id = dc.id
           JOIN po_line_items pli ON dli.po_line_item_id = pli.id
           WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+        ), 0) - COALESCE((
+          SELECT SUM(grand_total) 
+          FROM invoices 
+          WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
         ), 0) as to_be_invoiced_value,
         COALESCE((
           SELECT SUM(ii.quantity) 
           FROM invoice_items ii
           JOIN invoices i ON ii.invoice_id = i.id
-          WHERE i.po_id = p.id AND i.status != 'cancelled'
+          WHERE i.po_id = p.id AND i.status NOT IN ('requested', 'cancelled')
         ), 0) as invoiced_qty,
         COALESCE((
           SELECT SUM(grand_total) 
           FROM invoices 
-          WHERE po_id = p.id AND status != 'cancelled'
+          WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
         ), 0) as invoice_amount,
         COALESCE((
           SELECT SUM(amount_received) 
@@ -2149,7 +2304,7 @@ app.get('/api/po-flow', authenticate, (req, res) => {
           WHERE po_id = p.id
         ), 0) as received_amount,
         (SELECT COUNT(*) FROM delivery_challans WHERE po_id = p.id AND status != 'cancelled') as dc_count,
-        (SELECT COUNT(*) FROM invoices WHERE po_id = p.id AND status != 'cancelled') as invoice_count
+        (SELECT COUNT(*) FROM invoices WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')) as invoice_count
       FROM purchase_orders p
       JOIN customers c ON p.customer_id = c.id
       ORDER BY p.created_at DESC

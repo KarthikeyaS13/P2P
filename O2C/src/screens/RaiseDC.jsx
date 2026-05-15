@@ -752,6 +752,11 @@ export default function RaiseDC() {
               const totalQuantity = details.items.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
               return (
                 <div className="card animate-slide-up" style={{ padding: '0', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+                  <div style={{ padding: '12px 20px', borderBottom: '1px solid #E5E7EB', background: '#F8FAFC' }}>
+                    <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>
+                      Dispatch Item Summary
+                    </h3>
+                  </div>
                   <div style={{ overflow: 'auto' }}>
                     <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
                   <thead style={{ background: '#3B82F6', color: 'white' }}>
@@ -794,7 +799,9 @@ export default function RaiseDC() {
                   </tbody>
                   <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB' }}>
                     <tr>
-                      <td colSpan="5" style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, fontSize: '12px', color: '#4B5563' }}>TOTAL QUANTITY</td>
+                      <td colSpan="5" style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, fontSize: '12px', color: '#4B5563' }}>
+                        {details.items.length} ITEMS — TOTAL QUANTITY FOR DISPATCH
+                      </td>
                       <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, fontSize: '14px', color: '#2563EB' }}>{totalQuantity}</td>
                       <td></td>
                     </tr>

@@ -6,7 +6,9 @@ export default function POFlowManagement() {
   const [pos, setPos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedPOPayments, setSelectedPOPayments] = useState(null);
-  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [selectedPOSupplied, setSelectedPOSupplied] = useState(null);
+  const [selectedPOPending, setSelectedPOPending] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function POFlowManagement() {
   const handleViewPayments = async (po) => {
     if ((Number(po.received_amount) || 0) <= 0) return;
     
-    setLoadingPayments(true);
+    setLoadingDetails(true);
     setSelectedPOPayments({ po_number: po.po_number, customer_name: po.customer_name, payments: [] });
     
     try {
@@ -58,7 +60,47 @@ export default function POFlowManagement() {
     } catch (err) {
       console.error('Error fetching payments:', err);
     } finally {
-      setLoadingPayments(false);
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleViewSupplied = async (po) => {
+    if ((Number(po.supplied_value) || 0) <= 0) return;
+    
+    setLoadingDetails(true);
+    setSelectedPOSupplied({ po_number: po.po_number, customer_name: po.customer_name, items: [] });
+    
+    try {
+      const token = sessionStorage.getItem('token');
+      const res = await axios.get(`http://localhost:5000/api/pos/${po.id}/supplied-details`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelectedPOSupplied(prev => ({ ...prev, items: res.data }));
+    } catch (err) {
+      console.error('Error fetching supplied details:', err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleViewPending = async (po) => {
+    const poValue = Number(po.po_value) || 0;
+    const suppliedValue = Number(po.supplied_value) || 0;
+    if (poValue - suppliedValue <= 0) return;
+    
+    setLoadingDetails(true);
+    setSelectedPOPending({ po_number: po.po_number, customer_name: po.customer_name, items: [] });
+    
+    try {
+      const token = sessionStorage.getItem('token');
+      const res = await axios.get(`http://localhost:5000/api/pos/${po.id}/pending-details`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelectedPOPending(prev => ({ ...prev, items: res.data }));
+    } catch (err) {
+      console.error('Error fetching pending details:', err);
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -137,10 +179,30 @@ export default function POFlowManagement() {
                     <div style={{ fontWeight: 700, fontSize: '13px' }}>{formatCurrency(poValue)}</div>
                   </td>
                   <td className="text-right">
-                    <div style={{ fontWeight: 500, color: '#3b82f6', fontSize: '13px' }}>{formatCurrency(suppliedValue)}</div>
+                    <div 
+                      onClick={() => handleViewSupplied(po)}
+                      style={{ 
+                        fontWeight: 500, 
+                        color: suppliedValue > 0 ? '#3b82f6' : '#6b7280', 
+                        fontSize: '13px',
+                        cursor: suppliedValue > 0 ? 'pointer' : 'default',
+                        textDecoration: suppliedValue > 0 ? 'underline dotted' : 'none'
+                      }}
+                    >
+                        {formatCurrency(suppliedValue)}
+                    </div>
                   </td>
                   <td className="text-right" style={{ background: '#fef2f230' }}>
-                    <div style={{ fontWeight: 600, color: toBeSupplied > 0 ? '#ef4444' : '#6b7280', fontSize: '13px' }}>
+                    <div 
+                      onClick={() => handleViewPending(po)}
+                      style={{ 
+                        fontWeight: 600, 
+                        color: toBeSupplied > 0 ? '#ef4444' : '#6b7280', 
+                        fontSize: '13px',
+                        cursor: toBeSupplied > 0 ? 'pointer' : 'default',
+                        textDecoration: toBeSupplied > 0 ? 'underline dotted' : 'none'
+                      }}
+                    >
                         {formatCurrency(toBeSupplied)}
                     </div>
                   </td>
@@ -179,7 +241,7 @@ export default function POFlowManagement() {
         </table>
       </div>
 
-      {/* Transaction Overlay */}
+      {/* Payment Transaction Overlay */}
       {selectedPOPayments && (
         <div className="details-overlay" onClick={() => setSelectedPOPayments(null)}>
           <div className="details-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
@@ -194,7 +256,7 @@ export default function POFlowManagement() {
             </div>
             
             <div className="details-body" style={{ padding: '24px' }}>
-              {loadingPayments ? (
+              {loadingDetails ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>
                     <div className="animate-pulse">Loading transaction history...</div>
                 </div>
@@ -248,6 +310,154 @@ export default function POFlowManagement() {
                     <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Receipts:</span>
                     <span style={{ fontSize: '18px', fontWeight: 800, color: '#059669' }}>
                         {formatCurrency(selectedPOPayments.payments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0))}
+                    </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Supplied Items Overlay */}
+      {selectedPOSupplied && (
+        <div className="details-overlay" onClick={() => setSelectedPOSupplied(null)}>
+          <div className="details-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%' }}>
+            <div className="details-header" style={{ background: '#f0f9ff' }}>
+              <div>
+                <h2 className="text-h2" style={{ color: '#0369a1' }}>Supplied Items History</h2>
+                <p className="text-secondary">{selectedPOSupplied.customer_name} | {selectedPOSupplied.po_number}</p>
+              </div>
+              <button onClick={() => setSelectedPOSupplied(null)} className="btn-close">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="details-body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+              {loadingDetails ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                    <div className="animate-pulse">Loading supply records...</div>
+                </div>
+              ) : selectedPOSupplied.items.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--secondary)' }}>
+                    No supply records found.
+                </div>
+              ) : (
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Dispatch Date</th>
+                            <th>DC Number</th>
+                            <th>Manual DC</th>
+                            <th>Vehicle No</th>
+                            <th>Status</th>
+                            <th className="text-right">Qty</th>
+                            <th className="text-right">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {selectedPOSupplied.items.map((dc, idx) => (
+                            <tr key={idx}>
+                                <td>{formatDate(dc.dispatch_date)}</td>
+                                <td style={{ fontWeight: 700, color: '#0369a1' }}>{dc.dc_number}</td>
+                                <td>{dc.manual_dc_number || '-'}</td>
+                                <td>{dc.vehicle_no || '-'}</td>
+                                <td>
+                                    <span style={{ 
+                                        fontSize: '10px', 
+                                        fontWeight: 700,
+                                        background: dc.status === 'delivered' ? '#dcfce7' : '#fef9c3', 
+                                        color: dc.status === 'delivered' ? '#166534' : '#854d0e',
+                                        padding: '2px 8px', 
+                                        borderRadius: '12px',
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        {dc.delivery_status || dc.status}
+                                    </span>
+                                </td>
+                                <td className="text-right" style={{ fontWeight: 600 }}>{dc.total_qty}</td>
+                                <td className="text-right" style={{ fontWeight: 700, color: '#0369a1' }}>
+                                    {formatCurrency(dc.total_value)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              )}
+            </div>
+            <div className="details-footer" style={{ padding: '16px 24px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Supplied Value:</span>
+                    <span style={{ fontSize: '18px', fontWeight: 800, color: '#0369a1' }}>
+                        {formatCurrency(selectedPOSupplied.items.reduce((acc, curr) => acc + (Number(curr.total_value) || 0), 0))}
+                    </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Items Overlay */}
+      {selectedPOPending && (
+        <div className="details-overlay" onClick={() => setSelectedPOPending(null)}>
+          <div className="details-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '1000px', width: '95%' }}>
+            <div className="details-header" style={{ background: '#fff1f2' }}>
+              <div>
+                <h2 className="text-h2" style={{ color: '#be123c' }}>Pending Supplies Breakdown</h2>
+                <p className="text-secondary">{selectedPOPending.customer_name} | {selectedPOPending.po_number}</p>
+              </div>
+              <button onClick={() => setSelectedPOPending(null)} className="btn-close">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="details-body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+              {loadingDetails ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                    <div className="animate-pulse">Analyzing pending items...</div>
+                </div>
+              ) : selectedPOPending.items.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#059669', fontWeight: 700 }}>
+                    All items have been fully supplied!
+                </div>
+              ) : (
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Package</th>
+                            <th>Item Name</th>
+                            <th>Description</th>
+                            <th className="text-right">PO Qty</th>
+                            <th className="text-right">Supplied</th>
+                            <th className="text-right">Pending</th>
+                            <th className="text-right">Rate</th>
+                            <th className="text-right">Pending Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {selectedPOPending.items.map((it, idx) => (
+                            <tr key={idx}>
+                                <td style={{ fontSize: '12px' }}>{it.package_name || '-'}</td>
+                                <td style={{ fontWeight: 600 }}>{it.item_name}</td>
+                                <td style={{ fontSize: '11px', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={it.description}>
+                                    {it.description}
+                                </td>
+                                <td className="text-right">{it.supply_qty}</td>
+                                <td className="text-right" style={{ color: '#059669' }}>{it.qty_delivered}</td>
+                                <td className="text-right" style={{ fontWeight: 700, color: '#be123c' }}>{it.pending_qty}</td>
+                                <td className="text-right" style={{ fontSize: '12px' }}>{formatCurrency(it.rate)}</td>
+                                <td className="text-right" style={{ fontWeight: 700, color: '#be123c' }}>
+                                    {formatCurrency(it.pending_value)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              )}
+            </div>
+            <div className="details-footer" style={{ padding: '16px 24px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Pending Value:</span>
+                    <span style={{ fontSize: '18px', fontWeight: 800, color: '#be123c' }}>
+                        {formatCurrency(selectedPOPending.items.reduce((acc, curr) => acc + (Number(curr.pending_value) || 0), 0))}
                     </span>
                 </div>
             </div>
