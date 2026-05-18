@@ -1426,6 +1426,25 @@ app.get('/api/pos/:id/payments', authenticate, (req, res) => {
   }
 });
 
+app.get('/api/pos/:id/invoices', authenticate, (req, res) => {
+  try {
+    const invoices = db.prepare(`
+      SELECT 
+        i.*,
+        d.dc_number
+      FROM invoices i
+      LEFT JOIN delivery_challans d ON i.dc_id = d.id
+      WHERE i.po_id = ? AND i.status != 'rejected'
+      ORDER BY i.invoice_date DESC
+    `).all(req.params.id);
+    res.json(invoices);
+  } catch (err) {
+    console.error('ERROR in /api/pos/:id/invoices:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 app.get('/api/pos/:id/supplied-details', authenticate, (req, res) => {
   try {
     const details = db.prepare(`

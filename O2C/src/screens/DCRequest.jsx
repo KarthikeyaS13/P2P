@@ -457,7 +457,7 @@ export default function DCRequest() {
               <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB', position: 'sticky', bottom: 0, zIndex: 5 }}>
                 <tr>
                   <td colSpan="11" style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, fontSize: '12px', color: '#4B5563' }}>
-                    {totalItemsAvailable} ITEMS — TOTAL QUANTITY FOR DISPATCH
+                    {selectedForSummary.length} ITEMS — TOTAL QUANTITY FOR DISPATCH
                   </td>
                   <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 900, fontSize: '14px', color: '#1D4ED8', background: '#EFF6FF' }}>
                     {totalRequestQty}

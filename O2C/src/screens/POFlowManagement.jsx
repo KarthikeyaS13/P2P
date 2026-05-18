@@ -8,6 +8,7 @@ export default function POFlowManagement() {
   const [selectedPOPayments, setSelectedPOPayments] = useState(null);
   const [selectedPOSupplied, setSelectedPOSupplied] = useState(null);
   const [selectedPOPending, setSelectedPOPending] = useState(null);
+  const [selectedPOInvoiced, setSelectedPOInvoiced] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const navigate = useNavigate();
 
@@ -103,6 +104,26 @@ export default function POFlowManagement() {
       setLoadingDetails(false);
     }
   };
+
+  const handleViewInvoiced = async (po) => {
+    if ((Number(po.invoice_amount) || 0) <= 0) return;
+    
+    setLoadingDetails(true);
+    setSelectedPOInvoiced({ po_number: po.po_number, customer_name: po.customer_name, invoices: [] });
+    
+    try {
+      const token = sessionStorage.getItem('token');
+      const res = await axios.get(`http://localhost:5000/api/pos/${po.id}/invoices`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelectedPOInvoiced(prev => ({ ...prev, invoices: res.data }));
+    } catch (err) {
+      console.error('Error fetching invoices:', err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
 
   return (
     <div className="screen-enter">
@@ -207,7 +228,19 @@ export default function POFlowManagement() {
                     </div>
                   </td>
                   <td className="text-right">
-                    <div style={{ fontWeight: 500, color: '#f59e0b', fontSize: '13px' }}>{formatCurrency(invoiceAmount)}</div>
+                    <div 
+                      onClick={() => handleViewInvoiced(po)}
+                      style={{ 
+                        fontWeight: 500, 
+                        color: invoiceAmount > 0 ? '#f59e0b' : '#6b7280', 
+                        fontSize: '13px',
+                        cursor: invoiceAmount > 0 ? 'pointer' : 'default',
+                        textDecoration: invoiceAmount > 0 ? 'underline dotted' : 'none'
+                      }}
+                      title={invoiceAmount > 0 ? "Click to view invoice details" : ""}
+                    >
+                        {formatCurrency(invoiceAmount)}
+                    </div>
                   </td>
                   <td className="text-right" style={{ background: '#fffbeb30' }}>
                     <div style={{ fontWeight: 600, color: toBeInvoiced > 0 ? '#d97706' : '#6b7280', fontSize: '13px' }}>
@@ -458,6 +491,80 @@ export default function POFlowManagement() {
                     <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Pending Value:</span>
                     <span style={{ fontSize: '18px', fontWeight: 800, color: '#be123c' }}>
                         {formatCurrency(selectedPOPending.items.reduce((acc, curr) => acc + (Number(curr.pending_value) || 0), 0))}
+                    </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoiced Breakdown Overlay */}
+      {selectedPOInvoiced && (
+        <div className="details-overlay" onClick={() => setSelectedPOInvoiced(null)}>
+          <div className="details-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '850px', width: '90%' }}>
+            <div className="details-header" style={{ background: '#fffbeb' }}>
+              <div>
+                <h2 className="text-h2" style={{ color: '#d97706' }}>Invoiced Breakdown</h2>
+                <p className="text-secondary">{selectedPOInvoiced.customer_name} | {selectedPOInvoiced.po_number}</p>
+              </div>
+              <button onClick={() => setSelectedPOInvoiced(null)} className="btn-close">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="details-body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+              {loadingDetails ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                    <div className="animate-pulse">Loading invoice history...</div>
+                </div>
+              ) : selectedPOInvoiced.invoices.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--secondary)' }}>
+                    No invoice records found for this PO.
+                </div>
+              ) : (
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Invoice Date</th>
+                            <th>Invoice #</th>
+                            <th>DC Number</th>
+                            <th>Status</th>
+                            <th className="text-right">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {selectedPOInvoiced.invoices.map(inv => (
+                            <tr key={inv.id}>
+                                <td>{formatDate(inv.invoice_date)}</td>
+                                <td style={{ fontWeight: 700, color: '#d97706' }}>{inv.invoice_number}</td>
+                                <td>{inv.dc_number || '-'}</td>
+                                <td>
+                                    <span style={{ 
+                                        fontSize: '10px', 
+                                        fontWeight: 700,
+                                        background: inv.status === 'paid' ? '#dcfce7' : inv.status === 'partially_paid' ? '#fef9c3' : '#fee2e2', 
+                                        color: inv.status === 'paid' ? '#166534' : inv.status === 'partially_paid' ? '#854d0e' : '#991b1b',
+                                        padding: '2px 8px', 
+                                        borderRadius: '12px',
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        {inv.status}
+                                    </span>
+                                </td>
+                                <td className="text-right" style={{ fontWeight: 700, color: '#d97706' }}>
+                                    {formatCurrency(inv.grand_total)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              )}
+            </div>
+            <div className="details-footer" style={{ padding: '16px 24px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Invoiced:</span>
+                    <span style={{ fontSize: '18px', fontWeight: 800, color: '#d97706' }}>
+                        {formatCurrency(selectedPOInvoiced.invoices.reduce((acc, curr) => acc + (Number(curr.grand_total) || 0), 0))}
                     </span>
                 </div>
             </div>
