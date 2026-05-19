@@ -161,6 +161,8 @@ export default function Dashboard() {
             <h3 className="feature-card__title">Close Invoice</h3>
             <p className="feature-card__description">Reconcile payments and close open invoices.</p>
           </div>
+
+
         </div>
       </div>
     );
@@ -261,6 +263,8 @@ export default function Dashboard() {
             <h3 className="feature-card__title">Reports</h3>
             <p className="feature-card__description">View dispatch history and fulfillment analytics.</p>
           </div>
+
+
         </div>
 
       </div>
@@ -311,7 +315,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
 
       {summaryConfig && (
         <div className="summary-modal-overlay" onClick={() => setSummaryConfig(null)}>

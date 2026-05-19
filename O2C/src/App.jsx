@@ -26,6 +26,7 @@ import DispatchConfirmation from './screens/DispatchConfirmation';
 import ProjectsModule from './screens/ProjectsModule';
 import MasterAddress from './screens/MasterAddress';
 import POFlowManagement from './screens/POFlowManagement';
+import VerifyDocument from './screens/VerifyDocument';
 
 import { useAuth } from './context/AuthContext';
 
@@ -43,6 +44,21 @@ function App() {
   const { user } = useAuth();
   const navigate = useNavigate();
   // const isSales = user?.role?.toLowerCase() === 'sales';
+
+  const isVerifyPage = window.location.pathname.startsWith('/verify');
+
+  if (!user && isVerifyPage) {
+    return (
+      <div style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <main className="main-content-public" style={{ flex: 1, padding: '24px 0' }}>
+          <Routes>
+            <Route path="/verify" element={<VerifyDocument />} />
+            <Route path="/verify/:hash" element={<VerifyDocument />} />
+          </Routes>
+        </main>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Login onSuccess={() => {
@@ -135,6 +151,9 @@ function App() {
                   </div>
                 </div>
               } />
+
+              <Route path="/verify" element={<VerifyDocument />} />
+              <Route path="/verify/:hash" element={<VerifyDocument />} />
             </Routes>
           </div>
         </main>

@@ -20,6 +20,12 @@ export default function InvoiceRequest() {
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  useEffect(() => {
+    setGlobalFilter('');
+    setStatusFilter('all');
+  }, [activeTab]);
 
   useEffect(() => {
     fetchData();
@@ -122,8 +128,10 @@ export default function InvoiceRequest() {
   ], [navigate]);
 
   const tableData = useMemo(() => {
-    return activeTab === 'database' ? invoices : pendingDCs;
-  }, [invoices, pendingDCs, activeTab]);
+    if (activeTab === 'pending') return pendingDCs;
+    if (statusFilter === 'all') return invoices;
+    return invoices.filter(inv => inv.status === statusFilter);
+  }, [invoices, pendingDCs, activeTab, statusFilter]);
 
   const table = useReactTable({
     data: tableData,
@@ -197,13 +205,13 @@ export default function InvoiceRequest() {
                     <td style={{ padding: '8px', fontWeight: 600, color: '#475569' }}>{it.package_name || '-'}</td>
                     <td style={{ padding: '8px', fontWeight: 700, color: 'var(--primary)' }}>{it.item_name || '-'}</td>
                     <td style={{ padding: '8px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
-                      <div style={{ 
-                        fontSize: '11px', 
-                        color: '#64748B', 
-                        maxWidth: '140px', 
-                        whiteSpace: 'nowrap', 
-                        overflow: 'hidden', 
-                        textOverflow: 'ellipsis' 
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#64748B',
+                        maxWidth: '140px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
                       }}>
                         {it.description}
                       </div>
@@ -225,7 +233,7 @@ export default function InvoiceRequest() {
                 <div style={{ fontSize: '32px', fontWeight: 900, color: '#0F172A' }}>₹{inv.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               </div>
             </div>
-            
+
             <div style={{ marginTop: '32px', padding: '16px', background: '#F8FAFC', borderRadius: '8px', borderLeft: '4px solid var(--primary)' }}>
               <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.6' }}>
                 <strong>Departmental Note:</strong> This is a billing request. Official tax invoice and payment terms will be finalized by the Accounts Department after verification.
@@ -248,8 +256,81 @@ export default function InvoiceRequest() {
       </div>
 
       <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
-        <button className={`tab-link ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')}>Pending Delivery Challans</button>
-        <button className={`tab-link ${activeTab === 'database' ? 'active' : ''}`} onClick={() => setActiveTab('database')}>My Requests</button>
+        <button className={`tab-link ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')}>
+          Pending Delivery Challans
+          <span style={{ background: activeTab === 'pending' ? '#1186d4ff' : '#E2E8F0', color: activeTab === 'pending' ? '#ffffff' : '#475569', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, marginLeft: '8px' }}>
+            {pendingDCs.length}
+          </span>
+        </button>
+        <button className={`tab-link ${activeTab === 'database' ? 'active' : ''}`} onClick={() => setActiveTab('database')}>
+          My Requests
+          <span style={{ background: activeTab === 'database' ? '#1186d4ff' : '#E2E8F0', color: activeTab === 'database' ? '#ffffff' : '#475569', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, marginLeft: '8px' }}>
+            {invoices.length}
+          </span>
+        </button>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '20px',
+        marginBottom: '24px',
+        background: 'white',
+        padding: '16px 24px',
+        borderRadius: '12px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        border: '1px solid #E5E7EB'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', fontSize: '18px' }}>search</span>
+            <input
+              type="text"
+              placeholder={activeTab === 'database' ? "Search requests by number, customer..." : "Search pending DCs by PO # or Customer..."}
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              style={{
+                width: '100%',
+                height: '42px',
+                padding: '0 12px 0 40px',
+                border: '1px solid #D1D5DB',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none',
+                background: '#F9FAFB'
+              }}
+            />
+          </div>
+          {activeTab === 'database' && (
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                flex: '0 0 240px',
+                height: '42px',
+                padding: '0 16px',
+                border: '1px solid #D1D5DB',
+                borderRadius: '8px',
+                background: '#F9FAFB',
+                fontSize: '14px',
+                cursor: 'pointer',
+                color: '#374151',
+                outline: 'none'
+              }}
+            >
+              <option value="all">All Statuses</option>
+              <option value="requested">Pending Approval</option>
+              <option value="raised">Approved & Issued</option>
+              <option value="sent">Dispatched</option>
+              <option value="paid">Payment Received</option>
+            </select>
+          )}
+        </div>
+        <div style={{ fontSize: '13px', color: '#6B7280', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {table.getRowModel().rows.length} Results
+        </div>
       </div>
 
       <div className="card data-table-wrapper">

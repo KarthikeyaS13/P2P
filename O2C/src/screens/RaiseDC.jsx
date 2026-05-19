@@ -35,18 +35,7 @@ export default function RaiseDC() {
   const [showPreview, setShowPreview] = useState(false);
   const [hiddenData, setHiddenData] = useState(null); // { type: 'dc'|'invoice', data: any }
   const [isDownloadingSilent, setIsDownloadingSilent] = useState(false);
-  const sigCanvas = useRef(null);
 
-  useEffect(() => {
-    if (view === 'detail' && showPreview && sigCanvas.current) {
-      const canvas = sigCanvas.current;
-      const ctx = canvas.getContext('2d');
-      ctx.strokeStyle = '#0F172A';
-      ctx.lineWidth = 2.5;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-    }
-  }, [view, showPreview]);
 
   useEffect(() => {
     fetchData();
@@ -161,11 +150,17 @@ export default function RaiseDC() {
       setCustomDCNo('');
       setDispatchFrom({ line1: '', line2: '', pin: '' });
 
-      // If already issued, set the signature
-      if (res.data.signature) {
-        setSignatureImage(res.data.signature);
+      // If already issued, set the signature. Otherwise, fetch global setting.
+      if (res.data.signature_data || res.data.signature) {
+        setSignatureImage(res.data.signature_data || res.data.signature);
       } else {
-        setSignatureImage(null);
+        try {
+          const sigRes = await axios.get('http://localhost:5000/api/global-settings/authorized_signature');
+          setSignatureImage(sigRes.data.value || null);
+        } catch (sigErr) {
+          console.error('Failed to load global signature:', sigErr);
+          setSignatureImage(null);
+        }
       }
 
     } catch (err) {
@@ -208,11 +203,11 @@ export default function RaiseDC() {
         const element = document.getElementById(elementId);
         if (element) {
           const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-          const imgData = canvas.toDataURL('image/png');
+          const imgData = canvas.toDataURL('image/jpeg', 0.85);
           const pdf = new jsPDF('p', 'mm', 'a4');
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
           const fileName = docType === 'invoice' ? `${docData.invoice_number}.pdf` : `${docData.dc_number || 'DC'}.pdf`;
           pdf.save(fileName);
         }
@@ -226,80 +221,7 @@ export default function RaiseDC() {
     }
   };
 
-  const handleInsertSignature = () => {
-    const canvas = sigCanvas.current;
-    if (!canvas) return;
 
-    // Check if canvas is empty
-    const ctx = canvas.getContext('2d');
-    const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    const isCanvasEmpty = !pixelData.some(p => p !== 0);
-
-    if (isCanvasEmpty) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Signature Required',
-        text: 'Please provide a signature first.'
-      });
-      return;
-    }
-
-    const data = canvas.toDataURL('image/png');
-    setSignatureImage(data);
-  };
-
-  const [isDrawing, setIsDrawing] = useState(false);
-  const startDrawing = (e) => {
-    const canvas = sigCanvas.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || e.touches[0].clientX) - rect.left;
-    const y = (e.clientY || e.touches[0].clientY) - rect.top;
-    const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    setIsDrawing(true);
-  };
-  const draw = (e) => {
-    if (!isDrawing) return;
-    const canvas = sigCanvas.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-    const ctx = canvas.getContext('2d');
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
-  const stopDrawing = () => {
-    if (!isDrawing) return;
-    const ctx = sigCanvas.current.getContext('2d');
-    ctx.closePath();
-    setIsDrawing(false);
-  };
-
-  const handleClearSignature = () => {
-    setSignatureImage(null);
-    setTimeout(() => {
-      if (sigCanvas.current) {
-        const canvas = sigCanvas.current;
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = '#0F172A'; // Match enterprise theme
-        ctx.lineWidth = 2.5;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-      }
-    }, 0);
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setSignatureImage(event.target.result);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleRaiseDC = () => {
     if (!details) return;
@@ -333,7 +255,7 @@ export default function RaiseDC() {
       }
     });
 
-    const imgData = canvas.toDataURL('image/png', 1.0);
+    const imgData = canvas.toDataURL('image/jpeg', 0.85);
     const pdf = new jsPDF('p', 'mm', 'a4');
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -343,10 +265,10 @@ export default function RaiseDC() {
     if (pdfHeight > 297) {
       // If it's very long, create a custom sized PDF to keep it in one piece
       const longPdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
-      longPdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      longPdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       longPdf.save(`DC_${details.dc_number || details.requested_dc_number}.pdf`);
     } else {
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       pdf.save(`DC_${details.dc_number || details.requested_dc_number}.pdf`);
     }
   };
@@ -540,13 +462,13 @@ export default function RaiseDC() {
 
   if (view === 'detail') {
     return (
-      <div className="page-container screen-enter">
+      <div className="screen-enter">
         <div className="page-header" style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button onClick={() => navigate('/raise-dc')} className="btn-ghost btn-back" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
             </button>
-            <h1 className="text-h2" style={{ fontSize: '17px' }}>Raise Delivery Challan</h1>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '17px', margin: 0 }}>Raise Delivery Challan</h1>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', color: '#64748B' }}>Request:</span>
@@ -759,92 +681,92 @@ export default function RaiseDC() {
                   </div>
                   <div style={{ overflow: 'auto' }}>
                     <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
-                  <thead style={{ background: '#3B82F6', color: 'white' }}>
-                    <tr>
-                      <th style={{ padding: '6px 12px' }}>SL NO</th>
-                      <th style={{ padding: '6px 12px' }}>REFERENCE FROM PO</th>
-                      <th style={{ padding: '6px 12px' }}>PACKAGE</th>
-                      <th style={{ padding: '6px 12px', background: '#b8cbf4ff' }}>HSN (ENTRY)</th>
-                      <th style={{ padding: '6px 12px' }}>DESCRIPTION</th>
-                      <th style={{ padding: '6px 12px', textAlign: 'right' }}>QTY (STORES REQ)</th>
-                      <th style={{ padding: '6px 12px' }}>UOM</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {details.items.map((it, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                        <td style={{ padding: '6px 12px', color: '#9CA3AF' }}>{idx + 1}</td>
-                        <td style={{ padding: '6px 12px', fontWeight: 600 }}>{it.ref_no || '-'}</td>
-                        <td style={{ padding: '6px 12px' }}>{it.package_name || '-'}</td>
-                        <td style={{ padding: '2px 12px' }}>
-                          <input
-                            type="text"
-                            className="input-field"
-                            placeholder="Optional HSN"
-                            value={itemHSNs[it.line_item_id] || ''}
-                            onChange={e => handleHSNChange(it.line_item_id, e.target.value)}
-                            style={{ height: '22px', fontSize: '11px', width: '90px' }}
-                          />
-                        </td>
-                        <td
-                          style={{ padding: '6px 12px', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1F2937', cursor: 'pointer' }}
-                          onClick={() => Swal.fire({ title: 'Item Description', text: it.description, icon: 'info' })}
-                        >
-                          {it.description}
-                        </td>
-                        <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 800, color: '#2563EB', fontSize: '13px' }}>{it.qty}</td>
-                        <td style={{ padding: '6px 12px' }}>{it.uom}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB' }}>
-                    <tr>
-                      <td colSpan="5" style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, fontSize: '12px', color: '#4B5563' }}>
-                        {details.items.length} ITEMS — TOTAL QUANTITY FOR DISPATCH
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, fontSize: '14px', color: '#2563EB' }}>{totalQuantity}</td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                      <thead style={{ background: '#3B82F6', color: 'white' }}>
+                        <tr>
+                          <th style={{ padding: '6px 12px' }}>SL NO</th>
+                          <th style={{ padding: '6px 12px' }}>REFERENCE FROM PO</th>
+                          <th style={{ padding: '6px 12px' }}>PACKAGE</th>
+                          <th style={{ padding: '6px 12px', background: '#b8cbf4ff' }}>HSN (ENTRY)</th>
+                          <th style={{ padding: '6px 12px' }}>DESCRIPTION</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right' }}>QTY (STORES REQ)</th>
+                          <th style={{ padding: '6px 12px' }}>UOM</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {details.items.map((it, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                            <td style={{ padding: '6px 12px', color: '#9CA3AF' }}>{idx + 1}</td>
+                            <td style={{ padding: '6px 12px', fontWeight: 600 }}>{it.ref_no || '-'}</td>
+                            <td style={{ padding: '6px 12px' }}>{it.package_name || '-'}</td>
+                            <td style={{ padding: '2px 12px' }}>
+                              <input
+                                type="text"
+                                className="input-field"
+                                placeholder="Optional HSN"
+                                value={itemHSNs[it.line_item_id] || ''}
+                                onChange={e => handleHSNChange(it.line_item_id, e.target.value)}
+                                style={{ height: '22px', fontSize: '11px', width: '90px' }}
+                              />
+                            </td>
+                            <td
+                              style={{ padding: '6px 12px', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1F2937', cursor: 'pointer' }}
+                              onClick={() => Swal.fire({ title: 'Item Description', text: it.description, icon: 'info' })}
+                            >
+                              {it.description}
+                            </td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 800, color: '#2563EB', fontSize: '13px' }}>{it.qty}</td>
+                            <td style={{ padding: '6px 12px' }}>{it.uom}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB' }}>
+                        <tr>
+                          <td colSpan="5" style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, fontSize: '12px', color: '#4B5563' }}>
+                            {details.items.length} ITEMS — TOTAL QUANTITY FOR DISPATCH
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, fontSize: '14px', color: '#2563EB' }}>{totalQuantity}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
 
-              <div style={{ padding: '8px 20px', background: '#F9FAFB', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button className="btn btn-ghost" onClick={() => navigate('/raise-dc')} style={{ height: '28px', fontSize: '13px' }} disabled={submitting}>Cancel</button>
-                <button
-                  className="btn btn-danger"
-                  style={{
-                    height: '28px',
-                    fontSize: '13px',
-                    padding: '0 12px',
-                    opacity: details.status === 'dc_requested' ? 1 : 0.5,
-                    cursor: details.status === 'dc_requested' ? 'pointer' : 'not-allowed'
-                  }}
-                  disabled={submitting || details.status !== 'dc_requested'}
-                >
-                  Reject Request
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleRaiseDC}
-                  disabled={submitting || details.status !== 'dc_requested'}
-                  style={{
-                    background: details.status === 'dc_requested' ? '#10B981' : '#9CA3AF',
-                    height: '28px',
-                    fontSize: '13px',
-                    padding: '0 20px',
-                    fontWeight: 700,
-                    cursor: details.status === 'dc_requested' ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  {submitting ? 'Raising DC...' : 'Verify & Raise DC'}
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-      </div>
-    )}
+                  <div style={{ padding: '8px 20px', background: '#F9FAFB', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                    <button className="btn btn-ghost" onClick={() => navigate('/raise-dc')} style={{ height: '28px', fontSize: '13px' }} disabled={submitting}>Cancel</button>
+                    <button
+                      className="btn btn-danger"
+                      style={{
+                        height: '28px',
+                        fontSize: '13px',
+                        padding: '0 12px',
+                        opacity: details.status === 'dc_requested' ? 1 : 0.5,
+                        cursor: details.status === 'dc_requested' ? 'pointer' : 'not-allowed'
+                      }}
+                      disabled={submitting || details.status !== 'dc_requested'}
+                    >
+                      Reject Request
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleRaiseDC}
+                      disabled={submitting || details.status !== 'dc_requested'}
+                      style={{
+                        background: details.status === 'dc_requested' ? '#10B981' : '#9CA3AF',
+                        height: '28px',
+                        fontSize: '13px',
+                        padding: '0 20px',
+                        fontWeight: 700,
+                        cursor: details.status === 'dc_requested' ? 'pointer' : 'not-allowed'
+                      }}
+                    >
+                      {submitting ? 'Raising DC...' : 'Verify & Raise DC'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
         {showPreview && (
           <div style={{
             position: 'fixed',
@@ -1007,65 +929,19 @@ export default function RaiseDC() {
                   </table>
 
                   {/* Signature Section */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '60px' }}>
-                    <div style={{ textAlign: 'center', width: '250px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '60px', paddingRight: '0px' }}>
+                    <div style={{ textAlign: 'center', width: '240px', marginRight: '10px' }}>
                       {!signatureImage ? (
-                        <div id="pdf-signature-box" style={{ border: '2px dashed #CBD5E1', borderRadius: '8px', padding: '5px', background: '#F8FAFC', marginBottom: '10px' }}>
-                          <canvas
-                            ref={sigCanvas}
-                            width={240}
-                            height={100}
-                            onMouseDown={startDrawing}
-                            onMouseMove={draw}
-                            onMouseUp={stopDrawing}
-                            onMouseOut={stopDrawing}
-                            onTouchStart={startDrawing}
-                            onTouchMove={draw}
-                            onTouchEnd={stopDrawing}
-                            style={{ background: 'white', cursor: 'crosshair', display: 'block', margin: '0 auto', border: '1px solid #E2E8F0' }}
-                          />
-                          <div id="pdf-signature-hint" style={{ fontSize: '10px', color: '#94A3B8', marginTop: '2px', marginBottom: '5px' }}>Sign above for authorization</div>
-                          <button
-                            className="btn btn-primary"
-                            onClick={handleInsertSignature}
-                            style={{ width: '100%', height: '24px', fontSize: '12px', background: '#2563EB', marginBottom: '8px' }}
-                          >
-                            Insert Signature
-                          </button>
-                          <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '8px' }}>
-                            <label style={{ 
-                              cursor: 'pointer', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              gap: '6px', 
-                              color: '#6366F1', 
-                              fontSize: '11px', 
-                              fontWeight: 700,
-                              background: '#F1F5F9',
-                              padding: '4px 0',
-                              borderRadius: '4px',
-                              border: '1px solid #E2E8F0'
-                            }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>upload</span>
-                              UPLOAD FROM SYSTEM
-                              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
-                            </label>
-                          </div>
+                        <div id="pdf-signature-box" style={{ border: '2px dashed #EF4444', borderRadius: '8px', padding: '12px', background: '#FEF2F2', marginBottom: '10px' }}>
+                          <span className="material-symbols-outlined" style={{ color: '#EF4444', fontSize: '24px', marginBottom: '4px' }}>warning</span>
+                          <div style={{ fontSize: '11px', color: '#991B1B', fontWeight: 600 }}>Signature not found in Master Address Admin settings. Please configure it to raise DC.</div>
                         </div>
                       ) : (
-                        <div style={{ marginBottom: '10px', position: 'relative' }}>
-                          <img src={signatureImage} alt="Authorized Signature" style={{ height: '80px', display: 'block', margin: '0 auto' }} />
-                          <button
-                            onClick={handleClearSignature}
-                            style={{ position: 'absolute', top: '-10px', right: '-10px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', fontSize: '14px' }}
-                            id="pdf-signature-clear"
-                          >
-                            ×
-                          </button>
+                        <div style={{ marginBottom: '2px', position: 'relative', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '2px solid #0F172A' }}>
+                          <img src={signatureImage} alt="Authorized Signature" style={{ width: '180px', height: '75px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
                         </div>
                       )}
-                      <div style={{ fontSize: '14px', fontWeight: 900, textTransform: 'uppercase', color: '#0F172A' }}>Authorised Signatory</div>
+                      <div style={{ fontSize: '14px', fontWeight: 900, textTransform: 'uppercase', color: '#0F172A', textAlign: 'center' }}>Authorised Signature</div>
                     </div>
                   </div>
 
@@ -1081,27 +957,55 @@ export default function RaiseDC() {
   }
 
   return (
-    <div className="page-container screen-enter">
-      <div className="page-header" style={{ marginBottom: '16px' }}>
+    <div className="screen-enter">
+      <div className="page-header" style={{ marginBottom: '16px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="text-h2" style={{ fontSize: '18px' }}>Raise Delivery Challan</h1>
-          <p className="text-p" style={{ fontSize: '14px' }}>Review and formally issue Delivery Challans for pending store requests.</p>
+          <h1 className="text-h1 page-header__title" style={{ fontSize: '18px', margin: 0 }}>Raise Delivery Challan</h1>
+          <p className="page-header__subtitle" style={{ fontSize: '14px', margin: 0 }}>Review and formally issue Delivery Challans for pending store requests.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div className="search-bar" style={{ width: '280px', background: 'white', height: '36px' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>search</span>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: '280px' }}>
+            {/* <span className="material-symbols-outlined" style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)',
+              fontSize: '18px',
+              pointerEvents: 'none'
+            }}>search</span> */}
             <input
               type="text"
               placeholder="Search by PO, Customer or DC Reg..."
               value={globalFilter}
               onChange={e => setGlobalFilter(e.target.value)}
-              style={{ fontSize: '14px' }}
+              style={{
+                width: '100%',
+                height: '36px',
+                paddingLeft: '15px',
+                paddingRight: '12px',
+                borderRadius: '12px',
+                border: '1.5px solid #d1d5db',
+                background: 'white',
+                fontSize: '14px',
+                color: 'var(--text-primary)',
+                transition: 'all 0.18s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = 'var(--primary)';
+                e.target.style.boxShadow = '0 0 0 3px rgba(79, 70, 229, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db';
+                e.target.style.boxShadow = 'none';
+              }}
             />
           </div>
-          <button className="btn btn-ghost" onClick={() => navigate('/dashboard')} style={{ height: '36px', fontSize: '14px' }}>
+          {/* <button className="btn btn-ghost" onClick={() => navigate('/dashboard')} style={{ height: '36px', fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>dashboard</span>
             Dashboard
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -1275,7 +1179,7 @@ export default function RaiseDC() {
                 <div style={{ height: '60px', width: '200px', borderBottom: '2px solid #0F172A', marginLeft: 'auto', marginBottom: '8px' }}>
                   {hiddenData.data.signature_data && <img src={hiddenData.data.signature_data} style={{ width: '150px' }} />}
                 </div>
-                <div style={{ fontWeight: 900 }}>Authorised Signatory</div>
+                <div style={{ fontWeight: 900 }}>Authorised Signature</div>
               </div>
             </div>
           ) : (
@@ -1374,9 +1278,11 @@ export default function RaiseDC() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '60px' }}>
                 <div style={{ textAlign: 'center', width: '200px' }}>
                   <div style={{ height: '60px', borderBottom: '1px solid #000', marginBottom: '8px' }}>
-                    {hiddenData.data.signature && <img src={hiddenData.data.signature} style={{ height: '50px' }} />}
+                    {(hiddenData.data.signature_data || hiddenData.data.signature) && (
+                      <img src={hiddenData.data.signature_data || hiddenData.data.signature} style={{ height: '50px' }} />
+                    )}
                   </div>
-                  <div style={{ fontSize: '11px', fontWeight: 900 }}>Authorised Signatory</div>
+                  <div style={{ fontSize: '11px', fontWeight: 900 }}>Authorised Signature</div>
                 </div>
               </div>
             </div>

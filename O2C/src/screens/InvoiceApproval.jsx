@@ -12,6 +12,23 @@ import {
   flexRender,
 } from '@tanstack/react-table';
 import AuditTrailModal from '../components/AuditTrailModal';
+const capitalizeRole = (str) => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
+const formatSigningDate = (dateStr) => {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}-${month}-${year} ${hours}:${minutes}`;
+};
 
 export default function InvoiceApproval() {
   const navigate = useNavigate();
@@ -41,12 +58,26 @@ export default function InvoiceApproval() {
     payment_mode: 'NEFT',
     transaction_ref: ''
   });
-  const [showSignatureModal, setShowSignatureModal] = useState(false);
-  const canvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [globalSig, setGlobalSig] = useState(null);
+
+  const fetchGlobalSignature = async () => {
+    try {
+      console.log('Fetching global signature from http://localhost:5000/api/global-settings/authorized_signature...');
+      const res = await axios.get('http://localhost:5000/api/global-settings/authorized_signature');
+      console.log('Global signature fetch response:', res.data);
+      if (res.data && res.data.value) {
+        setGlobalSig(res.data.value);
+      } else {
+        setGlobalSig(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch signature:', err);
+    }
+  };
 
   useEffect(() => {
     fetchData();
+    fetchGlobalSignature();
   }, []);
 
   useEffect(() => {
@@ -116,24 +147,117 @@ export default function InvoiceApproval() {
     });
   };
 
+  const numberToIndianWords = (num) => {
+    if (isNaN(num) || num === '') return '';
+    let n = parseFloat(num);
+    if (n <= 0) return '';
+    
+    const single = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+    const double = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    
+    const formatThreeDigit = (val) => {
+      let str = "";
+      if (val >= 100) {
+        str += single[Math.floor(val / 100)] + " Hundred ";
+        val %= 100;
+      }
+      if (val >= 10 && val < 20) {
+        str += double[val - 10] + " ";
+      } else if (val >= 20) {
+        str += tens[Math.floor(val / 10)] + " " + single[val % 10] + " ";
+      } else if (val > 0) {
+        str += single[val] + " ";
+      }
+      return str;
+    };
+
+    let rupee = Math.floor(n);
+    let paise = Math.round((n - rupee) * 100);
+    
+    let res = "";
+    
+    if (rupee === 0) {
+      res = "Zero Rupees";
+    } else {
+      if (rupee >= 10000000) {
+        let cr = Math.floor(rupee / 10000000);
+        res += formatThreeDigit(cr) + "Crore ";
+        rupee %= 10000000;
+      }
+      if (rupee >= 100000) {
+        let lk = Math.floor(rupee / 100000);
+        res += formatThreeDigit(lk) + "Lakh ";
+        rupee %= 100000;
+      }
+      if (rupee >= 1000) {
+        let th = Math.floor(rupee / 1000);
+        res += formatThreeDigit(th) + "Thousand ";
+        rupee %= 1000;
+      }
+      if (rupee > 0) {
+        res += formatThreeDigit(rupee);
+      }
+      res += "Rupees";
+    }
+    
+    if (paise > 0) {
+      res += " and " + formatThreeDigit(paise) + "Paise";
+    }
+    
+    return res.replace(/\s+/g, ' ').trim() + " Only";
+  };
+
   const handleDownloadPDF = async (targetInv = null) => {
     const inv = targetInv || selectedInvoice;
-    const elementId = targetInv ? 'silent-invoice-printable' : 'tax-invoice-printable';
-    const element = document.getElementById(elementId);
+    if (!inv) return;
 
-    if (!element) return;
     try {
-      const { default: html2canvas } = await import('html2canvas');
-      const { default: jsPDF } = await import('jspdf');
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${inv.invoice_number}.pdf`);
+      const token = sessionStorage.getItem('token');
+      const response = await axios.get(`http://localhost:5000/api/invoices/${inv.id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = inv.invoice_number 
+        ? `${inv.invoice_number.replace(/\//g, '_')}.pdf`
+        : `Invoice_Draft_${inv.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
-      console.error('PDF Generation Error:', err);
+      console.error('Server PDF Generation/Download failed, falling back to client-side canvas rendering:', err);
+      
+      const elementId = targetInv ? 'silent-invoice-printable' : 'tax-invoice-printable';
+      const element = document.getElementById(elementId);
+      if (!element) return;
+      
+      try {
+        const { default: html2canvas } = await import('html2canvas');
+        const { default: jsPDF } = await import('jspdf');
+        const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        if (inv.signature_hash) {
+          pdf.setProperties({
+            title: `Invoice ${inv.invoice_number}`,
+            subject: inv.signature_hash,
+            keywords: 'O2C-Secured-Invoice'
+          });
+          pdf.setFontSize(1);
+          pdf.setTextColor(255, 255, 255);
+          pdf.text(`O2C_SIGNATURE_HASH:${inv.signature_hash}`, 1, 1);
+        }
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        pdf.save(inv.invoice_number ? `${inv.invoice_number.replace(/\//g, '_')}.pdf` : `Invoice_Draft_${inv.id}.pdf`);
+      } catch (clientErr) {
+        console.error('Client PDF Generation Error:', clientErr);
+      }
     }
   };
 
@@ -143,18 +267,13 @@ export default function InvoiceApproval() {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`http://localhost:5000/api/invoices/${invId}`, { headers });
-      setHiddenInvoice(res.data);
-
-      // Wait for DOM to render the hidden div
-      setTimeout(async () => {
-        await handleDownloadPDF(res.data);
-        setHiddenInvoice(null);
-        setIsDownloadingSilent(false);
-      }, 1000);
+      
+      await handleDownloadPDF(res.data);
+      setIsDownloadingSilent(false);
     } catch (err) {
       console.error(err);
       setIsDownloadingSilent(false);
-      Swal.fire({ icon: 'error', title: 'Download Failed', text: 'Could not generate PDF' });
+      Swal.fire({ icon: 'error', title: 'Download Failed', text: 'Could not retrieve PDF from server' });
     }
   };
 
@@ -261,77 +380,7 @@ export default function InvoiceApproval() {
     }
   };
 
-  const startDrawing = (e) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    setIsDrawing(true);
-  };
 
-  const draw = (e) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = '#0F172A';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => { setIsDrawing(false); };
-  const clearSignature = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const saveSignature = async () => {
-    const canvas = canvasRef.current;
-    const signatureData = canvas.toDataURL('image/png');
-    try {
-      const token = sessionStorage.getItem('token');
-      await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/signature`,
-        { signature_data: signatureData },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSelectedInvoice({ ...selectedInvoice, signature_data: signatureData });
-      setShowSignatureModal(false);
-      Swal.fire({ icon: 'success', title: 'Signature Saved', text: 'Signature saved and applied!', timer: 2000, showConfirmButton: false });
-    } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: "Failed to save signature" });
-    }
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const signatureData = event.target.result;
-      try {
-        const token = sessionStorage.getItem('token');
-        await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/signature`,
-          { signature_data: signatureData },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setSelectedInvoice({ ...selectedInvoice, signature_data: signatureData });
-        setShowSignatureModal(false);
-        Swal.fire({ icon: 'success', title: 'Signature Uploaded', text: 'Signature uploaded and applied!', timer: 2000, showConfirmButton: false });
-      } catch (err) {
-        Swal.fire({ icon: 'error', title: 'Error', text: "Failed to upload signature" });
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
   const invoiceColumns = useMemo(() => [
     {
@@ -361,14 +410,14 @@ export default function InvoiceApproval() {
       }
     },
     {
-      header: () => <div style={{ textAlign: 'center' }}>{activeTab === 'database' ? 'Update Receipt' : 'Actions'}</div>, 
-      id: 'actions', 
+      header: () => <div style={{ textAlign: 'center' }}>{activeTab === 'database' ? 'Update Receipt' : 'Actions'}</div>,
+      id: 'actions',
       cell: ({ row }) => (
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <button 
-            className="btn-ghost btn-sm" 
-            onClick={() => navigate(`/invoice-approval/${row.original.id}`)} 
-            title={activeTab === 'database' ? 'Update Receipt' : 'View Preview'} 
+          <button
+            className="btn-ghost btn-sm"
+            onClick={() => navigate(`/invoice-approval/${row.original.id}`)}
+            title={activeTab === 'database' ? 'Update Receipt' : 'View Preview'}
             style={activeTab === 'database' ? { width: 'auto', padding: '0 8px' } : { width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
           >
             {activeTab === 'database' ? (
@@ -450,15 +499,9 @@ export default function InvoiceApproval() {
                 <button className="btn btn-outline no-print" onClick={() => setDetailsTab('timeline')}>
                   <span className="material-symbols-outlined">payments</span> Record Receipt
                 </button>
-                {!selectedInvoice.signature_data ? (
-                  <button className="btn btn-primary no-print" onClick={() => setShowSignatureModal(true)}>
-                    <span className="material-symbols-outlined">edit_square</span> Sign Invoice
-                  </button>
-                ) : (
-                  <button className="btn btn-primary no-print" onClick={() => Swal.fire({ icon: 'success', title: 'Invoice Sent', text: "Invoice Sent to Customer successfully!", timer: 2000, showConfirmButton: false })}>
-                    <span className="material-symbols-outlined">send</span> Send to Customer
-                  </button>
-                )}
+                <button className="btn btn-primary no-print" onClick={() => Swal.fire({ icon: 'success', title: 'Invoice Sent', text: "Invoice Sent to Customer successfully!", timer: 2000, showConfirmButton: false })}>
+                  <span className="material-symbols-outlined">send</span> Send to Customer
+                </button>
               </>
             )}
           </div>
@@ -620,11 +663,15 @@ export default function InvoiceApproval() {
                   </div>
                 </div>
 
-                <div style={{ marginTop: '80px', textAlign: 'right' }}>
-                  <div style={{ height: '60px', width: '200px', borderBottom: '2px solid #0F172A', marginLeft: 'auto', marginBottom: '8px' }}>
-                    {inv.signature_data && <img src={inv.signature_data} style={{ width: '150px' }} />}
+                <div style={{ marginTop: '80px', textAlign: 'right', paddingRight: '40px' }}>
+                  <div style={{ minHeight: '80px', width: '240px', borderBottom: '2px solid #0F172A', marginLeft: 'auto', marginBottom: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {(inv.signature_data || globalSig) ? (
+                      <img src={inv.signature_data || globalSig} style={{ width: '180px', height: '75px', objectFit: 'contain' }} />
+                    ) : (
+                      <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: 600 }}>No Signature Saved</span>
+                    )}
                   </div>
-                  <div style={{ fontWeight: 900 }}>Authorised Signatory</div>
+                  <div style={{ fontWeight: 900, width: '240px', marginLeft: 'auto', textAlign: 'center' }}>Authorised Signature</div>
                 </div>
 
                 {inv.signature_hash && (
@@ -640,9 +687,8 @@ export default function InvoiceApproval() {
                   }}>
                     <div>
                       <strong>DIGITALLY VERIFIED INVOICE</strong><br />
-                      {/* HASH: {inv.signature_hash}<br /> */}
-                      APPROVED BY: {inv.signed_by || 'Accounts'}<br />
-                      APPROVED AT: {inv.signed_at ? new Date(inv.signed_at).toLocaleString('en-IN') : '-'}
+                      APPROVED BY: {capitalizeRole(inv.signed_by || 'Accounts')}<br />
+                      APPROVED AT: {formatSigningDate(inv.signed_at)}
                     </div>
                     <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                       <span>SECURE SYSTEM ID: {inv.id}</span>
@@ -776,6 +822,14 @@ export default function InvoiceApproval() {
                       <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Amount (₹)</label>
                         <input className="form-input" type="number" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })} required max={inv.balance} />
+                        {paymentForm.amount && !isNaN(parseFloat(paymentForm.amount)) && (
+                          <div style={{ fontSize: '11px', color: '#059669', marginTop: '6px', fontWeight: 700, lineHeight: '1.4' }}>
+                            {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(parseFloat(paymentForm.amount))}
+                            <span style={{ display: 'block', color: '#475569', fontWeight: 500, fontSize: '10px', marginTop: '2px' }}>
+                              ({numberToIndianWords(parseFloat(paymentForm.amount))})
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '12px' }}>
@@ -788,46 +842,7 @@ export default function InvoiceApproval() {
           </div>
         )}
 
-        {showSignatureModal && (
-          <div className="modal-overlay"><div className="card card--padded shadow-xl animate-scale-up" style={{ width: '500px', padding: '32px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <h3 className="text-h3">Authorized Signature</h3>
-              <button className="btn-ghost" onClick={() => setShowSignatureModal(false)}><span className="material-symbols-outlined">close</span></button>
-            </div>
-            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '24px' }}>Please draw your signature in the box below to authorize this tax invoice.</p>
-            <div style={{ border: '2px dashed #E2E8F0', borderRadius: '12px', background: '#F8FAFC', marginBottom: '20px', cursor: 'crosshair', touchAction: 'none' }}>
-              <canvas ref={canvasRef} width={436} height={180} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} style={{ display: 'block' }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" className="btn btn-outline" onClick={clearSignature} style={{ fontSize: '12px' }}>Clear</button>
-                <label style={{
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  color: '#6366F1',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  background: '#F1F5F9',
-                  padding: '0 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #E2E8F0',
-                  height: '36px'
-                }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload</span>
-                  UPLOAD
-                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
-                </label>
-              </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setShowSignatureModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary" onClick={saveSignature}>Save & Apply</button>
-              </div>
-            </div>
-          </div></div>
-        )}
+
         <AuditTrailModal
           isOpen={showAuditModal}
           onClose={() => setShowAuditModal(false)}
@@ -841,10 +856,41 @@ export default function InvoiceApproval() {
 
   return (
     <div className="screen-enter">
-      <div className="page-header">
+      <div className="page-header" style={{ marginBottom: '16px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="text-h1">Invoice Approval Hub</h1>
-          <p className="page-header__subtitle">Review and authorize Sales requests</p>
+          <h1 className="text-h1 page-header__title" style={{ margin: 0 }}>Invoice Approval Hub</h1>
+          <p className="page-header__subtitle" style={{ margin: 0 }}>Review and authorize Sales requests</p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: '280px' }}>
+            <input
+              type="text"
+              placeholder="Search invoices..."
+              value={globalFilter}
+              onChange={e => setGlobalFilter(e.target.value)}
+              style={{
+                width: '100%',
+                height: '36px',
+                paddingLeft: '15px',
+                paddingRight: '12px',
+                borderRadius: '12px',
+                border: '1.5px solid #d1d5db',
+                background: 'white',
+                fontSize: '14px',
+                color: 'var(--text-primary)',
+                transition: 'all 0.18s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = 'var(--primary)';
+                e.target.style.boxShadow = '0 0 0 3px rgba(79, 70, 229, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+          </div>
         </div>
       </div>
       <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
@@ -975,11 +1021,15 @@ export default function InvoiceApproval() {
               </div>
             </div>
 
-            <div style={{ marginTop: '80px', textAlign: 'right' }}>
-              <div style={{ height: '60px', width: '200px', borderBottom: '2px solid #0F172A', marginLeft: 'auto', marginBottom: '8px' }}>
-                {hiddenInvoice.signature_data && <img src={hiddenInvoice.signature_data} style={{ width: '150px' }} />}
+            <div style={{ marginTop: '80px', textAlign: 'right', paddingRight: '40px' }}>
+              <div style={{ minHeight: '80px', width: '240px', borderBottom: '2px solid #0F172A', marginLeft: 'auto', marginBottom: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {(hiddenInvoice.signature_data || globalSig) ? (
+                  <img src={hiddenInvoice.signature_data || globalSig} style={{ width: '180px', height: '75px', objectFit: 'contain' }} />
+                ) : (
+                  <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: 600 }}>No Signature Saved</span>
+                )}
               </div>
-              <div style={{ fontWeight: 900 }}>Authorised Signatory</div>
+              <div style={{ fontWeight: 900, width: '240px', marginLeft: 'auto', textAlign: 'center' }}>Authorised Signature</div>
             </div>
 
             {hiddenInvoice.signature_hash && (
@@ -992,7 +1042,8 @@ export default function InvoiceApproval() {
                 fontFamily: 'monospace'
               }}>
                 <strong>DIGITALLY VERIFIED INVOICE</strong><br />
-                HASH: {hiddenInvoice.signature_hash} | APPROVED BY: {hiddenInvoice.signed_by} | AT: {new Date(hiddenInvoice.signed_at).toLocaleString('en-IN')}
+                APPROVED BY: {capitalizeRole(hiddenInvoice.signed_by || 'Accounts')}<br />
+                APPROVED AT: {formatSigningDate(hiddenInvoice.signed_at)}
               </div>
             )}
           </div>

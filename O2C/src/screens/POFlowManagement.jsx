@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,7 +10,41 @@ export default function POFlowManagement() {
   const [selectedPOPending, setSelectedPOPending] = useState(null);
   const [selectedPOInvoiced, setSelectedPOInvoiced] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('all');
   const navigate = useNavigate();
+
+  const filteredPOs = useMemo(() => {
+    return pos.filter(po => {
+      const matchSearch =
+        (po.po_number || '').toLowerCase().includes(search.toLowerCase()) ||
+        (po.customer_name || '').toLowerCase().includes(search.toLowerCase());
+      
+      const poValue = Number(po.po_value) || 0;
+      const suppliedValue = Number(po.supplied_value) || 0;
+      const invoiceAmount = Number(po.invoice_amount) || 0;
+      const receivedAmount = Number(po.received_amount) || 0;
+      
+      const toBeSupplied = Math.max(0, poValue - suppliedValue);
+      const toBeInvoiced = Number(po.to_be_invoiced_value) || 0;
+      const outstandingAR = Math.max(0, invoiceAmount - receivedAmount);
+
+      let matchFilter = true;
+      if (filterType === 'pending_supply') {
+        matchFilter = toBeSupplied > 0;
+      } else if (filterType === 'fully_supplied') {
+        matchFilter = toBeSupplied === 0 && suppliedValue > 0;
+      } else if (filterType === 'pending_invoice') {
+        matchFilter = toBeInvoiced > 0;
+      } else if (filterType === 'outstanding_ar') {
+        matchFilter = outstandingAR > 0;
+      } else if (filterType === 'fully_paid') {
+        matchFilter = outstandingAR === 0 && invoiceAmount > 0;
+      }
+
+      return matchSearch && matchFilter;
+    });
+  }, [pos, search, filterType]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -139,6 +173,68 @@ export default function POFlowManagement() {
         </div>
       </div>
 
+      {/* Filter and Search Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '20px',
+        marginBottom: '24px',
+        background: 'white',
+        padding: '16px 24px',
+        borderRadius: '12px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        border: '1px solid #E5E7EB'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', fontSize: '18px' }}>search</span>
+            <input
+              type="text"
+              placeholder="Search by PO # or Customer Name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                height: '42px',
+                padding: '0 12px 0 40px',
+                border: '1px solid #D1D5DB',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none',
+                background: '#F9FAFB'
+              }}
+            />
+          </div>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            style={{
+              flex: '0 0 280px',
+              height: '42px',
+              padding: '0 16px',
+              border: '1px solid #D1D5DB',
+              borderRadius: '8px',
+              background: '#F9FAFB',
+              fontSize: '14px',
+              cursor: 'pointer',
+              color: '#374151',
+              outline: 'none'
+            }}
+          >
+            <option value="all">All Purchase Orders</option>
+            <option value="pending_supply">Pending Supply</option>
+            <option value="fully_supplied">Fully Supplied</option>
+            <option value="pending_invoice">Pending Invoice</option>
+            <option value="outstanding_ar">Outstanding Accounts Receivable</option>
+            <option value="fully_paid">Fully Paid & Closed</option>
+          </select>
+        </div>
+        <div style={{ fontSize: '13px', color: '#6B7280', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {filteredPOs.length} Records Found
+        </div>
+      </div>
+
       <div className="table-wrapper animate-fade" style={{ overflowX: 'auto' }}>
         <table className="data-table" style={{ minWidth: '1900px' }}>
           <thead>
@@ -164,9 +260,9 @@ export default function POFlowManagement() {
                   <div className="animate-pulse" style={{ color: 'var(--secondary)', fontWeight: 500 }}>Fetching financial flow data...</div>
                 </td>
               </tr>
-            ) : pos.length === 0 ? (
-              <tr><td colSpan="12" style={{ textAlign: 'center', padding: '40px', color: 'var(--secondary)' }}>No active records.</td></tr>
-            ) : pos.map(po => {
+            ) : filteredPOs.length === 0 ? (
+              <tr><td colSpan="12" style={{ textAlign: 'center', padding: '40px', color: 'var(--secondary)' }}>No active records matched your filters.</td></tr>
+            ) : filteredPOs.map(po => {
               const poValue = Number(po.po_value) || 0;
               const suppliedValue = Number(po.supplied_value) || 0;
               const invoiceAmount = Number(po.invoice_amount) || 0;
@@ -288,7 +384,7 @@ export default function POFlowManagement() {
               </button>
             </div>
             
-            <div className="details-body" style={{ padding: '24px' }}>
+            <div className="details-body" style={{ padding: '0 24px 24px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>
                     <div className="animate-pulse">Loading transaction history...</div>
@@ -364,7 +460,7 @@ export default function POFlowManagement() {
               </button>
             </div>
             
-            <div className="details-body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="details-body" style={{ padding: '0 24px 24px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>
                     <div className="animate-pulse">Loading supply records...</div>
@@ -442,7 +538,7 @@ export default function POFlowManagement() {
               </button>
             </div>
             
-            <div className="details-body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="details-body" style={{ padding: '0 24px 24px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>
                     <div className="animate-pulse">Analyzing pending items...</div>
@@ -512,7 +608,7 @@ export default function POFlowManagement() {
               </button>
             </div>
             
-            <div className="details-body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="details-body" style={{ padding: '0 24px 24px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>
                     <div className="animate-pulse">Loading invoice history...</div>
@@ -584,13 +680,17 @@ export default function POFlowManagement() {
           50% { opacity: .5; }
         }
         .data-table th {
-            font-size: 10px !important;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 11px !important;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: #64748b;
+            color: #1e293b;
             background: #f8fafc;
+            box-shadow: inset 0 -1px 0 #e2e8f0;
             padding: 16px 16px;
-            font-weight: 700;
+            font-weight: 800 !important;
         }
         .data-table td {
             padding: 16px 16px;

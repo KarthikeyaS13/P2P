@@ -38,6 +38,7 @@ export default function Sidebar() {
     ]);
   } else if (role === 'accounts') {
     routes = routes.concat([
+      { path: '/verify', label: 'Verify Document', icon: 'gpp_good' },
       { path: '/po-review', label: 'PO Review', icon: 'rate_review' },
       { path: '/raise-dc', label: 'Issue DC', icon: 'local_shipping' },
       { path: '/invoice-approval', label: 'Invoice Approval', icon: 'receipt_long' },

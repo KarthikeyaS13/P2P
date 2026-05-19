@@ -9,6 +9,11 @@ const bcrypt = require('bcrypt');
 const xlsx = require('xlsx');
 const crypto = require('crypto');
 
+const { generateInvoicePDFBuffer } = require('./services/pdfGenerator');
+const { signInvoicePDF } = require('./services/pdfSigner');
+const { verifyInvoicePDF, extractWatermarkMetadata } = require('./services/pdfVerifier');
+const pdfParse = require('pdf-parse');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'o2c-super-secret-key-2026';
 const app = express();
 
@@ -154,7 +159,13 @@ const migrations = [
   "ALTER TABLE invoices ADD COLUMN signature_hash TEXT",
   "ALTER TABLE invoices ADD COLUMN signed_at DATETIME",
   "ALTER TABLE invoices ADD COLUMN signed_by TEXT",
-  "ALTER TABLE invoices ADD COLUMN integrity_status TEXT DEFAULT 'verified'"
+  "ALTER TABLE invoices ADD COLUMN integrity_status TEXT DEFAULT 'verified'",
+  "CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT)",
+  "ALTER TABLE invoices ADD COLUMN internal_document_uuid TEXT",
+  "ALTER TABLE invoices ADD COLUMN signed_pdf_path TEXT",
+  "ALTER TABLE invoices ADD COLUMN pdf_file_hash TEXT",
+  "ALTER TABLE invoices ADD COLUMN certificate_serial TEXT",
+  "ALTER TABLE invoices ADD COLUMN signer_name TEXT"
 ];
 
 migrations.forEach(sql => {
@@ -162,6 +173,20 @@ migrations.forEach(sql => {
     db.prepare(sql).run();
   } catch(e) {}
 });
+
+// Ensure all invoices have internal_document_uuid
+try {
+  const unsetInvs = db.prepare("SELECT id FROM invoices WHERE internal_document_uuid IS NULL OR internal_document_uuid = ''").all();
+  if (unsetInvs.length > 0) {
+    const updateStmt = db.prepare("UPDATE invoices SET internal_document_uuid = ? WHERE id = ?");
+    unsetInvs.forEach(row => {
+      updateStmt.run(crypto.randomUUID(), row.id);
+    });
+    console.log(`Initialized internal_document_uuid for ${unsetInvs.length} invoices.`);
+  }
+} catch (uuidErr) {
+  console.error("Failed to initialize internal_document_uuid for old invoices:", uuidErr);
+}
 
 // --- Routes ---
 
@@ -336,6 +361,244 @@ function generateInvoiceHash(invoice) {
   return crypto.createHash('sha256').update(JSON.stringify(dataToHash)).digest('hex');
 }
 
+app.get('/api/public/verify-document/:hash', (req, res) => {
+  const { hash } = req.params;
+  try {
+    const invoice = db.prepare(`
+      SELECT i.*, c.name as customer_name
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      WHERE i.signature_hash = ? OR i.pdf_file_hash = ?
+    `).get(hash, hash);
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invalid cryptographic signature hash. The document may be forged or altered.' });
+    }
+
+    const items = db.prepare(`SELECT * FROM invoice_items WHERE invoice_id = ?`).all(invoice.id);
+    res.json({ ...invoice, items });
+  } catch (err) {
+    console.error('Public verification error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/invoices/:id/pdf
+app.get('/api/invoices/:id/pdf', authenticate, async (req, res) => {
+  try {
+    const invoice = db.prepare(`
+      SELECT 
+        i.*,
+        c.name as customer_name, c.email as customer_email, c.phone as customer_phone,
+        c.gstin as customer_gstin, c.address_line1 as customer_address,
+        p.po_number as po_no, p.po_date
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN purchase_orders p ON i.po_id = p.id
+      WHERE i.id = ?
+    `).get(req.params.id);
+
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    // Generate internal_document_uuid if missing
+    if (!invoice.internal_document_uuid) {
+      invoice.internal_document_uuid = crypto.randomUUID();
+      db.prepare("UPDATE invoices SET internal_document_uuid = ? WHERE id = ?").run(invoice.internal_document_uuid, invoice.id);
+    }
+
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(invoice.customer_id);
+    const items = db.prepare('SELECT * FROM invoice_items WHERE invoice_id = ?').all(invoice.id);
+
+    let pdfPath = invoice.signed_pdf_path;
+    let absolutePath = pdfPath ? path.join(__dirname, pdfPath) : null;
+
+    if (absolutePath && fs.existsSync(absolutePath)) {
+      const fileBytes = fs.readFileSync(absolutePath);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=invoice_${invoice.invoice_number.replace(/\//g, '_')}.pdf`);
+      return res.send(fileBytes);
+    }
+
+    try {
+      // 1. Generate PDF
+      const pdfDoc = await generateInvoicePDFBuffer(invoice, items, customer);
+
+      // 2. Sign PDF
+      const signedResult = await signInvoicePDF(pdfDoc, invoice.id, invoice.invoice_number);
+
+      // 3. Update DB with signing details
+      db.prepare(`
+        UPDATE invoices SET
+          signed_pdf_path = ?,
+          pdf_file_hash = ?,
+          certificate_serial = ?,
+          signer_name = ?,
+          signature_hash = ?
+        WHERE id = ?
+      `).run(
+        signedResult.relativePath,
+        signedResult.hash,
+        signedResult.certificateSerial,
+        signedResult.signerName,
+        signedResult.hash,
+        invoice.id
+      );
+
+      // 4. Send PDF bytes
+      const fileBytes = fs.readFileSync(signedResult.absolutePath);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=invoice_${invoice.invoice_number.replace(/\//g, '_')}.pdf`);
+      return res.send(fileBytes);
+    } catch (pdfErr) {
+      console.error('[PDF Route] Error generating/signing PDF:', pdfErr);
+      return res.status(500).json({ error: 'Failed to generate signed PDF' });
+    }
+  } catch (err) {
+    console.error('ERROR in /api/invoices/:id/pdf:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/public/verify-pdf
+app.post('/api/public/verify-pdf', upload.single('pdf'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No PDF file uploaded.' });
+  }
+
+  try {
+    const pdfBuffer = fs.readFileSync(req.file.path);
+
+    // Clean up temp uploaded file
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch (unlinkErr) {
+      console.error('Failed to remove temp uploaded verification file:', unlinkErr);
+    }
+
+    // 1. Cryptographically verify signature
+    const verification = verifyInvoicePDF(pdfBuffer);
+    const signaturePresent = verification.details !== null;
+
+    // 2. Extract watermark metadata
+    const watermark = await extractWatermarkMetadata(pdfBuffer);
+
+    let dbInvoice = null;
+    if (watermark && watermark.invoice_id) {
+      dbInvoice = db.prepare(`
+        SELECT i.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone,
+               c.gstin as customer_gstin, c.address_line1 as customer_address,
+               p.po_number as po_no, p.po_date
+        FROM invoices i
+        LEFT JOIN customers c ON i.customer_id = c.id
+        LEFT JOIN purchase_orders p ON i.po_id = p.id
+        WHERE i.id = ?
+      `).get(watermark.invoice_id);
+
+      if (dbInvoice) {
+        dbInvoice.items = db.prepare("SELECT * FROM invoice_items WHERE invoice_id = ?").all(dbInvoice.id);
+      }
+    }
+
+    // 3. Extract grand total from PDF text using pdf-parse to detect visual tampering
+    let pdfGrandTotal = null;
+    let pdfGrandTotalStr = null;
+    try {
+      const pdfData = await pdfParse(pdfBuffer);
+      const text = pdfData.text;
+      const regex = /Grand\s+Total:\s*(?:INR\s*)?([\d,]+\.\d{2})/i;
+      const match = text.match(regex);
+      if (match) {
+        pdfGrandTotalStr = match[1];
+        pdfGrandTotal = parseFloat(match[1].replace(/,/g, ''));
+      }
+    } catch (parseErr) {
+      console.error('[Verify PDF] Error parsing PDF text:', parseErr.message);
+    }
+
+    // Compute file hash
+    const fileHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+    let hashMatched = verification.valid;
+
+    if (dbInvoice && dbInvoice.pdf_file_hash) {
+      hashMatched = (dbInvoice.pdf_file_hash === fileHash);
+    }
+
+    // Determine overall validity
+    const overallValid = verification.valid && hashMatched;
+    let finalMessage = verification.message;
+    if (signaturePresent && !hashMatched) {
+      finalMessage = 'WARNING: Document has been tampered with or modified after the digital signature was applied! The cryptographic seal is broken.';
+    }
+
+    // If UUIDs mismatch, the document is counterfeit
+    if (dbInvoice && watermark && dbInvoice.internal_document_uuid !== watermark.uuid) {
+      return res.json({
+        valid: false,
+        signaturePresent,
+        hashMatched: false,
+        message: 'Document verification failed: The internal metadata token does not match the ledger database.',
+        pdfGrandTotal,
+        pdfGrandTotalStr: pdfGrandTotalStr ? `INR ${pdfGrandTotalStr}` : null,
+        invoice: null,
+        details: null
+      });
+    }
+
+    return res.json({
+      valid: overallValid,
+      signaturePresent,
+      hashMatched,
+      message: finalMessage,
+      pdfGrandTotal,
+      pdfGrandTotalStr: pdfGrandTotalStr ? `INR ${pdfGrandTotalStr}` : null,
+      invoice: dbInvoice,
+      details: verification.details
+    });
+  } catch (err) {
+    console.error('ERROR in /api/public/verify-pdf:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/public/verify-qr
+app.get('/api/public/verify-qr', (req, res) => {
+  const { invoice_id, token } = req.query;
+  if (!invoice_id || !token) {
+    return res.status(400).json({ error: 'invoice_id and token query parameters are required' });
+  }
+
+  try {
+    const invoice = db.prepare(`
+      SELECT i.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone,
+             c.gstin as customer_gstin, c.address_line1 as customer_address,
+             p.po_number as po_no, p.po_date
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN purchase_orders p ON i.po_id = p.id
+      WHERE i.id = ?
+    `).get(invoice_id);
+
+    if (!invoice) {
+      return res.status(404).json({ valid: false, message: 'QR Code Verification failed. Invoice not found.' });
+    }
+
+    if (invoice.internal_document_uuid !== token) {
+      return res.status(404).json({ valid: false, message: 'QR Code Verification failed. Token mismatch.' });
+    }
+
+    invoice.items = db.prepare("SELECT * FROM invoice_items WHERE invoice_id = ?").all(invoice.id);
+
+    return res.json({
+      valid: true,
+      message: 'QR Code Verification Successful: The document is authentic.',
+      invoice
+    });
+  } catch (err) {
+    console.error('ERROR in /api/public/verify-qr:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/audit-logs/:module/:id', authenticate, (req, res) => {
   const { module, id } = req.params;
   try {
@@ -346,6 +609,26 @@ app.get('/api/audit-logs/:module/:id', authenticate, (req, res) => {
     `).all(module, id);
     res.json(logs);
   } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Global Settings API ---
+app.get('/api/global-settings/:key', (req, res) => {
+  try {
+    const row = db.prepare('SELECT value FROM global_settings WHERE key = ?').get(req.params.key);
+    res.json({ value: row ? row.value : null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/global-settings/:key', authenticate, (req, res) => {
+  const { value } = req.body;
+  try {
+    db.prepare('INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(req.params.key, value);
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -656,7 +939,7 @@ app.delete('/api/customers/:id', requireRole(['admin']), (req, res) => {
       return true;
     });
 
-    db.exec('COMMIT');
+    deleteTx();
     auditLog(req.user.username, 'DELETE', 'Customer', customerId, { note: 'Hard delete (cascading)' }, null);
     res.json({ success: true, message: 'Customer deleted' });
   } catch (err) {
@@ -1257,6 +1540,8 @@ app.post('/api/invoices', authenticate, (req, res) => {
       }
     }
 
+    const docUuid = crypto.randomUUID();
+
     db.exec('BEGIN');
     const invResult = db.prepare(`
       INSERT INTO invoices (
@@ -1264,14 +1549,14 @@ app.post('/api/invoices', authenticate, (req, res) => {
         status, invoice_date, due_date, notes,
         subtotal, gst_total, grand_total, 
         place_of_supply, payment_terms, billing_address, shipping_address,
-        created_by
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        created_by, internal_document_uuid
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       invoice_number, po_id, dc_id, customer_id,
       initialStatus, invoice_date, due_date||null, notes||'',
       subtotal||0, gst_total||0, grand_total||0,
       place_of_supply || '', payment_terms || '', billing_address || '', shipping_address || '',
-      req.user.id
+      req.user.id, docUuid
     );
 
     const invoiceId = invResult.lastInsertRowid;
@@ -1531,7 +1816,14 @@ app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
       invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
     }
 
-    db.prepare("UPDATE invoices SET invoice_number = ?, status = 'raised', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(invoice_number, id);
+    // Fetch global signature to stamp on the approved invoice
+    let globalSig = null;
+    try {
+      const sigRow = db.prepare("SELECT value FROM global_settings WHERE key = 'authorized_signature'").get();
+      if (sigRow) globalSig = sigRow.value;
+    } catch(e) {}
+
+    db.prepare("UPDATE invoices SET invoice_number = ?, status = 'raised', signature_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(invoice_number, globalSig, id);
     
     // Phase 3: Hashing for integrity
     const invoiceFull = db.prepare(`

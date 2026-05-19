@@ -34,6 +34,67 @@ export default function AuditTrailModal({ isOpen, onClose, moduleName, reference
     }).format(amount);
   };
 
+  const numberToIndianWords = (num) => {
+    if (isNaN(num) || num === '') return '';
+    let n = parseFloat(num);
+    if (n <= 0) return '';
+    
+    const single = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+    const double = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    
+    const formatThreeDigit = (val) => {
+      let str = "";
+      if (val >= 100) {
+        str += single[Math.floor(val / 100)] + " Hundred ";
+        val %= 100;
+      }
+      if (val >= 10 && val < 20) {
+        str += double[val - 10] + " ";
+      } else if (val >= 20) {
+        str += tens[Math.floor(val / 10)] + " " + single[val % 10] + " ";
+      } else if (val > 0) {
+        str += single[val] + " ";
+      }
+      return str;
+    };
+
+    let rupee = Math.floor(n);
+    let paise = Math.round((n - rupee) * 100);
+    
+    let res = "";
+    
+    if (rupee === 0) {
+      res = "Zero Rupees";
+    } else {
+      if (rupee >= 10000000) {
+        let cr = Math.floor(rupee / 10000000);
+        res += formatThreeDigit(cr) + "Crore ";
+        rupee %= 10000000;
+      }
+      if (rupee >= 100000) {
+        let lk = Math.floor(rupee / 100000);
+        res += formatThreeDigit(lk) + "Lakh ";
+        rupee %= 100000;
+      }
+      if (rupee >= 1000) {
+        let th = Math.floor(rupee / 1000);
+        res += formatThreeDigit(th) + "Thousand ";
+        rupee %= 1000;
+      }
+      if (rupee > 0) {
+        res += formatThreeDigit(rupee);
+      }
+      res += "Rupees";
+    }
+    
+    if (paise > 0) {
+      res += " and " + formatThreeDigit(paise) + "Paise";
+    }
+    
+    return res.replace(/\s+/g, ' ').trim() + " Only";
+  };
+
   const truncateHash = (hash) => {
     if (!hash) return '-';
     return `${hash.substring(0, 8)}...${hash.substring(hash.length - 8)}`;
@@ -91,6 +152,9 @@ export default function AuditTrailModal({ isOpen, onClose, moduleName, reference
               <button className="btn-icon-sm" onClick={() => copyToClipboard(data.hash)} title="Copy Full Hash">
                 <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>content_copy</span>
               </button>
+              <button className="btn-icon-sm" onClick={() => window.open(`/verify/${data.hash}`, '_blank')} title="Verify on Secure Portal" style={{ marginLeft: '4px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10B981' }}>open_in_new</span>
+              </button>
             </span>
           </div>
           <div className="audit-detail-item"><span className="label">Status:</span> <span className="value badge-inline success">Approved</span></div>
@@ -113,13 +177,21 @@ export default function AuditTrailModal({ isOpen, onClose, moduleName, reference
 
     // Default JSON-like but clean display
     const data = { ...oldData, ...newData };
+    const financialKeys = ['grand_total', 'subtotal', 'gst_total', 'grandTotal', 'amount', 'balance', 'amount_received'];
+    
     return (
       <div style={{ fontSize: '12px', color: '#334155' }}>
-        {Object.entries(data).map(([key, val]) => (
-          <div key={key} style={{ marginBottom: '2px' }}>
-            <span style={{ color: '#64748B', textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</span> {typeof val === 'object' ? '[Data]' : String(val)}
-          </div>
-        ))}
+        {Object.entries(data).map(([key, val]) => {
+          const isFinancial = financialKeys.includes(key) || key.toLowerCase().includes('total') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('balance');
+          const displayVal = (isFinancial && !isNaN(parseFloat(val)))
+            ? `${formatCurrency(parseFloat(val))} (${numberToIndianWords(parseFloat(val))})`
+            : typeof val === 'object' ? '[Data]' : String(val);
+          return (
+            <div key={key} style={{ marginBottom: '2px' }}>
+              <span style={{ color: '#64748B', textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</span> <span style={{ fontWeight: isFinancial ? 700 : 'normal' }}>{displayVal}</span>
+            </div>
+          );
+        })}
       </div>
     );
   };

@@ -137,13 +137,13 @@ export default function DispatchConfirmation() {
 
   if (view === 'detail') {
     return (
-      <div className="page-container screen-enter">
+      <div className="screen-enter">
         <div className="page-header" style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button onClick={() => navigate('/dispatch-confirmation')} className="btn-ghost btn-back" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
             </button>
-            <h1 className="text-h2" style={{ fontSize: '15px' }}>Dispatch Confirmation</h1>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '15px', margin: 0 }}>Dispatch Confirmation</h1>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '11px', color: '#6B7280' }}>Request:</span>
@@ -272,21 +272,40 @@ export default function DispatchConfirmation() {
   }
 
   return (
-    <div className="page-container screen-enter">
-      <div className="page-header" style={{ marginBottom: '16px' }}>
+    <div className="screen-enter">
+      <div className="page-header" style={{ marginBottom: '16px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="text-h2" style={{ fontSize: '18px' }}>Delivery Tracking</h1>
-          <p className="text-p" style={{ fontSize: '12px' }}>Monitor real-time status of all dispatched shipments and delivery history.</p>
+          <h1 className="text-h1 page-header__title" style={{ fontSize: '18px', margin: 0 }}>Delivery Tracking</h1>
+          <p className="page-header__subtitle" style={{ fontSize: '12px', margin: 0 }}>Monitor real-time status of all dispatched shipments and delivery history.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div className="search-bar" style={{ width: '280px', background: 'white', height: '36px' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>search</span>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: '280px' }}>
             <input
               type="text"
               placeholder="Search tracking records..."
               value={globalFilter}
               onChange={e => setGlobalFilter(e.target.value)}
-              style={{ fontSize: '12px' }}
+              style={{
+                width: '100%',
+                height: '36px',
+                paddingLeft: '15px',
+                paddingRight: '12px',
+                borderRadius: '12px',
+                border: '1.5px solid #d1d5db',
+                background: 'white',
+                fontSize: '13px',
+                color: 'var(--text-primary)',
+                transition: 'all 0.18s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = 'var(--primary)';
+                e.target.style.boxShadow = '0 0 0 3px rgba(79, 70, 229, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db';
+                e.target.style.boxShadow = 'none';
+              }}
             />
           </div>
         </div>
