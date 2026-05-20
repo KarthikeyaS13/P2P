@@ -30,6 +30,27 @@ const formatSigningDate = (dateStr) => {
   return `${day}-${month}-${year} ${hours}:${minutes}`;
 };
 
+const formatIndianCommas = (val) => {
+  if (val === null || val === undefined) return '';
+  const str = val.toString();
+  if (!str) return '';
+  const parts = str.split('.');
+  let integerPart = parts[0].replace(/,/g, '');
+  const decimalPart = parts[1];
+
+  let lastThree = integerPart.substring(integerPart.length - 3);
+  const otherParts = integerPart.substring(0, integerPart.length - 3);
+  if (otherParts !== '') {
+    lastThree = ',' + lastThree;
+  }
+  const formattedInteger = otherParts.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + lastThree;
+
+  if (parts.length > 1) {
+    return formattedInteger + '.' + decimalPart;
+  }
+  return formattedInteger;
+};
+
 export default function InvoiceApproval() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -214,7 +235,7 @@ export default function InvoiceApproval() {
 
     try {
       const token = sessionStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/invoices/${inv.id}/pdf`, {
+      const response = await axios.get(`http://localhost:5000/api/invoices/${inv.id}/pdf?regenerate=true`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -268,8 +289,13 @@ export default function InvoiceApproval() {
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`http://localhost:5000/api/invoices/${invId}`, { headers });
       
-      await handleDownloadPDF(res.data);
-      setIsDownloadingSilent(false);
+      setHiddenInvoice(res.data);
+      // Wait for React to render the hidden container in the DOM
+      setTimeout(async () => {
+        await handleDownloadPDF(res.data);
+        setHiddenInvoice(null);
+        setIsDownloadingSilent(false);
+      }, 100);
     } catch (err) {
       console.error(err);
       setIsDownloadingSilent(false);
@@ -607,7 +633,7 @@ export default function InvoiceApproval() {
                       <tr>
                         <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: '10px', textTransform: 'uppercase' }}>Package</th>
                         <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: '10px', textTransform: 'uppercase' }}>Item Name</th>
-                        <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
+                        <th data-html2canvas-ignore="true" style={{ textAlign: 'left', padding: '10px 14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
                         <th style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px' }}>Qty</th>
                         <th style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px' }}>Rate</th>
                         <th style={{ textAlign: 'right', padding: '10px 14px', fontSize: '10px' }}>Taxable Value</th>
@@ -621,7 +647,7 @@ export default function InvoiceApproval() {
                         <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
                           <td style={{ padding: '10px 16px', fontSize: '13px' }}>{it.package_name || '-'}</td>
                           <td style={{ padding: '10px 16px', fontSize: '14px', fontWeight: 700, color: 'var(--primary)' }}>{it.item_name}</td>
-                          <td style={{ padding: '10px 16px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
+                          <td data-html2canvas-ignore="true" style={{ padding: '10px 16px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
                             <div style={{
                               fontSize: '11px',
                               color: '#64748B',
@@ -789,7 +815,7 @@ export default function InvoiceApproval() {
               {inv.balance > 0 && (
                 <div className="card card--padded shadow-md" style={{ background: 'white' }}>
                   <h4 style={{ fontWeight: 800, fontSize: '13px', marginBottom: '20px' }}>Record New Payment</h4>
-                  <form onSubmit={handleRecordPayment}>
+                  <form onSubmit={handleRecordPayment} autoComplete="off">
                     <div className="form-group">
                       <label className="form-label" style={{ fontSize: '11px' }}>Payment Date</label>
                       <div className="date-picker-container">
@@ -806,7 +832,7 @@ export default function InvoiceApproval() {
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontSize: '11px' }}>UTR / Transaction Reference</label>
-                      <input className="form-input" value={paymentForm.transaction_ref} onChange={e => setPaymentForm({ ...paymentForm, transaction_ref: e.target.value })} placeholder="Enter UTR No." required />
+                      <input className="form-input" value={paymentForm.transaction_ref} onChange={e => setPaymentForm({ ...paymentForm, transaction_ref: e.target.value })} placeholder="Enter UTR No." required autoComplete="off" />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="form-group">
@@ -821,7 +847,35 @@ export default function InvoiceApproval() {
                       </div>
                       <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Amount (₹)</label>
-                        <input className="form-input" type="number" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })} required max={inv.balance} />
+                        <input
+                          className="form-input"
+                          type="text"
+                          name="p_amount"
+                          id="p_amount"
+                          value={formatIndianCommas(paymentForm.amount)}
+                          onChange={e => {
+                            let val = e.target.value.replace(/,/g, '');
+                            // Allow only digits and up to one decimal point
+                            val = val.replace(/[^0-9.]/g, '');
+                            const parts = val.split('.');
+                            if (parts.length > 2) {
+                              val = parts[0] + '.' + parts.slice(1).join('');
+                            }
+                            if (parts[1] && parts[1].length > 2) {
+                              val = parts[0] + '.' + parts[1].substring(0, 2);
+                            }
+                            // Enforce max balance limit
+                            const maxVal = inv.balance || 0;
+                            const num = parseFloat(val);
+                            if (!isNaN(num) && num > maxVal) {
+                              val = maxVal.toFixed(2);
+                            }
+                            setPaymentForm({ ...paymentForm, amount: val });
+                          }}
+                          required
+                          autoComplete="new-password"
+                          placeholder="0.00"
+                        />
                         {paymentForm.amount && !isNaN(parseFloat(paymentForm.amount)) && (
                           <div style={{ fontSize: '11px', color: '#059669', marginTop: '6px', fontWeight: 700, lineHeight: '1.4' }}>
                             {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(parseFloat(paymentForm.amount))}
@@ -978,7 +1032,6 @@ export default function InvoiceApproval() {
                   <tr>
                     <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Package</th>
                     <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Item Name</th>
-                    <th style={{ textAlign: 'left', padding: '14px', fontSize: '10px', textTransform: 'uppercase' }}>Description</th>
                     <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Qty</th>
                     <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Rate</th>
                     <th style={{ textAlign: 'right', padding: '14px', fontSize: '10px' }}>Total</th>
@@ -989,18 +1042,6 @@ export default function InvoiceApproval() {
                     <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
                       <td style={{ padding: '16px', fontSize: '13px' }}>{it.package_name || '-'}</td>
                       <td style={{ padding: '16px', fontSize: '14px', fontWeight: 700 }}>{it.item_name}</td>
-                      <td style={{ padding: '16px', cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
-                        <div style={{
-                          fontSize: '11px',
-                          color: '#64748B',
-                          maxWidth: '180px',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}>
-                          {it.description}
-                        </div>
-                      </td>
                       <td style={{ padding: '16px', textAlign: 'right' }}>{it.quantity}</td>
                       <td style={{ padding: '16px', textAlign: 'right' }}>₹{it.rate?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td style={{ padding: '16px', textAlign: 'right', fontWeight: 800 }}>₹{it.total_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

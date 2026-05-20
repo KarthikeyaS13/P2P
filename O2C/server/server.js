@@ -412,7 +412,7 @@ app.get('/api/invoices/:id/pdf', authenticate, async (req, res) => {
     let pdfPath = invoice.signed_pdf_path;
     let absolutePath = pdfPath ? path.join(__dirname, pdfPath) : null;
 
-    if (absolutePath && fs.existsSync(absolutePath)) {
+    if (absolutePath && fs.existsSync(absolutePath) && req.query.regenerate !== 'true') {
       const fileBytes = fs.readFileSync(absolutePath);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename=invoice_${invoice.invoice_number.replace(/\//g, '_')}.pdf`);
@@ -421,7 +421,28 @@ app.get('/api/invoices/:id/pdf', authenticate, async (req, res) => {
 
     try {
       // 1. Generate PDF
-      const pdfDoc = await generateInvoicePDFBuffer(invoice, items, customer);
+      let frontendUrl = process.env.FRONTEND_URL;
+      if (!frontendUrl) {
+        const referer = req.headers['referer'];
+        if (referer) {
+          try {
+            const parsedUrl = new URL(referer);
+            frontendUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
+          } catch (e) {
+            console.error('Failed to parse referer URL:', e);
+          }
+        }
+      }
+      if (!frontendUrl) {
+        const host = req.get('host') || 'localhost:5000';
+        const hostname = host.split(':')[0];
+        if (host.includes(':')) {
+          frontendUrl = `${req.protocol}://${hostname}:5173`;
+        } else {
+          frontendUrl = `${req.protocol}://${host}`;
+        }
+      }
+      const pdfDoc = await generateInvoicePDFBuffer(invoice, items, customer, frontendUrl);
 
       // 2. Sign PDF
       const signedResult = await signInvoicePDF(pdfDoc, invoice.id, invoice.invoice_number);
@@ -432,15 +453,13 @@ app.get('/api/invoices/:id/pdf', authenticate, async (req, res) => {
           signed_pdf_path = ?,
           pdf_file_hash = ?,
           certificate_serial = ?,
-          signer_name = ?,
-          signature_hash = ?
+          signer_name = ?
         WHERE id = ?
       `).run(
         signedResult.relativePath,
         signedResult.hash,
         signedResult.certificateSerial,
         signedResult.signerName,
-        signedResult.hash,
         invoice.id
       );
 

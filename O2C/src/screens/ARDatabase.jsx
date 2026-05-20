@@ -6,6 +6,27 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { getUser } from '../auth';
 
+const formatIndianCommas = (val) => {
+  if (val === null || val === undefined) return '';
+  const str = val.toString();
+  if (!str) return '';
+  const parts = str.split('.');
+  let integerPart = parts[0].replace(/,/g, '');
+  const decimalPart = parts[1];
+
+  let lastThree = integerPart.substring(integerPart.length - 3);
+  const otherParts = integerPart.substring(0, integerPart.length - 3);
+  if (otherParts !== '') {
+    lastThree = ',' + lastThree;
+  }
+  const formattedInteger = otherParts.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + lastThree;
+
+  if (parts.length > 1) {
+    return formattedInteger + '.' + decimalPart;
+  }
+  return formattedInteger;
+};
+
 export default function ARDatabase() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,6 +39,10 @@ export default function ARDatabase() {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentRef, setPaymentRef] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  
+  // View Payments Modal State
+  const [paymentHistory, setPaymentHistory] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   
   const [statusFilter, setStatusFilter] = useState('all');
   const user = getUser();
@@ -62,6 +87,25 @@ export default function ARDatabase() {
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || err.message });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleShowPayments = async (entry) => {
+    setLoadingHistory(true);
+    setPaymentHistory({ invoice_number: entry.invoice_number, payments: [] });
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(`http://localhost:5000/api/invoices/${entry.invoice_id}`, { headers });
+      setPaymentHistory({
+        invoice_number: entry.invoice_number,
+        payments: res.data.payments || []
+      });
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to fetch payment history' });
+      setPaymentHistory(null);
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -161,7 +205,30 @@ export default function ARDatabase() {
                   <td>{e.po_number}</td>
                   <td>{new Date(e.due_date).toLocaleDateString()}</td>
                   <td className="text-right">₹{e.amount_due?.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
-                  <td className="text-right" style={{ color: 'var(--green)' }}>₹{e.amount_received?.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                  <td className="text-right">
+                    {e.amount_received > 0 ? (
+                      <button
+                        onClick={() => handleShowPayments(e)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--green)',
+                          textDecoration: 'underline',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          padding: 0,
+                          fontFamily: 'inherit',
+                          fontSize: 'inherit',
+                          textAlign: 'right',
+                          width: '100%'
+                        }}
+                      >
+                        ₹{e.amount_received?.toLocaleString('en-IN', {minimumFractionDigits:2})}
+                      </button>
+                    ) : (
+                      <span style={{ color: '#9CA3AF' }}>₹0.00</span>
+                    )}
+                  </td>
                   <td className="text-right font-medium" style={{ color: e.balance > 0 ? 'var(--error)' : 'inherit' }}>
                     ₹{e.balance?.toLocaleString('en-IN', {minimumFractionDigits:2})}
                   </td>
@@ -207,10 +274,38 @@ export default function ARDatabase() {
               Invoice: <strong>{selectedEntry.invoice_number}</strong><br/>
               Balance Due: <strong>₹{selectedEntry.balance?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
             </p>
-            <form onSubmit={handleRecordPayment}>
+            <form onSubmit={handleRecordPayment} autoComplete="off">
               <div className="form-group">
                 <label className="form-label">Amount Received (₹)</label>
-                <input type="number" step="0.01" max={selectedEntry.balance} className="form-input" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} required />
+                <input
+                  type="text"
+                  name="ar_amount_received"
+                  id="ar_amount_received"
+                  className="form-input"
+                  value={formatIndianCommas(amountReceived)}
+                  onChange={e => {
+                    let val = e.target.value.replace(/,/g, '');
+                    // Allow only digits and up to one decimal point
+                    val = val.replace(/[^0-9.]/g, '');
+                    const parts = val.split('.');
+                    if (parts.length > 2) {
+                      val = parts[0] + '.' + parts.slice(1).join('');
+                    }
+                    if (parts[1] && parts[1].length > 2) {
+                      val = parts[0] + '.' + parts[1].substring(0, 2);
+                    }
+                    // Enforce max balance limit
+                    const maxVal = selectedEntry.balance || 0;
+                    const num = parseFloat(val);
+                    if (!isNaN(num) && num > maxVal) {
+                      val = maxVal.toFixed(2);
+                    }
+                    setAmountReceived(val);
+                  }}
+                  required
+                  autoComplete="new-password"
+                  placeholder="0.00"
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Payment Date</label>
@@ -228,7 +323,7 @@ export default function ARDatabase() {
               </div>
               <div className="form-group">
                 <label className="form-label">Reference (UTR/Cheque)</label>
-                <input type="text" className="form-input" value={paymentRef} onChange={e => setPaymentRef(e.target.value)} required />
+                <input type="text" className="form-input" value={paymentRef} onChange={e => setPaymentRef(e.target.value)} required autoComplete="off" />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setSelectedEntry(null)}>Cancel</button>
@@ -237,6 +332,69 @@ export default function ARDatabase() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {paymentHistory && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card card--padded animate-scale-up" style={{ width: '600px', maxWidth: '95%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #E5E7EB', paddingBottom: '12px' }}>
+              <h3 className="text-h3" style={{ margin: 0 }}>Payment History</h3>
+              <button 
+                onClick={() => setPaymentHistory(null)} 
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6B7280' }}
+              >
+                &times;
+              </button>
+            </div>
+            <p className="text-body-sm" style={{ marginBottom: '16px' }}>
+              Invoice Number: <strong>{paymentHistory.invoice_number}</strong>
+            </p>
+
+            {loadingHistory ? (
+              <div style={{ padding: '24px', textAlign: 'center' }}>Loading payment records...</div>
+            ) : (
+              <>
+                {paymentHistory.payments.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#6B7280' }}>No payments recorded for this invoice.</div>
+                ) : (
+                  <div style={{ overflowX: 'auto', maxHeight: '300px' }}>
+                    <table className="data-table" style={{ width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th>Payment Date</th>
+                          <th>Method</th>
+                          <th>Reference / UTR</th>
+                          <th className="text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentHistory.payments.map((p) => (
+                          <tr key={p.id}>
+                            <td>{new Date(p.payment_date).toLocaleDateString('en-IN')}</td>
+                            <td><span className="badge badge--pending">{p.payment_mode || 'NEFT'}</span></td>
+                            <td style={{ fontFamily: 'monospace' }}>{p.transaction_ref || '-'}</td>
+                            <td className="text-right font-medium" style={{ color: 'var(--green)' }}>
+                              ₹{p.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', borderTop: '1px solid #E5E7EB', paddingTop: '16px' }}>
+                  <div className="font-semibold" style={{ color: '#374151' }}>
+                    Total Received: <span style={{ color: 'var(--green)' }}>
+                      ₹{paymentHistory.payments.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <button type="button" className="btn btn-outline" onClick={() => setPaymentHistory(null)}>Close</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

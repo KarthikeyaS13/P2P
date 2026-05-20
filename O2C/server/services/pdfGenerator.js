@@ -38,7 +38,7 @@ function wrapText(text, maxWidth, font, fontSize) {
  * @param {Object} customer Customer DB object
  * @returns {Promise<PDFDocument>} PDF Document
  */
-async function generateInvoicePDFBuffer(invoice, items, customer) {
+async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 'http://localhost:5173') {
   const pdfDoc = await PDFDocument.create();
 
   // Set up fonts
@@ -52,6 +52,7 @@ async function generateInvoicePDFBuffer(invoice, items, customer) {
   // Margin & dimensions
   const margin = 40;
   const contentWidth = width - 2 * margin; // 515.27
+  const rightBoundaryX = width - margin;
 
   // Colors
   const primaryColor = rgb(0.09, 0.12, 0.22); // Dark Navy #171f38
@@ -75,19 +76,34 @@ async function generateInvoicePDFBuffer(invoice, items, customer) {
   page.drawText('Bangalore, Karnataka, India - 560001', { x: margin, y: height - 118, size: 9, font: helvetica, color: secondaryColor });
   page.drawText('GSTIN: 29SUDHA1234A1Z5', { x: margin, y: height - 131, size: 9, font: helveticaBold, color: textColor });
 
-  // Invoice Metadata (Right)
-  const metaX = 400;
-  page.drawText(`Invoice No:`, { x: metaX, y: height - 90, size: 9, font: helveticaBold, color: textColor });
-  page.drawText(invoice.invoice_number || 'DRAFT', { x: metaX + 70, y: height - 90, size: 9, font: helvetica, color: textColor });
+  // Invoice Metadata (Right aligned to match screen preview)
+  const drawMetaLine = (labelText, valueText, yPos) => {
+    const labelWidth = helveticaBold.widthOfTextAtSize(labelText, 9);
+    const spaceWidth = helvetica.widthOfTextAtSize('  ', 9);
+    const valueWidth = helvetica.widthOfTextAtSize(valueText, 9);
+    const combinedWidth = labelWidth + spaceWidth + valueWidth;
+    
+    page.drawText(labelText, {
+      x: rightBoundaryX - combinedWidth,
+      y: yPos,
+      size: 9,
+      font: helveticaBold,
+      color: textColor
+    });
+    
+    page.drawText(valueText, {
+      x: rightBoundaryX - valueWidth,
+      y: yPos,
+      size: 9,
+      font: helvetica,
+      color: textColor
+    });
+  };
 
-  page.drawText(`Invoice Date:`, { x: metaX, y: height - 105, size: 9, font: helveticaBold, color: textColor });
-  page.drawText(invoice.invoice_date || 'N/A', { x: metaX + 70, y: height - 105, size: 9, font: helvetica, color: textColor });
-
-  page.drawText(`Due Date:`, { x: metaX, y: height - 120, size: 9, font: helveticaBold, color: textColor });
-  page.drawText(invoice.due_date || 'N/A', { x: metaX + 70, y: height - 120, size: 9, font: helvetica, color: textColor });
-
-  page.drawText(`PO Number:`, { x: metaX, y: height - 135, size: 9, font: helveticaBold, color: textColor });
-  page.drawText(invoice.po_number || invoice.po_no || 'N/A', { x: metaX + 70, y: height - 135, size: 9, font: helvetica, color: textColor });
+  drawMetaLine('Invoice No:', invoice.invoice_number || 'DRAFT', height - 90);
+  drawMetaLine('Invoice Date:', invoice.invoice_date || 'N/A', height - 105);
+  drawMetaLine('Due Date:', invoice.due_date || 'N/A', height - 120);
+  drawMetaLine('PO Number:', invoice.po_number || invoice.po_no || 'N/A', height - 135);
 
   // Divider
   page.drawLine({
@@ -114,18 +130,22 @@ async function generateInvoicePDFBuffer(invoice, items, customer) {
   });
   page.drawText(`GSTIN: ${customer?.gstin || 'N/A'}`, { x: margin, y: detailsY - addrOffset - 5, size: 8, font: helveticaBold, color: textColor });
 
-  // SHIP TO
-  const shipX = margin + colWidth + 30;
-  page.drawText('SHIP TO / PLACE OF SUPPLY', { x: shipX, y: detailsY, size: 10, font: helveticaBold, color: primaryColor });
+  // SHIP TO (Right aligned to align with header metadata and total summaries)
+  const shipTitle = 'SHIP TO / PLACE OF SUPPLY';
+  const shipTitleWidth = helveticaBold.widthOfTextAtSize(shipTitle, 10);
+  page.drawText(shipTitle, { x: rightBoundaryX - shipTitleWidth, y: detailsY, size: 10, font: helveticaBold, color: primaryColor });
 
   const shippingAddr = invoice.shipping_address || customer?.address_line1 || 'N/A';
   const shippingLines = wrapText(shippingAddr, colWidth, helvetica, 8);
   let shipOffset = 15;
   shippingLines.slice(0, 4).forEach((line) => {
-    page.drawText(line, { x: shipX, y: detailsY - shipOffset, size: 8, font: helvetica, color: secondaryColor });
+    const lineWidth = helvetica.widthOfTextAtSize(line, 8);
+    page.drawText(line, { x: rightBoundaryX - lineWidth, y: detailsY - shipOffset, size: 8, font: helvetica, color: secondaryColor });
     shipOffset += 11;
   });
-  page.drawText(`Place of Supply: ${invoice.place_of_supply || 'N/A'}`, { x: shipX, y: detailsY - shipOffset - 5, size: 8, font: helveticaBold, color: textColor });
+  const posText = `Place of Supply: ${invoice.place_of_supply || 'N/A'}`;
+  const posTextWidth = helveticaBold.widthOfTextAtSize(posText, 8);
+  page.drawText(posText, { x: rightBoundaryX - posTextWidth, y: detailsY - shipOffset - 5, size: 8, font: helveticaBold, color: textColor });
 
   // Divider
   page.drawLine({
@@ -139,14 +159,13 @@ async function generateInvoicePDFBuffer(invoice, items, customer) {
   const tableY = height - 280;
 
   const cols = [
-    { name: 'S.No', x: margin + 2, width: 23, align: 'left' },
-    { name: 'Item / Package Name', x: margin + 27, width: 168, align: 'left' },
-    { name: 'Description', x: margin + 197, width: 118, align: 'left' },
-    { name: 'Qty', x: margin + 317, width: 33, align: 'right' },
-    { name: 'Rate', x: margin + 352, width: 43, align: 'right' },
-    { name: 'GST %', x: margin + 397, width: 28, align: 'right' },
-    { name: 'Taxable', x: margin + 427, width: 43, align: 'right' },
-    { name: 'Total', x: margin + 472, width: 41, align: 'right' },
+    { name: 'S.No', x: margin + 2, width: 30, align: 'left' },
+    { name: 'Item / Package Name', x: margin + 32, width: 190, align: 'left' },
+    { name: 'Qty', x: margin + 232, width: 40, align: 'right' },
+    { name: 'Rate', x: margin + 282, width: 55, align: 'right' },
+    { name: 'GST %', x: margin + 347, width: 40, align: 'right' },
+    { name: 'Taxable', x: margin + 397, width: 60, align: 'right' },
+    { name: 'Total', x: margin + 467, width: 48, align: 'right' },
   ];
 
   // Helper to draw a right-aligned text string in pdf-lib
@@ -243,14 +262,10 @@ async function generateInvoicePDFBuffer(invoice, items, customer) {
     });
 
     const nameText = item.item_name || item.package_name || 'N/A';
-    const descText = item.description || 'N/A';
 
-    const nameLine = helvetica.widthOfTextAtSize(nameText, 8) > 160
-      ? nameText.substring(0, 32) + '...'
+    const nameLine = helvetica.widthOfTextAtSize(nameText, 8) > 185
+      ? nameText.substring(0, 36) + '...'
       : nameText;
-    const descLine = helvetica.widthOfTextAtSize(descText, 7) > 110
-      ? descText.substring(0, 24) + '...'
-      : descText;
 
     const qty = parseFloat(item.quantity || 0).toFixed(2);
     const rate = parseFloat(item.rate || item.rate_per_unit || 0).toFixed(2);
@@ -261,7 +276,6 @@ async function generateInvoicePDFBuffer(invoice, items, customer) {
     // Draw Texts
     currentPage.drawText((index + 1).toString(), { x: cols[0].x, y: currentY + 7, size: 8, font: helvetica, color: textColor });
     currentPage.drawText(nameLine, { x: cols[1].x, y: currentY + 7, size: 8, font: helveticaBold, color: textColor });
-    currentPage.drawText(descLine, { x: cols[2].x, y: currentY + 7, size: 7, font: helvetica, color: secondaryColor });
 
     const drawColText = (col, val, isBold = false) => {
       const fontSize = 8;
@@ -280,11 +294,11 @@ async function generateInvoicePDFBuffer(invoice, items, customer) {
       });
     };
 
-    drawColText(cols[3], qty);
-    drawColText(cols[4], rate);
-    drawColText(cols[5], gstPercent);
-    drawColText(cols[6], taxable);
-    drawColText(cols[7], totalVal, true);
+    drawColText(cols[2], qty);
+    drawColText(cols[3], rate);
+    drawColText(cols[4], gstPercent);
+    drawColText(cols[5], taxable);
+    drawColText(cols[6], totalVal, true);
   });
 
   // 5. Total Calculations & Summary Box
@@ -479,7 +493,7 @@ async function generateInvoicePDFBuffer(invoice, items, customer) {
   });
 
   // Embed QR Code for secure verification
-  const qrUrl = `http://localhost:5173/verify?invoice_id=${invoice.id}&token=${invoice.internal_document_uuid || ''}`;
+  const qrUrl = `${frontendUrl}/verify?invoice_id=${invoice.id}&token=${invoice.internal_document_uuid || ''}`;
   try {
     const qrBuffer = await QRCode.toBuffer(qrUrl, { margin: 1, width: 80 });
     const qrImage = await pdfDoc.embedPng(qrBuffer);

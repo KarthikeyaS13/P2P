@@ -3,10 +3,13 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { INDIAN_STATES } from '../utils/states';
 import CustomStateSelect from './CustomStateSelect';
+import CustomCitySelect from './CustomCitySelect';
+import { POPULAR_CITIES } from '../utils/cities';
 
 export default function LocationForm({ customerId, customer, corporateGST, location, onClose, onRefresh }) {
   const isEdit = !!location;
 
+  const [isCustomCity, setIsCustomCity] = useState(false);
   const [form, setForm] = useState({
     label: '',
     address_line1: '',
@@ -50,6 +53,13 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
         spoc2_phone: location.spoc2_phone || ''
       });
       if (location.spoc2_name || location.spoc2_phone) setShowSpoc2(true);
+
+      if (location.city) {
+        const isPop = POPULAR_CITIES.some(c => c.name.toLowerCase() === location.city.toLowerCase());
+        setIsCustomCity(!isPop);
+      } else {
+        setIsCustomCity(false);
+      }
     }
   }, [location]);
 
@@ -79,16 +89,21 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
 
   const handleAddressToggle = (e) => {
     const isCorporate = e.target.checked;
-    setForm(prev => ({
-      ...prev,
-      is_corporate_address: isCorporate,
-      address_line1: isCorporate ? (customer?.address_line1 || '') : '',
-      address_line2: isCorporate ? (customer?.address_line2 || '') : '',
-      address_line3: isCorporate ? (customer?.address_line3 || '') : '',
-      city: isCorporate ? (customer?.city || '') : '',
-      state: isCorporate ? (customer?.state || '') : '',
-      pincode: isCorporate ? (customer?.pincode || '') : ''
-    }));
+    setForm(prev => {
+      const cityVal = isCorporate ? (customer?.city || '') : '';
+      const isPop = POPULAR_CITIES.some(c => c.name.toLowerCase() === cityVal.toLowerCase());
+      setIsCustomCity(cityVal ? !isPop : false);
+      return {
+        ...prev,
+        is_corporate_address: isCorporate,
+        address_line1: isCorporate ? (customer?.address_line1 || '') : '',
+        address_line2: isCorporate ? (customer?.address_line2 || '') : '',
+        address_line3: isCorporate ? (customer?.address_line3 || '') : '',
+        city: cityVal,
+        state: isCorporate ? (customer?.state || '') : '',
+        pincode: isCorporate ? (customer?.pincode || '') : ''
+      };
+    });
   };
 
   const handleSubmit = (e) => {
@@ -236,14 +251,56 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>City *</label>
-              <input 
-                name="city" 
-                value={form.city} 
-                onChange={handleChange} 
-                required 
-                disabled={form.is_corporate_address}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
-              />
+              {isCustomCity ? (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    name="city" 
+                    value={form.city} 
+                    onChange={handleChange} 
+                    placeholder="Enter city name"
+                    required 
+                    disabled={form.is_corporate_address}
+                    style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setIsCustomCity(false)}
+                    disabled={form.is_corporate_address}
+                    style={{ 
+                      padding: '10px 14px', 
+                      background: '#EFF6FF', 
+                      color: '#1D4ED8', 
+                      border: '1px solid #BFDBFE', 
+                      borderRadius: '8px', 
+                      cursor: form.is_corporate_address ? 'not-allowed' : 'pointer', 
+                      fontSize: '13px', 
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>list</span>
+                    Popular
+                  </button>
+                </div>
+              ) : (
+                <CustomCitySelect 
+                  value={form.city} 
+                  onChange={(cityName, stateName) => {
+                    setForm(prev => ({
+                      ...prev,
+                      city: cityName,
+                      state: stateName || prev.state
+                    }));
+                  }} 
+                  onSelectOther={() => {
+                    setIsCustomCity(true);
+                    setForm(prev => ({ ...prev, city: '' }));
+                  }}
+                  disabled={form.is_corporate_address}
+                />
+              )}
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>State *</label>

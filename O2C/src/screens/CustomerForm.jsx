@@ -5,6 +5,8 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
 import { INDIAN_STATES } from '../utils/states';
 import CustomStateSelect from '../components/CustomStateSelect';
+import CustomCitySelect from '../components/CustomCitySelect';
+import { POPULAR_CITIES } from '../utils/cities';
 
 export default function CustomerForm() {
   const { id } = useParams();
@@ -12,6 +14,7 @@ export default function CustomerForm() {
   const { user } = useAuth();
   const isEdit = !!id;
 
+  const [isCustomCity, setIsCustomCity] = useState(false);
   const [form, setForm] = useState({
     cust_code: '',
     name: '',
@@ -42,7 +45,15 @@ export default function CustomerForm() {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       axios.get(`http://localhost:5000/api/customers/${id}`, { headers })
-        .then(res => setForm(res.data))
+        .then(res => {
+          setForm(res.data);
+          if (res.data.city) {
+            const isPop = POPULAR_CITIES.some(c => c.name.toLowerCase() === res.data.city.toLowerCase());
+            setIsCustomCity(!isPop);
+          } else {
+            setIsCustomCity(false);
+          }
+        })
         .catch(err => {
           console.error(err);
           Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load customer details' });
@@ -196,7 +207,52 @@ export default function CustomerForm() {
           </div>
           <div>
             <label style={labelStyle}>City *</label>
-            <input name="city" value={form.city} onChange={handleChange} style={inputStyle} />
+            {isCustomCity ? (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input 
+                  name="city" 
+                  value={form.city} 
+                  onChange={handleChange} 
+                  placeholder="Enter city name"
+                  style={{ ...inputStyle, flex: 1 }} 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setIsCustomCity(false)}
+                  style={{ 
+                    padding: '10px 14px', 
+                    background: '#EFF6FF', 
+                    color: '#1D4ED8', 
+                    border: '1px solid #BFDBFE', 
+                    borderRadius: '8px', 
+                    cursor: 'pointer', 
+                    fontSize: '13px', 
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>list</span>
+                  Popular
+                </button>
+              </div>
+            ) : (
+              <CustomCitySelect 
+                value={form.city} 
+                onChange={(cityName, stateName) => {
+                  setForm(prev => ({
+                    ...prev,
+                    city: cityName,
+                    state: stateName || prev.state
+                  }));
+                }} 
+                onSelectOther={() => {
+                  setIsCustomCity(true);
+                  setForm(prev => ({ ...prev, city: '' }));
+                }}
+              />
+            )}
           </div>
           <div>
             <label style={labelStyle}>State *</label>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { API_BASE_URL } from '../config';
 import {
   useReactTable,
   getCoreRowModel,
@@ -595,8 +596,8 @@ export default function RaiseDC() {
                 <div className="info-block">
                   <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Dispatch Proof</label>
                   {details.proof_path ? (
-                    <a href={`http://localhost:5000${details.proof_path}`} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid #E2E8F0', borderRadius: '4px', overflow: 'hidden', background: 'white' }}>
-                      <img src={`http://localhost:5000${details.proof_path}`} alt="Proof" style={{ width: '100%', height: '60px', objectFit: 'cover' }} />
+                    <a href={`${API_BASE_URL}${details.proof_path}`} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid #E2E8F0', borderRadius: '4px', overflow: 'hidden', background: 'white' }}>
+                      <img src={`${API_BASE_URL}${details.proof_path}`} alt="Proof" style={{ width: '100%', height: '60px', objectFit: 'cover' }} />
                       <div style={{ fontSize: '10px', textAlign: 'center', padding: '2px', background: '#F1F5F9', color: '#2563EB', fontWeight: 700 }}>VIEW FULL PHOTO</div>
                     </a>
                   ) : (
