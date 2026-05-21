@@ -8,14 +8,16 @@ export default function VerifyDocument() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const isQrMode = !!(searchParams.get('invoice_id') && searchParams.get('token'));
+
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' | 'hash'
   const [inputHash, setInputHash] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [docData, setDocData] = useState(null);
   const [cryptoResult, setCryptoResult] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(isQrMode);
   const [error, setError] = useState('');
-  const [searched, setSearched] = useState(false);
+  const [searched, setSearched] = useState(isQrMode);
 
   // Auto-verify if hash or QR parameters are in URL/search query params
   useEffect(() => {
@@ -39,11 +41,11 @@ export default function VerifyDocument() {
     setDocData(null);
     setCryptoResult(null);
     setSearched(true);
-    
+
     try {
       const res = await axios.get(`http://localhost:5000/api/public/verify-qr?invoice_id=${invoiceId}&token=${token}`);
       setDocData(res.data.invoice);
-      
+
       setCryptoResult({
         valid: res.data.valid,
         message: res.data.message || 'QR Code Verification Successful: The document is authentic.',
@@ -52,7 +54,7 @@ export default function VerifyDocument() {
           issuer: 'O2C Portal Cryptographic Signer Node',
           serialNumber: res.data.invoice?.certificate_serial || 'N/A',
           reason: 'QR Code scanning & invoice record lookup verification.',
-          location: 'Industrial Area, Phase II, Bangalore, India',
+          location: res.data.signingLocation || 'Bangalore, India',
           integrity: true,
           authenticity: true
         }
@@ -82,7 +84,7 @@ export default function VerifyDocument() {
     try {
       const res = await axios.get(`http://localhost:5000/api/public/verify-document/${hashStr.trim()}`);
       setDocData(res.data);
-      
+
       // Since it's a hash query against the ledger DB, we verify the ledger's registration
       setCryptoResult({
         valid: true,
@@ -92,7 +94,7 @@ export default function VerifyDocument() {
           issuer: 'O2C Portal Database Ledger',
           serialNumber: 'LEDGER-RECORD',
           reason: 'Database ledger record matching.',
-          location: 'Bangalore, India',
+          location: res.data.signingLocation || 'Bangalore, India',
           integrity: true,
           authenticity: true
         }
@@ -127,7 +129,7 @@ export default function VerifyDocument() {
       const res = await axios.post('http://localhost:5000/api/public/verify-pdf', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
+
       setCryptoResult(res.data);
       if (res.data.invoice) {
         setDocData(res.data.invoice);
@@ -170,80 +172,84 @@ export default function VerifyDocument() {
   return (
     <div className="verify-page-container">
       <div className="verify-card animate-fade-in">
-        <div className="verify-header">
-          <div className="brand-group">
-            <span className="material-symbols-outlined logo-icon">verified_user</span>
-            <div>
-              <h2 className="brand-title">SUDHA ANALYTICALS</h2>
-              <p className="brand-tagline">Secure Cryptographic Verification Portal</p>
-            </div>
-          </div>
-          <p className="portal-desc">
-            Verify the cryptographic authenticity of invoices and delivery challans using advanced PKCS#7 digital signature verification.
-          </p>
-        </div>
-
-        {/* Tab Controls */}
-        <div className="verify-tabs">
-          <button
-            className={`tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('upload'); setError(''); setSearched(false); setDocData(null); setCryptoResult(null); }}
-          >
-            <span className="material-symbols-outlined">upload_file</span>
-            Upload PDF Document
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'hash' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('hash'); setError(''); setSearched(false); setDocData(null); setCryptoResult(null); }}
-          >
-            <span className="material-symbols-outlined">key</span>
-            Enter Hash Key
-          </button>
-        </div>
-
-        {activeTab === 'upload' ? (
-          <div className="upload-section animate-fade-in">
-            <div className="dropzone-container">
-              <input
-                type="file"
-                id="pdf-picker"
-                accept=".pdf"
-                onChange={handleFileUpload}
-                style={{ display: 'none' }}
-              />
-              <label htmlFor="pdf-picker" className="dropzone-label">
-                <span className="material-symbols-outlined upload-cloud-icon">cloud_upload</span>
-                <span className="dropzone-title">Click to Upload Invoice PDF</span>
-                <span className="dropzone-subtitle">Select the signed .pdf file to run cryptographic validation</span>
-              </label>
-            </div>
-            {uploadedFileName && (
-              <div className="selected-file-badge">
-                <span className="material-symbols-outlined">description</span>
-                <span className="file-name">{uploadedFileName}</span>
+        {!isQrMode && (
+          <>
+            <div className="verify-header">
+              <div className="brand-group">
+                <span className="material-symbols-outlined logo-icon">verified_user</span>
+                <div>
+                  <h2 className="brand-title">SUDHA ANALYTICALS</h2>
+                  <p className="brand-tagline">Secure Cryptographic Verification Portal</p>
+                </div>
               </div>
+              <p className="portal-desc">
+                Verify the cryptographic authenticity of invoices and delivery challans using advanced PKCS#7 digital signature verification.
+              </p>
+            </div>
+
+            {/* Tab Controls */}
+            <div className="verify-tabs">
+              <button
+                className={`tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('upload'); setError(''); setSearched(false); setDocData(null); setCryptoResult(null); }}
+              >
+                <span className="material-symbols-outlined">upload_file</span>
+                Upload PDF Document
+              </button>
+              <button
+                className={`tab-btn ${activeTab === 'hash' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('hash'); setError(''); setSearched(false); setDocData(null); setCryptoResult(null); }}
+              >
+                <span className="material-symbols-outlined">key</span>
+                Enter Hash Key
+              </button>
+            </div>
+
+            {activeTab === 'upload' ? (
+              <div className="upload-section animate-fade-in">
+                <div className="dropzone-container">
+                  <input
+                    type="file"
+                    id="pdf-picker"
+                    accept=".pdf"
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="pdf-picker" className="dropzone-label">
+                    <span className="material-symbols-outlined upload-cloud-icon">cloud_upload</span>
+                    <span className="dropzone-title">Click to Upload Invoice PDF</span>
+                    <span className="dropzone-subtitle">Select the signed .pdf file to run cryptographic validation</span>
+                  </label>
+                </div>
+                {uploadedFileName && (
+                  <div className="selected-file-badge">
+                    <span className="material-symbols-outlined">description</span>
+                    <span className="file-name">{uploadedFileName}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSearchSubmit} className="verify-form animate-fade-in">
+                <div className="form-group">
+                  <label className="form-label">Integrity Hash Key (SHA-256)</label>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      className="form-input mono"
+                      placeholder="Paste the 64-character signature hash printed on the document footer..."
+                      value={inputHash}
+                      onChange={(e) => setInputHash(e.target.value)}
+                      maxLength={64}
+                      required
+                    />
+                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                      {loading ? 'Verifying...' : 'Verify Authenticity'}
+                    </button>
+                  </div>
+                </div>
+              </form>
             )}
-          </div>
-        ) : (
-          <form onSubmit={handleSearchSubmit} className="verify-form animate-fade-in">
-            <div className="form-group">
-              <label className="form-label">Integrity Hash Key (SHA-256)</label>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-input mono"
-                  placeholder="Paste the 64-character signature hash printed on the document footer..."
-                  value={inputHash}
-                  onChange={(e) => setInputHash(e.target.value)}
-                  maxLength={64}
-                  required
-                />
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Verifying...' : 'Verify Authenticity'}
-                </button>
-              </div>
-            </div>
-          </form>
+          </>
         )}
 
         {loading && (
@@ -314,9 +320,9 @@ export default function VerifyDocument() {
                 <div className="cert-field" style={{ gridColumn: 'span 2' }}>
                   <span className="cert-label font-bold">Trust Chain Status</span>
                   <span className="cert-val font-mono" style={{ fontSize: '11px' }}>
-                    {cryptoResult.details.authenticity 
-                      ? '✓ Authenticated by trusted Certificate Authority' 
-                      : 'ℹ Cryptographically valid seal (Private/Self-Signed Certificate)'}
+                    {cryptoResult.details.authenticity
+                      ? '✓ Authenticated by trusted Certificate Authority'
+                      : 'Cryptographically valid seal (Private/Self-Signed Certificate)'}
                   </span>
                 </div>
               </div>
@@ -328,12 +334,12 @@ export default function VerifyDocument() {
 
         {/* Ledger Details Comparison */}
         {searched && !loading && cryptoResult && docData && (
-          <div 
-            className="verification-result verified animate-scale-up" 
-            style={{ 
-              background: cryptoResult.valid ? '#F8FAFC' : '#FEF2F2', 
-              border: cryptoResult.valid ? '1px solid #E2E8F0' : '1px solid #FCA5A5', 
-              color: '#1E293B' 
+          <div
+            className="verification-result verified animate-scale-up"
+            style={{
+              background: cryptoResult.valid ? '#F8FAFC' : '#FEF2F2',
+              border: cryptoResult.valid ? '1px solid #E2E8F0' : '1px solid #FCA5A5',
+              color: '#1E293B'
             }}
           >
             <div className="verified-banner" style={{ borderBottom: cryptoResult.valid ? '1px solid #E2E8F0' : '1px solid #FCA5A5' }}>
@@ -345,8 +351,8 @@ export default function VerifyDocument() {
                   {cryptoResult.valid ? 'MATCHED LEDGER ENTRY FOUND' : 'INTEGRITY COMPROMISED / DOCUMENT UNTRUSTED'}
                 </h3>
                 <p className="result-desc" style={{ color: cryptoResult.valid ? '#64748B' : '#7F1D1D' }}>
-                  {cryptoResult.valid 
-                    ? 'This document corresponds to a registered billing event in the O2C command center. Compare the physical values below.' 
+                  {cryptoResult.valid
+                    ? 'This document corresponds to a registered billing event in the O2C command center. Compare the physical values below.'
                     : 'A matching ledger record was found, but this PDF file has been altered or rebuilt. Visual contents may have been falsified.'}
                 </p>
               </div>
@@ -453,8 +459,8 @@ export default function VerifyDocument() {
                         <td>
                           <div style={{ fontWeight: 600, color: '#1E293B' }}>{it.item_name}</div>
                           {it.description ? (
-                            <div 
-                              onClick={() => handleShowDescription(it.item_name, it.description)} 
+                            <div
+                              onClick={() => handleShowDescription(it.item_name, it.description)}
                               className="clickable-desc-badge"
                             >
                               <span className="material-symbols-outlined desc-doc-icon">description</span>

@@ -376,7 +376,27 @@ app.get('/api/public/verify-document/:hash', (req, res) => {
     }
 
     const items = db.prepare(`SELECT * FROM invoice_items WHERE invoice_id = ?`).all(invoice.id);
-    res.json({ ...invoice, items });
+
+    // Fetch signing location from default master address
+    let signingLocation = 'Bangalore, India';
+    try {
+      let masterAddr = db.prepare("SELECT city, state FROM master_addresses WHERE is_default = 1 LIMIT 1").get();
+      if (!masterAddr) {
+        masterAddr = db.prepare("SELECT city, state FROM master_addresses LIMIT 1").get();
+      }
+      if (masterAddr) {
+        const parts = [];
+        if (masterAddr.city) parts.push(masterAddr.city);
+        if (masterAddr.state) parts.push(masterAddr.state);
+        if (parts.length > 0) {
+          signingLocation = parts.join(', ');
+        }
+      }
+    } catch (dbErr) {
+      console.error('Failed to fetch default master address location:', dbErr.message);
+    }
+
+    res.json({ ...invoice, items, signingLocation });
   } catch (err) {
     console.error('Public verification error:', err);
     res.status(500).json({ error: err.message });
@@ -444,8 +464,27 @@ app.get('/api/invoices/:id/pdf', authenticate, async (req, res) => {
       }
       const pdfDoc = await generateInvoicePDFBuffer(invoice, items, customer, frontendUrl);
 
+      // Fetch signing location from default master address
+      let signingLocation = 'Bangalore, India';
+      try {
+        let masterAddr = db.prepare("SELECT city, state FROM master_addresses WHERE is_default = 1 LIMIT 1").get();
+        if (!masterAddr) {
+          masterAddr = db.prepare("SELECT city, state FROM master_addresses LIMIT 1").get();
+        }
+        if (masterAddr) {
+          const parts = [];
+          if (masterAddr.city) parts.push(masterAddr.city);
+          if (masterAddr.state) parts.push(masterAddr.state);
+          if (parts.length > 0) {
+            signingLocation = parts.join(', ');
+          }
+        }
+      } catch (dbErr) {
+        console.error('Failed to fetch default master address location:', dbErr.message);
+      }
+
       // 2. Sign PDF
-      const signedResult = await signInvoicePDF(pdfDoc, invoice.id, invoice.invoice_number);
+      const signedResult = await signInvoicePDF(pdfDoc, invoice.id, invoice.invoice_number, signingLocation);
 
       // 3. Update DB with signing details
       db.prepare(`
@@ -607,10 +646,30 @@ app.get('/api/public/verify-qr', (req, res) => {
 
     invoice.items = db.prepare("SELECT * FROM invoice_items WHERE invoice_id = ?").all(invoice.id);
 
+    // Fetch signing location from default master address
+    let signingLocation = 'Bangalore, India';
+    try {
+      let masterAddr = db.prepare("SELECT city, state FROM master_addresses WHERE is_default = 1 LIMIT 1").get();
+      if (!masterAddr) {
+        masterAddr = db.prepare("SELECT city, state FROM master_addresses LIMIT 1").get();
+      }
+      if (masterAddr) {
+        const parts = [];
+        if (masterAddr.city) parts.push(masterAddr.city);
+        if (masterAddr.state) parts.push(masterAddr.state);
+        if (parts.length > 0) {
+          signingLocation = parts.join(', ');
+        }
+      }
+    } catch (dbErr) {
+      console.error('Failed to fetch default master address location:', dbErr.message);
+    }
+
     return res.json({
       valid: true,
       message: 'QR Code Verification Successful: The document is authentic.',
-      invoice
+      invoice,
+      signingLocation
     });
   } catch (err) {
     console.error('ERROR in /api/public/verify-qr:', err);
