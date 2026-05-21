@@ -162,19 +162,18 @@ export default function Customers() {
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Loading customers...</div>;
 
   return (
-    <div style={{ padding: '16px 24px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+    <div style={{ padding: '0 0 16px 0', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', marginTop: '0' }}>
         <button 
           onClick={() => navigate('/dashboard')}
-          className="btn-back"
-          style={{ border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 16px', borderRadius: '4px', fontWeight: 600 }}
+          className="btn-ghost btn-back"
+          style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
-          Back
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
         </button>
         <div>
-          <h2 style={{ margin: 0, color: '#111827' }}>Customer Management</h2>
-          <p style={{ color: '#6B7280', margin: 0 }}>Oversee and manage your enterprise customer portfolio</p>
+          <h2 style={{ margin: 0, color: '#111827', fontSize: '1.2rem' }}>Customer Management</h2>
+          <p style={{ color: '#6B7280', margin: 0, fontSize: '0.85rem' }}>Oversee and manage your enterprise customer portfolio</p>
         </div>
       </div>
 
@@ -183,15 +182,15 @@ export default function Customers() {
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '12px',
-        marginBottom: '16px',
+        marginBottom: '12px',
         background: 'white',
         padding: '10px 16px',
         borderRadius: '8px',
         boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
         border: '1px solid #E5E7EB'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-          <span className="material-symbols-outlined" style={{ color: '#9CA3AF' }}>search</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+          <span className="material-symbols-outlined" style={{ color: '#9CA3AF', fontSize: '18px' }}>search</span>
           <input
             type="text"
             placeholder="Search by name, ID, or any detail..."
@@ -200,10 +199,10 @@ export default function Customers() {
             style={{
               flex: 1,
               maxWidth: '400px',
-              padding: '8px 0',
+              height: '32px',
               border: 'none',
               outline: 'none',
-              fontSize: '14px'
+              fontSize: '13px'
             }}
           />
         </div>
@@ -213,7 +212,7 @@ export default function Customers() {
             style={{
               background: '#1E40AF',
               color: 'white',
-              padding: '8px 16px',
+              padding: '6px 12px',
               borderRadius: '6px',
               border: 'none',
               cursor: 'pointer',
@@ -221,10 +220,10 @@ export default function Customers() {
               fontWeight: '600',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '6px'
             }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>person_add</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_add</span>
             Onboard New Customer
           </button>
         )}
@@ -242,7 +241,7 @@ export default function Customers() {
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 600, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
+                  <th key={header.id} style={{ padding: '8px 10px', fontSize: '0.75rem', fontWeight: 800, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -254,7 +253,7 @@ export default function Customers() {
               table.getRowModel().rows.map(row => (
                 <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} style={{ padding: '16px', fontSize: '0.925rem', color: '#374151' }}>
+                    <td key={cell.id} style={{ padding: '6px 10px', fontSize: '0.85rem', color: '#374151' }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -262,7 +261,7 @@ export default function Customers() {
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length} style={{ padding: '48px', textAlign: 'center', color: '#6B7280' }}>
+                <td colSpan={columns.length} style={{ padding: '24px', textAlign: 'center', color: '#6B7280' }}>
                   No customers found.
                 </td>
               </tr>

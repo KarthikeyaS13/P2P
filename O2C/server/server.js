@@ -1980,9 +1980,9 @@ app.post('/api/invoices/:id/payment', authenticate, (req, res) => {
     // 2. Update AR Entry
     const ar = db.prepare('SELECT * FROM ar_entries WHERE invoice_id = ?').get(invoiceId);
     if (ar) {
-      const newReceived = (ar.amount_received || 0) + parseFloat(amount);
-      const newBalance = ar.amount_due - newReceived;
-      const newStatus = newBalance <= 0 ? 'paid' : (newReceived > 0 ? 'partial' : 'pending');
+      const newReceived = parseFloat(((ar.amount_received || 0) + parseFloat(amount)).toFixed(2));
+      const newBalance = Math.max(0, parseFloat((ar.amount_due - newReceived).toFixed(2)));
+      const newStatus = newBalance <= 0.01 ? 'paid' : (newReceived > 0 ? 'partial' : 'pending');
 
       db.prepare(`
         UPDATE ar_entries 
@@ -2120,6 +2120,7 @@ app.get('/api/dc', authenticate, (req, res) => {
       SELECT 
         d.*,
         p.po_number as po_no,
+        p.po_number as po_number,
         c.name as customer_name,
         cl.label as location_name,
         cl.city as location_city,

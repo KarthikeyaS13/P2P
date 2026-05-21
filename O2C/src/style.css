@@ -398,6 +398,11 @@ select {
   padding: 24px 28px;
 }
 
+#dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 /* =========================================================
    TITLES
 ========================================================== */
@@ -623,31 +628,21 @@ table {
 
 th {
   background: #f8fafc;
-
   color: #64748b;
-
-  padding: 20px;
-
+  padding: 10px 14px;
   text-align: left;
-
-  font-size: 13px;
-  font-weight: 700;
-
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
-
   letter-spacing: 1px;
-
 }
 
 td {
-  padding: 8px 12px;
+  padding: 10px 14px;
   font-size: 13px;
   line-height: 1.2;
   font-weight: 500;
   border-top: 1px solid var(--border-light);
-
-  font-size: 15px;
-
   color: var(--text-primary);
 }
 
@@ -808,26 +803,74 @@ tr:hover {
 @media (max-width: 1200px) {
 
   .sidebar {
-    width: 96px;
-    min-width: 96px;
+    width: 72px;
+    min-width: 72px;
   }
 
   .main-content {
-    margin-left: 96px;
-    width: calc(100% - 96px);
-  }
-
-  .sidebar__brand p,
-  .sidebar__link span:not(.material-symbols-outlined) {
-    display: none;
+    margin-left: 72px;
+    width: calc(100% - 72px);
   }
 
   .sidebar__brand {
-    padding: 26px 18px;
+    padding: 16px 8px;
+    display: flex;
+    justify-content: center;
+    border-bottom: 1px solid var(--border-light);
   }
 
-  .sidebar__brand h2 {
-    font-size: 16px;
+  .header__user {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 0 !important;
+    position: relative;
+  }
+
+  .sidebar__text,
+  .sidebar__brand h3,
+  .sidebar__brand p {
+    display: none !important;
+  }
+
+  .sidebar__link {
+    justify-content: center;
+    gap: 0;
+    padding: 10px;
+    border-radius: 12px;
+    position: relative;
+  }
+
+  .sidebar__footer {
+    padding: 12px 8px;
+  }
+
+  /* Custom CSS Tooltips on Hover */
+  .sidebar__link::after,
+  .header__user::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 80px;
+    top: 50%;
+    transform: translateY(-50%) translateX(-8px);
+    background: #1e293b;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 9999;
+  }
+
+  .sidebar__link:hover::after,
+  .header__user:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
   }
 }
 

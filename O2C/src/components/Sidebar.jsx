@@ -24,6 +24,7 @@ export default function Sidebar() {
   } else if (role === 'sales') {
     routes = routes.concat([
       { path: '/new-po', label: 'New PO', icon: 'add_shopping_cart' },
+      { path: '/new-nt-po', label: 'New NT PO', icon: 'post_add' },
       { path: '/edit-po', label: 'Edit PO', icon: 'edit_document' },
       { path: '/invoice-request', label: 'Invoice Req', icon: 'receipt_long' },
     ]);
@@ -40,7 +41,7 @@ export default function Sidebar() {
     routes = routes.concat([
       { path: '/verify', label: 'Verify Document', icon: 'gpp_good' },
       { path: '/po-review', label: 'PO Review', icon: 'rate_review' },
-      { path: '/raise-dc', label: 'Issue DC', icon: 'local_shipping' },
+      { path: '/raise-dc', label: 'Raise DC', icon: 'local_shipping' },
       { path: '/invoice-approval', label: 'Invoice Approval', icon: 'receipt_long' },
       { path: '/ar-database', label: 'AR Database', icon: 'payments' },
     ]);
@@ -57,11 +58,11 @@ export default function Sidebar() {
   return (
     <nav className="sidebar">
       <div className="sidebar__brand">
-        <div className="header__user" style={{ marginTop: '0', marginBottom: '16px', textAlign: 'left' }}>
+        <div className="header__user" style={{ marginTop: '0', marginBottom: '16px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }} data-tooltip={user ? `${user.full_name} (${user.role})` : 'User Profile'}>
           <div className="avatar-initials avatar-initials--primary">
             {user ? user.full_name?.charAt(0).toUpperCase() : 'U'}
           </div>
-          <div className="header__user-info" style={{ textAlign: 'left' }}>
+          <div className="header__user-info sidebar__text" style={{ textAlign: 'left' }}>
             {user ? (
               <>
                 <span className="user-name">{user.full_name}</span>
@@ -72,8 +73,8 @@ export default function Sidebar() {
             )}
           </div>
         </div>
-        <h3>Enterprise O2C</h3>
-        <p>Operational Suite</p>
+        <h3 className="sidebar__text" style={{ fontSize: '18px', fontWeight: 800, margin: '6px 0 0 0', color: 'var(--text-primary)' }}>Enterprise O2C</h3>
+        <p className="sidebar__text" style={{ fontSize: '10px', fontWeight: 700, margin: '2px 0 0 0', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Operational Suite</p>
       </div>
       <div className="sidebar__nav">
         {routes.map(r => (
@@ -81,14 +82,17 @@ export default function Sidebar() {
             key={r.path}
             to={r.path}
             className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}
+            data-tooltip={r.label}
           >
-            <span className="material-symbols-outlined">{r.icon}</span>{r.label}
+            <span className="material-symbols-outlined">{r.icon}</span>
+            <span className="sidebar__text">{r.label}</span>
           </NavLink>
         ))}
       </div>
       <div className="sidebar__footer">
-        <a className="sidebar__link" href="#logout" onClick={(e) => { e.preventDefault(); logout(); navigate('/'); }}>
-          <span className="material-symbols-outlined">logout</span>Log Out
+        <a className="sidebar__link" href="#logout" onClick={(e) => { e.preventDefault(); logout(); navigate('/'); }} data-tooltip="Log Out">
+          <span className="material-symbols-outlined">logout</span>
+          <span className="sidebar__text">Log Out</span>
         </a>
       </div>
     </nav>

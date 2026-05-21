@@ -34,6 +34,65 @@ const getInitialDraft = () => {
 };
 
 export default function NewNTPO() {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    if (dateStr instanceof Date) {
+      const dd = String(dateStr.getDate()).padStart(2, '0');
+      const mm = String(dateStr.getMonth() + 1).padStart(2, '0');
+      const yyyy = dateStr.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    const cleanStr = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+    
+    if (cleanStr.includes('-')) {
+      const parts = cleanStr.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+    
+    if (cleanStr.includes('/')) {
+      const parts = cleanStr.split('/');
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+
+    try {
+      const d = new Date(cleanStr);
+      if (!isNaN(d.getTime())) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}-${mm}-${yyyy}`;
+      }
+    } catch (e) {}
+    
+    return cleanStr;
+  };
+
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef(null);
@@ -848,158 +907,173 @@ export default function NewNTPO() {
   ];
 
   return (
-    <div style={{ padding: '12px', maxWidth: '100%', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="screen-enter" style={{ padding: '16px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
       <style>{`
         input::-webkit-outer-spin-button,
         input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
+        .compact-form-input {
+          height: 36px !important;
+          padding: 0 12px 0 32px !important;
+          font-size: 13px !important;
+          border-radius: 6px !important;
+          border: 1px solid #CBD5E1 !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+          background: #F8FAFC !important;
+          outline: none !important;
+        }
       `}</style>
       {renderFileViewer()}
 
       {/* Step Indicator */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', background: 'white', padding: '10px 15px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', background: 'white', padding: '8px 16px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #E2E8F0' }}>
         {steps.map(s => (
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', opacity: step >= s.id ? 1 : 0.4 }}>
             <div style={{
-              width: '30px', height: '30px', borderRadius: '50%',
+              width: '26px', height: '26px', borderRadius: '50%',
               background: step === s.id ? '#3B82F6' : step > s.id ? '#10B981' : '#E5E7EB',
               color: step >= s.id ? 'white' : '#6B7280',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold',
-              marginRight: '8px'
+              marginRight: '8px', fontSize: '12px'
             }}>{step > s.id ? '✓' : s.id}</div>
-            <span style={{ fontWeight: step === s.id ? 600 : 400 }}>{s.title}</span>
-            {s.id < 5 && <div style={{ height: '2px', width: '40px', background: '#E5E7EB', margin: '0 15px' }} />}
+            <span style={{ fontWeight: step === s.id ? 600 : 400, fontSize: '13px' }}>{s.title}</span>
+            {s.id < 5 && <div style={{ height: '2px', width: '30px', background: '#E5E7EB', margin: '0 12px' }} />}
           </div>
         ))}
       </div>
 
-      <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-        <button onClick={prevStep} className="btn-back" style={{ marginBottom: '10px', padding: '8px 16px', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+      <div style={{ background: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <button onClick={prevStep} className="btn-back" style={{ marginBottom: '12px', height: '28px', padding: '0 12px', border: '1px solid #E2E8F0', borderRadius: '6px', background: 'white', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, fontSize: '12px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
           Back
         </button>
 
         {step === 1 && (
           <div style={{ maxWidth: '500px' }}>
-            <h3>1. Select Customer & Location</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <label style={{ fontWeight: 600 }}>Customer</label>
-              <select value={selectedCustomer} onChange={handleCustomerChange} style={{ padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }}>
-                <option value="">-- Select Customer --</option>
-                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <label style={{ fontWeight: 600 }}>Location</label>
-              <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)} style={{ padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} disabled={!selectedCustomer}>
-                <option value="">-- Select Location --</option>
-                {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.label} - {loc.city}</option>)}
-              </select>
-              <button onClick={nextStep} disabled={!selectedCustomer || !selectedLocation} style={{ marginTop: '20px', padding: '12px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', opacity: (!selectedCustomer || !selectedLocation) ? 0.5 : 1 }}>Next Step →</button>
+            <h3 style={{ fontSize: '1.15rem', marginBottom: '12px', color: '#1E293B', fontWeight: 700 }}>1. Select Customer & Location</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Customer</label>
+                <select value={selectedCustomer} onChange={handleCustomerChange} style={{ width: '100%', height: '36px', padding: '0 12px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', background: '#F8FAFC', outline: 'none' }}>
+                  <option value="">-- Select Customer --</option>
+                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Location</label>
+                <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)} style={{ width: '100%', height: '36px', padding: '0 12px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', background: '#F8FAFC', outline: 'none' }} disabled={!selectedCustomer}>
+                  <option value="">-- Select Location --</option>
+                  {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.label} - {loc.city}</option>)}
+                </select>
+              </div>
+              <button onClick={nextStep} disabled={!selectedCustomer || !selectedLocation} style={{ marginTop: '16px', height: '36px', width: 'fit-content', padding: '0 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (!selectedCustomer || !selectedLocation) ? 0.5 : 1, fontWeight: 600 }}>Next Step →</button>
             </div>
           </div>
         )}
 
         {step === 2 && (
           <div>
-            <h3>2. Original PO Selection</h3>
-            <p>Do you have the original PO from the customer?</p>
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-              <button onClick={() => handleOriginalPoOption(true)} style={{ flex: 1, padding: '20px', background: hasOriginalPO === true ? '#EFF6FF' : 'white', border: `2px solid ${hasOriginalPO === true ? '#3B82F6' : '#E5E7EB'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Yes, I have original PO</button>
-              <button onClick={() => handleOriginalPoOption(false)} style={{ flex: 1, padding: '20px', background: hasOriginalPO === false ? '#EFF6FF' : 'white', border: `2px solid ${hasOriginalPO === false ? '#3B82F6' : '#E5E7EB'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>No, create internal PO</button>
+            <h3 style={{ fontSize: '1.15rem', marginBottom: '12px', color: '#1E293B', fontWeight: 700 }}>2. Original PO Selection</h3>
+            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '16px' }}>Do you have the original PO from the customer?</p>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', maxWidth: '600px' }}>
+              <button onClick={() => handleOriginalPoOption(true)} style={{ flex: 1, padding: '12px 16px', background: hasOriginalPO === true ? '#EFF6FF' : 'white', border: `1.5px solid ${hasOriginalPO === true ? '#3B82F6' : '#E2E8F0'}`, borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: hasOriginalPO === true ? '#1E40AF' : '#475569' }}>Yes, I have original PO</button>
+              <button onClick={() => handleOriginalPoOption(false)} style={{ flex: 1, padding: '12px 16px', background: hasOriginalPO === false ? '#EFF6FF' : 'white', border: `1.5px solid ${hasOriginalPO === false ? '#3B82F6' : '#E2E8F0'}`, borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: hasOriginalPO === false ? '#1E40AF' : '#475569' }}>No, create internal PO</button>
             </div>
             {hasOriginalPO === true && (
-              <div style={{ maxWidth: '500px', marginTop: '20px' }}>
-                <label style={{ fontWeight: 600 }}>Select Original PO</label>
-                <select value={linkedPoId || ''} onChange={handleOriginalPOSelect} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', marginTop: '8px' }}>
+              <div style={{ maxWidth: '500px', marginTop: '16px' }}>
+                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '2px', display: 'block' }}>Select Original PO</label>
+                <select value={linkedPoId || ''} onChange={handleOriginalPOSelect} style={{ width: '100%', height: '36px', padding: '0 12px', borderRadius: '6px', border: '1px solid #CBD5E1', marginTop: '4px', fontSize: '13px', outline: 'none' }}>
                   <option value="">-- Select Original PO --</option>
                   {originalPOs.map(po => <option key={po.id} value={po.id}>{(po.po_number || po.order_id).replace(/-(\d{10,})$/, '')} - {po.customer_name}</option>)}
                 </select>
-                {linkedPoId && <div style={{ background: '#D1FAE5', padding: '12px', borderRadius: '6px', border: '1px solid #6EE7B7', marginTop: '16px' }}><strong>Generated NT PO:</strong> {poNumber}</div>}
-                {poError && <p style={{ color: '#EF4444', fontSize: '0.8rem', marginTop: '8px', fontWeight: 600 }}>{poError}</p>}
+                {linkedPoId && <div style={{ background: '#D1FAE5', padding: '10px 14px', borderRadius: '6px', border: '1px solid #6EE7B7', marginTop: '12px', fontSize: '13px' }}><strong>Generated NT PO:</strong> {poNumber}</div>}
+                {poError && <p style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '6px', fontWeight: 600 }}>{poError}</p>}
               </div>
             )}
             {hasOriginalPO === false && (
-              <div style={{ maxWidth: '500px', marginTop: '20px' }}>
-                <label style={{ fontWeight: 600 }}>Enter Internal NT PO Number</label>
+              <div style={{ maxWidth: '500px', marginTop: '16px' }}>
+                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '2px', display: 'block' }}>Enter Internal NT PO Number</label>
                 <input
                   type="text"
                   value={poNumber}
                   onChange={(e) => { setPONumber(e.target.value); setPoError(''); }}
                   placeholder="e.g. INT-PO-001"
-                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: `1px solid ${poError ? '#EF4444' : '#D1D5DB'}`, marginTop: '8px' }}
+                  style={{ width: '100%', height: '36px', padding: '0 12px', borderRadius: '6px', border: `1px solid ${poError ? '#EF4444' : '#CBD5E1'}`, marginTop: '4px', fontSize: '13px', outline: 'none' }}
                 />
-                {poError && <p style={{ color: '#EF4444', fontSize: '0.8rem', marginTop: '8px', fontWeight: 600 }}>{poError}</p>}
+                {poError && <p style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '6px', fontWeight: 600 }}>{poError}</p>}
               </div>
             )}
-            <button onClick={nextStep} disabled={hasOriginalPO === null || (hasOriginalPO === true && !linkedPoId) || (hasOriginalPO === false && !poNumber)} style={{ marginTop: '30px', padding: '12px 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Next Step →</button>
+            <button onClick={nextStep} disabled={hasOriginalPO === null || (hasOriginalPO === true && !linkedPoId) || (hasOriginalPO === false && !poNumber)} style={{ marginTop: '20px', height: '36px', padding: '0 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Next Step →</button>
           </div>
         )}
 
         {step === 3 && (
-          <div style={{ display: 'grid', gap: '16px', marginBottom: '25px' }}>
+          <div style={{ display: 'grid', gap: '12px', marginBottom: '16px', maxWidth: '600px' }}>
             <div>
-              <label style={{ fontWeight: 600, display: 'block', marginBottom: '5px' }}>PO Date</label>
-              <div className="date-picker-container">
+              <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>PO Date</label>
+              <div className="date-picker-container" style={{ position: 'relative' }}>
                 <DatePicker
                   selected={poDate ? new Date(poDate) : null}
                   onChange={(date) => setPODate(date ? date.toISOString().split('T')[0] : '')}
                   dateFormat="dd/MM/yyyy"
-                  className="form-input"
+                  className="form-input compact-form-input"
                   placeholderText="DD/MM/YYYY"
                 />
-                <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '5px' }}>Start Date</label>
-                <div className="date-picker-container">
+                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Start Date</label>
+                <div className="date-picker-container" style={{ position: 'relative' }}>
                   <DatePicker
                     selected={startDate ? new Date(startDate) : null}
                     onChange={(date) => setStartDate(date ? date.toISOString().split('T')[0] : '')}
                     dateFormat="dd/MM/yyyy"
-                    className="form-input"
+                    className="form-input compact-form-input"
                     placeholderText="DD/MM/YYYY"
                   />
-                  <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                  <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
                 </div>
               </div>
               <div>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '5px' }}>Est. End Date</label>
-                <div className="date-picker-container">
+                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Est. End Date</label>
+                <div className="date-picker-container" style={{ position: 'relative' }}>
                   <DatePicker
                     selected={endDate ? new Date(endDate) : null}
                     onChange={(date) => setEndDate(date ? date.toISOString().split('T')[0] : '')}
                     dateFormat="dd/MM/yyyy"
-                    className="form-input"
+                    className="form-input compact-form-input"
                     placeholderText="DD/MM/YYYY"
                   />
-                  <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                  <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
                 </div>
               </div>
             </div>
 
             {loading ? (
-              <div style={{ padding: '60px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', margin: '40px 0' }}>
-                <div className="spinner" style={{ margin: '0 auto 16px', width: '48px', height: '48px', border: '4px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                <h3 style={{ margin: 0, color: '#1e293b' }}>Processing Attachments...</h3>
-                <p style={{ margin: '8px 0 0', color: '#64748b' }}>Uploading files and preparing your PO workspace.</p>
+              <div style={{ padding: '40px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', margin: '20px 0' }}>
+                <div className="spinner" style={{ margin: '0 auto 12px', width: '36px', height: '36px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                <h3 style={{ margin: 0, color: '#1e293b', fontSize: '14px' }}>Processing Attachments...</h3>
+                <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: '12px' }}>Uploading files and preparing your PO workspace.</p>
               </div>
             ) : (
               <div>
-                <h3 style={{ marginTop: 0 }}>Attachments</h3>
-                <div style={{ display: 'grid', gap: '15px' }}>
+                <h3 style={{ fontSize: '14px', margin: '12px 0 8px', color: '#334155' }}>Attachments</h3>
+                <div style={{ display: 'grid', gap: '10px' }}>
                   {['po_copy', 'po_annex', 'other'].map(type => (
-                    <div key={type} style={{ border: '1px solid #E5E7EB', padding: '12px', borderRadius: '8px' }}>
-                      <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px', textTransform: 'capitalize' }}>{type === 'po_copy' ? 'Customer Approval' : type === 'po_annex' ? 'PO Annex' : 'Other Attachment'}</label>
+                    <div key={type} style={{ border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: '6px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '6px', textTransform: 'capitalize', color: '#475569' }}>{type === 'po_copy' ? 'Customer Approval' : type === 'po_annex' ? 'PO Annex' : 'Other Attachment'}</label>
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.xlsm,.csv" onChange={(e) => setAttachments(prev => ({ ...prev, [type]: e.target.files[0] }))} style={{ flex: 1 }} />
-                        {attachments[type] && <button onClick={() => setShowViewer(type)} style={{ background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.8rem' }}>View</button>}
+                        <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.xlsm,.csv" onChange={(e) => setAttachments(prev => ({ ...prev, [type]: e.target.files[0] }))} style={{ flex: 1, fontSize: '12px' }} />
+                        {attachments[type] && <button onClick={() => setShowViewer(type)} style={{ background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '0 8px', height: '24px', cursor: 'pointer', fontSize: '11px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>View</button>}
                       </div>
                     </div>
                   ))}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
-                  <button onClick={() => { handleDownloadTemplate(); nextStep(); }} style={{ width: '30%', padding: '12px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600 }}>{loading ? 'Uploading Files...' : 'Download Template'}</button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', gap: '12px' }}>
+                  <button onClick={() => { handleDownloadTemplate(); nextStep(); }} style={{ height: '36px', padding: '0 16px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{loading ? 'Uploading...' : 'Download Template & Next'}</button>
                 </div>
               </div>
             )}
@@ -1158,7 +1232,7 @@ export default function NewNTPO() {
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '180px', fontSize: '11px', fontWeight: 700, color: '#374151', height: '36px' }}>Heading</th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '200px', fontSize: '11px', fontWeight: 700, color: '#374151', height: '36px' }}>Sub Heading</th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '250px', fontSize: '11px', fontWeight: 700, color: '#374151', height: '36px' }}>Item Name</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '300px', fontSize: '11px', fontWeight: 700, color: '#374151', height: '36px' }}>Item Description</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '300px', fontSize: '11px', fontWeight: 700, color: '#374151', height: '36px' }}>Item Description <span style={{ fontSize: '8px', color: '#4B5563' }}>(click to view description)</span></th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '50px', fontSize: '11px', fontWeight: 700, color: '#374151', height: '36px' }}>UOM</th>
 
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', width: '70px', fontSize: '11px', fontWeight: 800, color: '#065f46', height: '36px' }}>Supply QTY</th>
@@ -1300,25 +1374,25 @@ export default function NewNTPO() {
 
         {step === 5 && (
           <div>
-            <h3>5. Final Summary</h3>
-            <div style={{ background: '#F9FAFB', padding: '24px', borderRadius: '12px', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '1.15rem', marginBottom: '12px', color: '#1E293B', fontWeight: 700 }}>5. Final Summary</h3>
+            <div style={{ background: '#F9FAFB', padding: '12px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div>
-                <p style={{ margin: '0 0 8px' }}><strong>PO Number:</strong> {poNumber}</p>
-                <p style={{ margin: '0 0 8px' }}><strong>Customer:</strong> {customers.find(c => c.id == selectedCustomer)?.name}</p>
-                <p style={{ margin: '0 0 8px' }}><strong>Location:</strong> {locations.find(l => l.id == selectedLocation)?.label}</p>
-                <p style={{ margin: 0 }}><strong>Dates:</strong> {poDate} (PO) | {startDate} to {endDate}</p>
+                <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>PO Number:</strong> {poNumber}</p>
+                <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>Customer:</strong> {customers.find(c => c.id == selectedCustomer)?.name}</p>
+                <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>Location:</strong> {locations.find(l => l.id == selectedLocation)?.label}</p>
+                <p style={{ margin: 0, fontSize: '13px' }}><strong>Dates:</strong> {formatDate(poDate)} (PO) | {formatDate(startDate)} to {formatDate(endDate)}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ margin: '0 0 4px' }}><strong>Overall Subtotal:</strong> ₹{getSummaryTotals().taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                <p style={{ margin: '0 0 4px' }}><strong>Overall GST:</strong> ₹{getSummaryTotals().gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                <p style={{ fontSize: '1.5rem', color: '#111827', margin: 0 }}><strong>Grand Total:</strong> ₹{getSummaryTotals().grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p style={{ margin: '0 0 4px', fontSize: '13px' }}><strong>Overall Subtotal:</strong> ₹{getSummaryTotals().taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p style={{ margin: '0 0 4px', fontSize: '13px' }}><strong>Overall GST:</strong> ₹{getSummaryTotals().gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p style={{ fontSize: '1.25rem', color: '#111827', margin: 0 }}><strong>Grand Total:</strong> ₹{getSummaryTotals().grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
             </div>
 
             <SummaryTable data={items} />
-            <div style={{ display: 'flex', gap: '15px', marginTop: '30px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setStep(4)} style={{ padding: '12px 24px', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '6px', fontWeight: 600 }}>← Edit Items</button>
-              <button onClick={handleSubmit} disabled={submitting} style={{ padding: '12px 24px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '1.1rem', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Creating NT PO...' : '✓ Confirm & Submit NT PO'}</button>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setStep(4)} style={{ height: '36px', padding: '0 20px', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>← Edit Items</button>
+              <button onClick={handleSubmit} disabled={submitting} style={{ height: '36px', padding: '0 20px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '13px', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Creating NT PO...' : '✓ Confirm & Submit NT PO'}</button>
             </div>
           </div>
         )}
@@ -1416,14 +1490,14 @@ function SummaryTable({ data }) {
   }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
 
   return (
-    <div style={{ marginBottom: '32px' }}>
-      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '16px' }}>
-        <table className="no-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-          <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+    <div style={{ marginBottom: '24px' }}>
+      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0', overflow: 'hidden', marginBottom: '16px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+          <thead style={{ background: '#F8FAFC' }}>
             {table.getHeaderGroups().map(headerGroup => (
-              <tr key={headerGroup.id}>
+              <tr key={headerGroup.id} style={{ height: '36px' }}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '8px 4px', textAlign: header.id === 'package_name' ? 'left' : 'right', color: '#111827', fontWeight: 800, borderRight: '1px solid #F3F4F6', fontSize: '11px' }}>
+                  <th key={header.id} style={{ padding: '4px 8px', textAlign: header.id === 'package_name' ? 'left' : 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', height: '36px' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -1432,34 +1506,34 @@ function SummaryTable({ data }) {
           </thead>
           <tbody>
             {table.getRowModel().rows.map(row => (
-              <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+              <tr key={row.id} style={{ height: '32px' }}>
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} style={{ padding: '6px 8px', textAlign: cell.column.id === 'package_name' ? 'left' : 'right', borderRight: '1px solid #F3F4F6' }}>
+                  <td key={cell.id} style={{ padding: '4px 8px', textAlign: cell.column.id === 'package_name' ? 'left' : 'right', border: '1px solid #E2E8F0', height: '32px' }}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
-          <tfoot style={{ background: '#0f172a', color: '#ffffff', fontWeight: 700, borderTop: '2px solid #334155', fontSize: '0.9rem' }}>
-            <tr>
-              <td style={{ padding: '8px 12px', textAlign: 'left', color: '#ffffff' }}>TOTAL</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', background: '#059669', color: '#ffffff' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <tfoot style={{ background: '#F8FAFC', fontWeight: 800, borderTop: '2px solid #E2E8F0' }}>
+            <tr style={{ height: '32px' }}>
+              <td style={{ padding: '4px 8px', textAlign: 'left', border: '1px solid #E2E8F0', height: '32px' }}>TOTAL</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', color: '#2563EB', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tfoot>
         </table>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
-          <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Final Grand Total</p>
-          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        <div style={{ background: '#F0F9FF', padding: '12px 20px', borderRadius: '8px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '280px' }}>
+          <p style={{ margin: '0 0 2px', color: '#0369A1', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revised Grand Total</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '1.5rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
     </div>

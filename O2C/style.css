@@ -669,8 +669,8 @@ table {
 }
 
 .data-table th {
-  padding: var(--space-md) var(--space-lg);
-  font-size: 0.857rem;
+  padding: 12px var(--space-lg);
+  font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -685,8 +685,8 @@ table {
 }
 
 .data-table td {
-  padding: var(--space-md) var(--space-lg);
-  font-size: 1rem;
+  padding: 10px var(--space-lg);
+  font-size: 1.25rem;
   color: var(--on-surface-variant);
   border-bottom: 1px solid var(--outline-variant);
 }

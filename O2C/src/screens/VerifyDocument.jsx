@@ -482,28 +482,28 @@ export default function VerifyDocument() {
                 </table>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '32px', marginTop: '20px', borderTop: '1px solid #E2E8F0', paddingTop: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px', marginTop: '12px', borderTop: '1px solid #E2E8F0', paddingTop: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#64748B', fontStyle: 'italic', lineHeight: '1.5' }}>
                   * All ledger details are fetched from the secure enterprise database nodes. Any modification of visual invoice parameters violates cryptographic authenticity.
                 </div>
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '12px' }}>
                     <span style={{ color: '#64748B', fontWeight: 600 }}>Subtotal (Taxable Value)</span>
                     <span style={{ fontWeight: 700, color: '#334155' }}>{formatCurrency(docData.subtotal)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '12px' }}>
                     <span style={{ color: '#64748B', fontWeight: 600 }}>GST Total</span>
                     <span style={{ fontWeight: 700, color: '#334155' }}>{formatCurrency(docData.gst_total)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: '2px dashed #CBD5E1', marginTop: '8px' }}>
-                    <span style={{ fontWeight: 800, fontSize: '14px', color: '#0F172A' }}>Grand Total (Incl. GST)</span>
-                    <span style={{ fontWeight: 900, color: '#059669', fontSize: '20px' }}>{formatCurrency(docData.grand_total)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px dashed #CBD5E1', marginTop: '6px' }}>
+                    <span style={{ fontWeight: 800, fontSize: '13px', color: '#0F172A' }}>Grand Total (Incl. GST)</span>
+                    <span style={{ fontWeight: 900, color: '#059669', fontSize: '18px' }}>{formatCurrency(docData.grand_total)}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', fontSize: '11px', color: '#64748B', borderTop: '1px solid #E2E8F0', paddingTop: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '11px', color: '#64748B', borderTop: '1px solid #E2E8F0', paddingTop: '8px' }}>
               <span>Security Node: O2C-CRYPT-VERIFY</span>
               <span style={{ fontFamily: 'monospace' }}>Ledger Reference Hash: {docData.signature_hash ? `${docData.signature_hash.substring(0, 16)}...` : 'N/A'}</span>
             </div>
@@ -523,58 +523,58 @@ export default function VerifyDocument() {
 
       <style>{`
         .verify-page-container {
-          max-width: 1200px;
-          margin: 40px auto;
-          padding: 0 20px;
+          max-width: 820px;
+          margin: 0 auto;
+          padding: 0 0 16px 0;
           font-family: 'Inter', sans-serif;
         }
         .verify-card {
           background: #FFFFFF;
-          border-radius: 16px;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          border-radius: 8px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
           border: 1px solid #E2E8F0;
           overflow: hidden;
-          padding: 32px;
+          padding: 20px;
         }
         .verify-header {
-          border-bottom: 2px dashed #E2E8F0;
-          padding-bottom: 24px;
-          margin-bottom: 24px;
+          border-bottom: 1px dashed #E2E8F0;
+          padding-bottom: 12px;
+          margin-bottom: 16px;
           text-align: center;
         }
         .brand-group {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 16px;
-          margin-bottom: 12px;
+          gap: 12px;
+          margin-bottom: 8px;
         }
         .logo-icon {
-          font-size: 40px;
+          font-size: 28px;
           color: #2563EB;
           background: #EFF6FF;
-          padding: 10px;
-          border-radius: 12px;
+          padding: 6px;
+          border-radius: 8px;
         }
         .brand-title {
           margin: 0;
-          font-size: 20px;
+          font-size: 16px;
           font-weight: 800;
           letter-spacing: 0.05em;
           color: #1E293B;
         }
         .brand-tagline {
           margin: 0;
-          font-size: 12px;
+          font-size: 10px;
           color: #2563EB;
           font-weight: 700;
           text-transform: uppercase;
         }
         .portal-desc {
-          margin: 12px auto 0 auto;
-          font-size: 13px;
+          margin: 8px auto 0 auto;
+          font-size: 12px;
           color: #64748B;
-          line-height: 1.5;
+          line-height: 1.4;
           max-width: 650px;
         }
 
@@ -588,22 +588,22 @@ export default function VerifyDocument() {
           display: grid;
           grid-template-columns: 1fr 1fr;
           background: #F1F5F9;
-          padding: 4px;
-          border-radius: 8px;
-          margin-bottom: 24px;
+          padding: 3px;
+          border-radius: 6px;
+          margin-bottom: 16px;
         }
         .tab-btn {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
-          padding: 10px;
+          gap: 6px;
+          padding: 8px 12px;
           border: none;
           background: transparent;
           color: #64748B;
           font-weight: 600;
-          font-size: 13px;
-          border-radius: 6px;
+          font-size: 12px;
+          border-radius: 4px;
           cursor: pointer;
           transition: all 0.2s;
         }
@@ -613,17 +613,17 @@ export default function VerifyDocument() {
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         .tab-btn span {
-          font-size: 18px;
+          font-size: 16px;
         }
 
         .upload-section {
-          margin-bottom: 24px;
+          margin-bottom: 16px;
         }
         .dropzone-container {
           border: 2px dashed #CBD5E1;
-          border-radius: 12px;
+          border-radius: 8px;
           background: #F8FAFC;
-          padding: 32px;
+          padding: 20px;
           text-align: center;
           cursor: pointer;
           transition: all 0.2s;
@@ -639,21 +639,21 @@ export default function VerifyDocument() {
           cursor: pointer;
         }
         .upload-cloud-icon {
-          font-size: 48px;
+          font-size: 36px;
           color: #64748B;
-          margin-bottom: 12px;
+          margin-bottom: 8px;
         }
         .dropzone-container:hover .upload-cloud-icon {
           color: #2563EB;
         }
         .dropzone-title {
-          font-size: 15px;
+          font-size: 13px;
           font-weight: 700;
           color: #334155;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
         }
         .dropzone-subtitle {
-          font-size: 11px;
+          font-size: 10px;
           color: #64748B;
         }
         .selected-file-badge {
@@ -674,14 +674,14 @@ export default function VerifyDocument() {
         }
 
         .verify-form {
-          margin-bottom: 24px;
+          margin-bottom: 16px;
         }
         .form-label {
           display: block;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           color: #475569;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
           text-transform: uppercase;
         }
         .input-group {
@@ -693,8 +693,8 @@ export default function VerifyDocument() {
           background: #F8FAFC;
           border: 1px solid #E2E8F0;
           border-radius: 8px;
-          padding: 12px 16px;
-          font-size: 14px;
+          padding: 10px 14px;
+          font-size: 13px;
           color: #1E293B;
           transition: all 0.2s;
         }
@@ -713,9 +713,9 @@ export default function VerifyDocument() {
           color: #FFFFFF;
           border: none;
           border-radius: 8px;
-          padding: 0 24px;
+          padding: 0 20px;
           font-weight: 700;
-          font-size: 14px;
+          font-size: 13px;
           cursor: pointer;
           transition: all 0.2s;
           white-space: nowrap;
@@ -727,11 +727,11 @@ export default function VerifyDocument() {
         .scanner-container {
           position: relative;
           background: #0F172A;
-          border-radius: 12px;
-          padding: 32px;
+          border-radius: 8px;
+          padding: 20px;
           text-align: center;
           overflow: hidden;
-          margin-top: 16px;
+          margin-top: 12px;
         }
         .scanner-beam {
           position: absolute;
@@ -746,7 +746,7 @@ export default function VerifyDocument() {
           margin: 0;
           color: #10B981;
           font-weight: 700;
-          font-size: 13px;
+          font-size: 12px;
           letter-spacing: 0.05em;
           text-transform: uppercase;
         }
@@ -758,9 +758,9 @@ export default function VerifyDocument() {
         }
 
         .verification-result {
-          border-radius: 12px;
-          padding: 24px;
-          margin-top: 24px;
+          border-radius: 8px;
+          padding: 12px;
+          margin-top: 12px;
         }
         .verification-result.tampered {
           background: #FEF2F2;
@@ -775,60 +775,60 @@ export default function VerifyDocument() {
         }
         .verified-banner {
           display: flex;
-          gap: 16px;
+          gap: 8px;
           align-items: flex-start;
           border-bottom: 1px solid #A7F3D0;
-          padding-bottom: 16px;
-          margin-bottom: 20px;
+          padding-bottom: 8px;
+          margin-bottom: 10px;
         }
         .status-icon {
-          font-size: 32px;
+          font-size: 28px;
         }
         .result-title {
           margin: 0;
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 800;
         }
         .result-desc {
           margin: 4px 0 0 0;
-          font-size: 13px;
+          font-size: 12px;
           opacity: 0.9;
         }
         .security-guideline {
           background: #FFFFFF;
           border: 1px solid #FCA5A5;
-          border-radius: 8px;
-          padding: 16px;
-          margin-top: 16px;
+          border-radius: 6px;
+          padding: 12px;
+          margin-top: 12px;
           text-align: left;
-          font-size: 12px;
+          font-size: 11px;
           color: #7F1D1D;
-          line-height: 1.5;
+          line-height: 1.4;
         }
 
         .verified-details-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 16px 32px;
+          gap: 8px 16px;
           background: #FFFFFF;
           border: 1px solid #A7F3D0;
-          border-radius: 10px;
-          padding: 20px;
-          margin-bottom: 16px;
+          border-radius: 8px;
+          padding: 10px 14px;
+          margin-bottom: 8px;
         }
         .detail-row {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 2px;
         }
         .detail-row .label {
-          font-size: 10px;
+          font-size: 9px;
           color: #64748B;
           text-transform: uppercase;
           font-weight: 700;
         }
         .detail-row .value {
-          font-size: 14px;
+          font-size: 13px;
           color: #1E293B;
           font-weight: 600;
         }
@@ -838,47 +838,47 @@ export default function VerifyDocument() {
         }
         .detail-row .value.total {
           color: #059669;
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 800;
         }
 
         .attention-card {
           display: flex;
-          gap: 12px;
+          gap: 8px;
           background: #FFFBEB;
           border: 1px solid #FDE68A;
-          border-radius: 10px;
-          padding: 16px;
-          margin-bottom: 20px;
+          border-radius: 8px;
+          padding: 8px 12px;
+          margin-bottom: 10px;
           align-items: flex-start;
         }
         .attention-icon {
           color: #D97706;
-          font-size: 24px;
+          font-size: 20px;
         }
         .attention-title {
           margin: 0;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 800;
           color: #92400E;
           text-transform: uppercase;
         }
         .attention-desc {
-          margin: 4px 0 0 0;
-          font-size: 12px;
+          margin: 2px 0 0 0;
+          font-size: 11px;
           color: #78350F;
-          line-height: 1.5;
+          line-height: 1.4;
         }
 
         .verified-items-container {
           background: #FFFFFF;
           border: 1px solid #E2E8F0;
-          border-radius: 10px;
-          padding: 20px;
+          border-radius: 8px;
+          padding: 12px 14px;
         }
         .section-title {
-          margin: 0 0 12px 0;
-          font-size: 12px;
+          margin: 0 0 8px 0;
+          font-size: 11px;
           font-weight: 700;
           color: #475569;
           text-transform: uppercase;
@@ -886,18 +886,18 @@ export default function VerifyDocument() {
         .items-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 13px;
+          font-size: 12px;
         }
         .items-table th {
           border-bottom: 1px solid #E2E8F0;
           color: #64748B;
-          padding: 8px;
+          padding: 5px 6px;
           font-weight: 700;
           text-align: left;
         }
         .items-table td {
           border-bottom: 1px solid #F1F5F9;
-          padding: 10px 8px;
+          padding: 5px 6px;
           color: #334155;
         }
         .items-table th.text-right, .items-table td.text-right {
@@ -916,11 +916,11 @@ export default function VerifyDocument() {
           color: #2563EB;
           border: 1px solid #BFDBFE;
           border-radius: 4px;
-          padding: 2px 8px;
-          font-size: 11px;
+          padding: 1px 6px;
+          font-size: 10px;
           font-weight: 600;
           cursor: pointer;
-          margin-top: 4px;
+          margin-top: 2px;
           transition: all 0.2s ease;
         }
         .clickable-desc-badge:hover {
@@ -929,7 +929,7 @@ export default function VerifyDocument() {
           border-color: #2563EB;
         }
         .desc-doc-icon {
-          font-size: 12px !important;
+          font-size: 11px !important;
         }
 
         .items-table-wrapper {
@@ -937,8 +937,8 @@ export default function VerifyDocument() {
           overflow-x: auto;
           -webkit-overflow-scrolling: touch;
           border: 1px solid #E2E8F0;
-          border-radius: 8px;
-          margin-top: 16px;
+          border-radius: 6px;
+          margin-top: 8px;
         }
 
         .animate-fade-in {
@@ -959,10 +959,10 @@ export default function VerifyDocument() {
 
         /* Certificate Box Styling */
         .crypto-certificate-box {
-          border-radius: 12px;
-          padding: 24px;
-          margin-top: 24px;
-          margin-bottom: 24px;
+          border-radius: 8px;
+          padding: 16px;
+          margin-top: 16px;
+          margin-bottom: 16px;
           font-family: 'Inter', sans-serif;
           transition: all 0.3s ease;
         }
@@ -979,13 +979,13 @@ export default function VerifyDocument() {
         .cert-header {
           display: flex;
           align-items: center;
-          gap: 16px;
-          margin-bottom: 20px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-          padding-bottom: 16px;
+          gap: 12px;
+          margin-bottom: 16px;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+          padding-bottom: 12px;
         }
         .cert-badge-icon {
-          font-size: 40px;
+          font-size: 32px;
         }
         .signature-valid .cert-badge-icon {
           color: #10B981;
@@ -995,24 +995,24 @@ export default function VerifyDocument() {
         }
         .cert-status-title {
           margin: 0;
-          font-size: 20px;
+          font-size: 16px;
           font-weight: 800;
           letter-spacing: -0.02em;
         }
         .cert-status-desc {
-          margin: 4px 0 0 0;
-          font-size: 13px;
+          margin: 2px 0 0 0;
+          font-size: 12px;
           font-weight: 600;
           opacity: 0.8;
         }
         .cert-details-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 16px;
+          gap: 12px;
           background: rgba(255, 255, 255, 0.65);
-          border-radius: 8px;
-          padding: 16px;
-          margin-bottom: 16px;
+          border-radius: 6px;
+          padding: 12px;
+          margin-bottom: 12px;
           border: 1px solid rgba(0, 0, 0, 0.05);
         }
         .cert-field {
@@ -1021,33 +1021,33 @@ export default function VerifyDocument() {
           gap: 2px;
         }
         .cert-label {
-          font-size: 10px;
+          font-size: 9px;
           text-transform: uppercase;
           font-weight: 700;
           color: #64748B;
         }
         .cert-val {
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 600;
           color: #1E293B;
         }
         .cert-summary-msg {
           margin: 0;
-          font-size: 12px;
+          font-size: 11px;
           font-style: italic;
           opacity: 0.9;
-          line-height: 1.5;
+          line-height: 1.4;
         }
 
         /* --- High Quality Media Queries --- */
-        @media (max-width: 1200px) {
+        @media (max-width: 860px) {
           .verify-page-container {
             max-width: 100%;
-            margin: 20px auto;
-            padding: 0 16px;
+            margin: 0 auto;
+            padding: 0 0 16px 0;
           }
           .verify-card {
-            padding: 24px;
+            padding: 20px;
           }
         }
 

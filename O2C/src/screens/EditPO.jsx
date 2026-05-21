@@ -40,6 +40,65 @@ export default function EditPO() {
 
   // --- Helper Functions ---
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    if (dateStr instanceof Date) {
+      const dd = String(dateStr.getDate()).padStart(2, '0');
+      const mm = String(dateStr.getMonth() + 1).padStart(2, '0');
+      const yyyy = dateStr.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    const cleanStr = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+
+    if (cleanStr.includes('-')) {
+      const parts = cleanStr.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+
+    if (cleanStr.includes('/')) {
+      const parts = cleanStr.split('/');
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+
+    try {
+      const d = new Date(cleanStr);
+      if (!isNaN(d.getTime())) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}-${mm}-${yyyy}`;
+      }
+    } catch (e) { }
+
+    return cleanStr;
+  };
+
   const cleanParse = (val) => {
     if (val === null || val === undefined || val === '') return 0;
     if (typeof val === 'number') return val;
@@ -391,29 +450,29 @@ export default function EditPO() {
         ))}
       </div>
 
-      <div style={{ background: 'white', padding: '32px', borderRadius: '20px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', border: '1px solid #F3F4F6' }}>
+      <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #E5E7EB' }}>
 
         {step === 1 && (
           <div>
-            <h3 style={{ marginBottom: '24px', color: '#1F2937' }}>1. Select PO to Edit</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
+            <h3 style={{ marginBottom: '16px', color: '#1F2937', fontSize: '1rem', fontWeight: 700 }}>1. Select PO to Edit</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '20px' }}>
               <div>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '10px', color: '#4B5563' }}>Select Customer</label>
-                <select value={selectedCustomer} onChange={handleCustomerChange} style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '1rem' }}>
+                <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '4px', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Customer</label>
+                <select value={selectedCustomer} onChange={handleCustomerChange} style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px' }}>
                   <option value="">-- Select Customer --</option>
                   {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '10px', color: '#4B5563' }}>Select Location</label>
-                <select value={selectedLocation} onChange={(e) => { setSelectedLocation(e.target.value); setSelectedPO(null); }} style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '1rem' }}>
+                <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '4px', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Location</label>
+                <select value={selectedLocation} onChange={(e) => { setSelectedLocation(e.target.value); setSelectedPO(null); }} style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px' }}>
                   <option value="">-- Select Location --</option>
                   {locations.map(l => <option key={l.id} value={l.id}>{l.label} ({l.city})</option>)}
                 </select>
               </div>
               <div>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '10px', color: '#4B5563' }}>Existing Purchase Order</label>
-                <select value={selectedPO || ''} onChange={handlePOSelect} style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '1rem' }}>
+                <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '4px', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Existing Purchase Order</label>
+                <select value={selectedPO || ''} onChange={handlePOSelect} style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px' }}>
                   <option value="">-- Select PO --</option>
                   {allPOs.filter(p => p.customer_id == selectedCustomer && p.location_id == selectedLocation).map(po => (
                     <option key={po.id} value={po.id}>{po.po_number || po.order_id}</option>
@@ -422,42 +481,42 @@ export default function EditPO() {
               </div>
             </div>
 
-            {loading && <div style={{ textAlign: 'center', padding: '40px' }}><p>Loading PO Details...</p></div>}
+            {loading && <div style={{ textAlign: 'center', padding: '20px' }}><p style={{ fontSize: '13px' }}>Loading PO Details...</p></div>}
 
             {poDetails && (
-              <div style={{ background: '#F9FAFB', padding: '32px', borderRadius: '16px', border: '1px solid #E5E7EB', marginBottom: '32px', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '32px', marginBottom: '24px' }}>
-                  <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
-                    <p style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>New Version PO No</p>
-                    <p style={{ fontWeight: 800, margin: 0, fontSize: '1.25rem', color: '#2563EB' }}>{newVersionLabel}</p>
+              <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '8px', border: '1px solid #E5E7EB', marginBottom: '20px', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
+                  <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                    <p style={{ color: '#6B7280', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>New Version PO No</p>
+                    <p style={{ fontWeight: 800, margin: 0, fontSize: '1rem', color: '#2563EB' }}>{newVersionLabel}</p>
                   </div>
-                  <div>
-                    <p style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>PO Date</p>
-                    <p style={{ fontWeight: 700, margin: 0, fontSize: '1.1rem' }}>{poDetails.po_date}</p>
+                  <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                    <p style={{ color: '#6B7280', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>PO Date</p>
+                    <p style={{ fontWeight: 700, margin: 0, fontSize: '0.9rem' }}>{formatDate(poDetails.po_date)}</p>
                   </div>
-                  <div>
-                    <p style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>Start Date</p>
-                    <p style={{ fontWeight: 700, margin: 0, fontSize: '1.1rem' }}>{poDetails.start_date}</p>
+                  <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                    <p style={{ color: '#6B7280', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>Start Date</p>
+                    <p style={{ fontWeight: 700, margin: 0, fontSize: '0.9rem' }}>{formatDate(poDetails.start_date)}</p>
                   </div>
-                  <div>
-                    <p style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>End Date</p>
-                    <p style={{ fontWeight: 700, margin: 0, fontSize: '1.1rem' }}>{poDetails.end_date}</p>
+                  <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                    <p style={{ color: '#6B7280', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>End Date</p>
+                    <p style={{ fontWeight: 700, margin: 0, fontSize: '0.9rem' }}>{formatDate(poDetails.end_date)}</p>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '20px', borderTop: '1px solid #E5E7EB', paddingTop: '24px' }}>
+                <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid #E5E7EB', paddingTop: '16px' }}>
                   {['po_copy', 'po_annex', 'other'].map(type => {
                     const path = poDetails[type === 'other' ? 'other_attachment_path' : type + '_path'];
                     return (
-                      <div key={type} style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: '10px', border: '1px solid #E5E7EB' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span className="material-symbols-outlined" style={{ color: '#6B7280' }}>description</span>
-                          <span style={{ fontSize: '0.9rem', fontWeight: 600, textTransform: 'capitalize' }}>{type.replace('_', ' ')}</span>
+                      <div key={type} style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '8px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="material-symbols-outlined" style={{ color: '#6B7280', fontSize: '18px' }}>description</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'capitalize' }}>{type.replace('_', ' ')}</span>
                         </div>
                         {path ? (
-                          <button onClick={() => handleViewFile(path)} style={{ padding: '6px 14px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>View File</button>
+                          <button onClick={() => handleViewFile(path)} style={{ padding: '4px 10px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>View File</button>
                         ) : (
-                          <span style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>Not Attached</span>
+                          <span style={{ fontSize: '10px', color: '#9CA3AF' }}>Not Attached</span>
                         )}
                       </div>
                     );
@@ -466,8 +525,8 @@ export default function EditPO() {
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
-              <button onClick={nextStep} disabled={!selectedPO} style={{ width: '30%', padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '1rem', cursor: !selectedPO ? 'not-allowed' : 'pointer', opacity: !selectedPO ? 0.5 : 1, transition: 'all 0.2s', boxShadow: '0 4px 6px rgba(37, 99, 235, 0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <button onClick={nextStep} disabled={!selectedPO} style={{ padding: '8px 20px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '12px', cursor: !selectedPO ? 'not-allowed' : 'pointer', opacity: !selectedPO ? 0.5 : 1, transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.1)' }}>
                 Proceed to Edit Items →
               </button>
             </div>
@@ -491,7 +550,7 @@ export default function EditPO() {
             </div>
 
             <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '12px', background: 'white', maxHeight: '520px', position: 'relative' }}>
-              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.8rem' }}>
+              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 40, background: '#F9FAFB' }}>
                   <tr style={{ height: '36px', whiteSpace: 'nowrap' }}>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white', fontSize: '11px', fontWeight: 800, height: '36px', position: 'sticky', left: 0, zIndex: 50 }}>Sl no</th>
@@ -500,7 +559,7 @@ export default function EditPO() {
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px' }}>Heading</th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px' }}>Sub Heading</th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 800, height: '36px' }}>Item Name</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '150px' }}>Description</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '150px' }}>Description <span style={{ fontSize: '8px', color: '#4B5563' }}>(click to view description)</span></th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px' }}>UOM</th>
 
                     {/* Original Headers (Blue) */}
@@ -542,7 +601,7 @@ export default function EditPO() {
                       <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.heading}</td>
                       <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.sub_heading}</td>
                       <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', fontWeight: 600, height: '32px', fontSize: '0.75rem' }}>{it.item_name}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', minWidth: '150px', maxWidth: '200px', height: '32px', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description}</td>
+                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', minWidth: '150px', maxWidth: '200px', height: '32px', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }} onClick={() => Swal.fire({ title: 'Item Description', text: it.description, icon: 'info' })}>{it.description}</td>
                       <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', height: '32px', fontSize: '0.75rem' }}>{it.uom}</td>
 
                       <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>{it.supply_qty}</td>
@@ -630,13 +689,13 @@ export default function EditPO() {
                 <p style={{ margin: '0 0 8px' }}><strong>PO Number:</strong> {newVersionLabel}</p>
                 <p style={{ margin: '0 0 8px' }}><strong>Customer:</strong> {customers.find(c => c.id == selectedCustomer)?.name}</p>
                 <p style={{ margin: '0 0 8px' }}><strong>Location:</strong> {locations.find(l => l.id == selectedLocation)?.label}</p>
-                <p style={{ margin: 0 }}><strong>Dates:</strong> {poDetails?.po_date} | {poDetails?.start_date} to {poDetails?.end_date}</p>
+                <p style={{ margin: 0 }}><strong>PO Date:</strong> {formatDate(poDetails?.po_date)}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.8rem' }}>Overall Revised Subtotal</p>
                 <p style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px', color: '#374151' }}>₹{items.reduce((s, i) => s + (i.rev_total_taxable || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.8rem' }}>Overall Revised Grand Total</p>
-                <p style={{ fontSize: '2rem', fontWeight: 900, margin: 0, color: '#10B981' }}>₹{items.reduce((s, i) => s + (i.rev_total_invoice || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#10B981' }}>₹{items.reduce((s, i) => s + (i.rev_total_invoice || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
             </div>
 
@@ -647,8 +706,8 @@ export default function EditPO() {
             <ReviewDetailTable data={items} /> */}
 
             <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={handleSubmit} disabled={submitting} style={{ width: '30%', padding: '16px', background: '#10B981', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '1.1rem', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)', transition: 'all 0.2s' }}>
-                {submitting ? 'Processing...' : 'Confirm Revision ✓'}
+              <button onClick={handleSubmit} disabled={submitting} style={{ width: '15%', padding: '10px', background: '#10B981', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '1.1rem', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)', transition: 'all 0.2s' }}>
+                {submitting ? 'Processing...' : 'Confirm Edit ✓'}
               </button>
             </div>
           </div>
@@ -749,14 +808,14 @@ function SummaryTable({ data }) {
   }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
 
   return (
-    <div style={{ marginBottom: '40px' }}>
-      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '20px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-          <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+    <div style={{ marginBottom: '24px' }}>
+      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0', overflow: 'hidden', marginBottom: '16px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+          <thead style={{ background: '#F8FAFC' }}>
             {table.getHeaderGroups().map(headerGroup => (
-              <tr key={headerGroup.id}>
+              <tr key={headerGroup.id} style={{ height: '36px' }}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '12px 16px', textAlign: header.id === 'package_name' ? 'left' : 'right', color: '#4B5563', fontWeight: 700, borderRight: '1px solid #F3F4F6' }}>
+                  <th key={header.id} style={{ padding: '4px 8px', textAlign: header.id === 'package_name' ? 'left' : 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', height: '36px' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -765,34 +824,34 @@ function SummaryTable({ data }) {
           </thead>
           <tbody>
             {table.getRowModel().rows.map(row => (
-              <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+              <tr key={row.id} style={{ height: '32px' }}>
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} style={{ padding: '12px 16px', textAlign: cell.column.id === 'package_name' ? 'left' : 'right', borderRight: '1px solid #F3F4F6' }}>
+                  <td key={cell.id} style={{ padding: '4px 8px', textAlign: cell.column.id === 'package_name' ? 'left' : 'right', border: '1px solid #E2E8F0', height: '32px' }}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
-          <tfoot style={{ background: '#F9FAFB', fontWeight: 700, borderTop: '2px solid #E5E7EB' }}>
-            <tr>
-              <td style={{ padding: '12px 16px', textAlign: 'left' }}>TOTAL</td>
-              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', textAlign: 'right', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <tfoot style={{ background: '#F8FAFC', fontWeight: 800, borderTop: '2px solid #E2E8F0' }}>
+            <tr style={{ height: '32px' }}>
+              <td style={{ padding: '4px 8px', textAlign: 'left', border: '1px solid #E2E8F0', height: '32px' }}>TOTAL</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', color: '#2563EB', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tfoot>
         </table>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <div style={{ background: '#F0F9FF', padding: '20px 32px', borderRadius: '16px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '350px' }}>
-          <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase' }}>Revised Grand Total</p>
-          <p style={{ margin: 0, color: '#0369A1', fontSize: '2.5rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        <div style={{ background: '#F0F9FF', padding: '12px 20px', borderRadius: '8px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '280px' }}>
+          <p style={{ margin: '0 0 2px', color: '#0369A1', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revised Grand Total</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '1.5rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
     </div>

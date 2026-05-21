@@ -160,15 +160,15 @@ export default function POFlowManagement() {
 
 
   return (
-    <div className="screen-enter">
-      <div className="page-header" style={{ marginBottom: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button onClick={() => navigate('/dashboard')} className="btn-ghost" style={{ width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', border: '1px solid var(--outline-variant)' }}>
-            <span className="material-symbols-outlined">arrow_back</span>
+    <div className="screen-enter" style={{ padding: '0 0 16px 0' }}>
+      <div className="page-header" style={{ marginBottom: '12px', marginTop: '0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={() => navigate('/dashboard')} className="btn-ghost btn-back" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
           </button>
           <div>
-            <h1 className="text-h1 page-header__title">PO Flow Management</h1>
-            <p className="page-header__subtitle">Enterprise Financial Lifecycle Tracking</p>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '1.2rem', margin: 0 }}>PO Flow Management</h1>
+            <p className="page-header__subtitle" style={{ fontSize: '0.85rem', margin: 0 }}>Enterprise Financial Lifecycle Tracking</p>
           </div>
         </div>
       </div>
@@ -178,17 +178,17 @@ export default function POFlowManagement() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '20px',
-        marginBottom: '24px',
+        gap: '12px',
+        marginBottom: '12px',
         background: 'white',
-        padding: '16px 24px',
-        borderRadius: '12px',
+        padding: '10px 16px',
+        borderRadius: '8px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         border: '1px solid #E5E7EB'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
           <div style={{ position: 'relative', flex: 1 }}>
-            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', fontSize: '18px' }}>search</span>
+            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', fontSize: '16px' }}>search</span>
             <input
               type="text"
               placeholder="Search by PO # or Customer Name..."
@@ -196,11 +196,11 @@ export default function POFlowManagement() {
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 width: '100%',
-                height: '42px',
-                padding: '0 12px 0 40px',
+                height: '32px',
+                padding: '0 10px 0 32px',
                 border: '1px solid #D1D5DB',
-                borderRadius: '8px',
-                fontSize: '14px',
+                borderRadius: '6px',
+                fontSize: '13px',
                 outline: 'none',
                 background: '#F9FAFB'
               }}
@@ -210,13 +210,13 @@ export default function POFlowManagement() {
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
             style={{
-              flex: '0 0 280px',
-              height: '42px',
-              padding: '0 16px',
+              flex: '0 0 240px',
+              height: '32px',
+              padding: '0 12px',
               border: '1px solid #D1D5DB',
-              borderRadius: '8px',
+              borderRadius: '6px',
               background: '#F9FAFB',
-              fontSize: '14px',
+              fontSize: '13px',
               cursor: 'pointer',
               color: '#374151',
               outline: 'none'
@@ -239,7 +239,7 @@ export default function POFlowManagement() {
         <table className="data-table" style={{ minWidth: '1900px' }}>
           <thead>
             <tr>
-              <th style={{ paddingLeft: '24px' }}>Customer Name</th>
+              <th style={{ paddingLeft: '16px' }}>Customer Name</th>
               <th>PO Number</th>
               <th className="text-center">PO Date</th>
               <th className="text-center">Start Date</th>
@@ -250,18 +250,18 @@ export default function POFlowManagement() {
               <th className="text-right">Invoiced Value</th>
               <th className="text-right" style={{ background: '#fffbeb' }}>To be invoiced</th>
               <th className="text-right">Receipts</th>
-              <th className="text-right" style={{ background: '#f0fdf4', paddingRight: '24px' }}>Outstanding AR</th>
+              <th className="text-right" style={{ background: '#f0fdf4', paddingRight: '16px' }}>Outstanding AR</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="12" style={{ textAlign: 'center', padding: '60px' }}>
+                <td colSpan="12" style={{ textAlign: 'center', padding: '30px' }}>
                   <div className="animate-pulse" style={{ color: 'var(--secondary)', fontWeight: 500 }}>Fetching financial flow data...</div>
                 </td>
               </tr>
             ) : filteredPOs.length === 0 ? (
-              <tr><td colSpan="12" style={{ textAlign: 'center', padding: '40px', color: 'var(--secondary)' }}>No active records matched your filters.</td></tr>
+              <tr><td colSpan="12" style={{ textAlign: 'center', padding: '30px', color: 'var(--secondary)' }}>No active records matched your filters.</td></tr>
             ) : filteredPOs.map(po => {
               const poValue = Number(po.po_value) || 0;
               const suppliedValue = Number(po.supplied_value) || 0;
@@ -274,26 +274,26 @@ export default function POFlowManagement() {
               
               return (
                 <tr key={po.id} className="hover-row">
-                  <td style={{ paddingLeft: '24px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{po.customer_name}</div>
+                  <td style={{ paddingLeft: '16px' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '15px' }}>{po.customer_name}</div>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 500, color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>tag</span>
+                    <div style={{ fontWeight: 500, color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>tag</span>
                       {po.po_number}
                     </div>
                   </td>
                   <td className="text-center">
-                    <div style={{ fontSize: '12px' }}>{formatDate(po.po_date)}</div>
+                    <div style={{ fontSize: '13px' }}>{formatDate(po.po_date)}</div>
                   </td>
                   <td className="text-center">
-                    <div style={{ fontSize: '12px' }}>{formatDate(po.start_date)}</div>
+                    <div style={{ fontSize: '13px' }}>{formatDate(po.start_date)}</div>
                   </td>
                   <td className="text-center">
-                    <div style={{ fontSize: '12px' }}>{formatDate(po.end_date)}</div>
+                    <div style={{ fontSize: '13px' }}>{formatDate(po.end_date)}</div>
                   </td>
                   <td className="text-right">
-                    <div style={{ fontWeight: 700, fontSize: '13px' }}>{formatCurrency(poValue)}</div>
+                    <div style={{ fontWeight: 700, fontSize: '14px' }}>{formatCurrency(poValue)}</div>
                   </td>
                   <td className="text-right">
                     <div 
@@ -301,7 +301,7 @@ export default function POFlowManagement() {
                       style={{ 
                         fontWeight: 500, 
                         color: suppliedValue > 0 ? '#3b82f6' : '#6b7280', 
-                        fontSize: '13px',
+                        fontSize: '14px',
                         cursor: suppliedValue > 0 ? 'pointer' : 'default',
                         textDecoration: suppliedValue > 0 ? 'underline dotted' : 'none'
                       }}
@@ -315,7 +315,7 @@ export default function POFlowManagement() {
                       style={{ 
                         fontWeight: 600, 
                         color: toBeSupplied > 0 ? '#ef4444' : '#6b7280', 
-                        fontSize: '13px',
+                        fontSize: '14px',
                         cursor: toBeSupplied > 0 ? 'pointer' : 'default',
                         textDecoration: toBeSupplied > 0 ? 'underline dotted' : 'none'
                       }}
@@ -329,7 +329,7 @@ export default function POFlowManagement() {
                       style={{ 
                         fontWeight: 500, 
                         color: invoiceAmount > 0 ? '#f59e0b' : '#6b7280', 
-                        fontSize: '13px',
+                        fontSize: '14px',
                         cursor: invoiceAmount > 0 ? 'pointer' : 'default',
                         textDecoration: invoiceAmount > 0 ? 'underline dotted' : 'none'
                       }}
@@ -339,7 +339,7 @@ export default function POFlowManagement() {
                     </div>
                   </td>
                   <td className="text-right" style={{ background: '#fffbeb30' }}>
-                    <div style={{ fontWeight: 600, color: toBeInvoiced > 0 ? '#d97706' : '#6b7280', fontSize: '13px' }}>
+                    <div style={{ fontWeight: 600, color: toBeInvoiced > 0 ? '#d97706' : '#6b7280', fontSize: '14px' }}>
                         {formatCurrency(toBeInvoiced)}
                     </div>
                   </td>
@@ -349,7 +349,7 @@ export default function POFlowManagement() {
                         style={{ 
                             fontWeight: 600, 
                             color: receivedAmount > 0 ? '#10b981' : '#6b7280', 
-                            fontSize: '13px',
+                            fontSize: '14px',
                             cursor: receivedAmount > 0 ? 'pointer' : 'default',
                             textDecoration: receivedAmount > 0 ? 'underline dotted' : 'none'
                         }}
@@ -358,8 +358,8 @@ export default function POFlowManagement() {
                         {formatCurrency(receivedAmount)}
                     </div>
                   </td>
-                  <td className="text-right" style={{ background: '#f0fdf430', paddingRight: '24px' }}>
-                    <div style={{ fontWeight: 700, color: outstandingAR > 0 ? '#ef4444' : '#059669', fontSize: '13px' }}>
+                  <td className="text-right" style={{ background: '#f0fdf430', paddingRight: '16px' }}>
+                    <div style={{ fontWeight: 700, color: outstandingAR > 0 ? '#ef4444' : '#059669', fontSize: '14px' }}>
                         {formatCurrency(outstandingAR)}
                     </div>
                   </td>
@@ -374,23 +374,23 @@ export default function POFlowManagement() {
       {selectedPOPayments && (
         <div className="details-overlay" onClick={() => setSelectedPOPayments(null)}>
           <div className="details-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
-            <div className="details-header">
+            <div className="details-header" style={{ padding: '12px 16px' }}>
               <div>
-                <h2 className="text-h2">Payment Transactions</h2>
-                <p className="text-secondary">{selectedPOPayments.customer_name} | {selectedPOPayments.po_number}</p>
+                <h2 className="text-h2" style={{ fontSize: '1.1rem', margin: 0 }}>Payment Transactions</h2>
+                <p className="text-secondary" style={{ fontSize: '0.8rem', margin: 0 }}>{selectedPOPayments.customer_name} | {selectedPOPayments.po_number}</p>
               </div>
-              <button onClick={() => setSelectedPOPayments(null)} className="btn-close">
-                <span className="material-symbols-outlined">close</span>
+              <button onClick={() => setSelectedPOPayments(null)} className="btn-close" style={{ width: '28px', height: '28px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
             
-            <div className="details-body" style={{ padding: '0 24px 24px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="details-body" style={{ padding: '0 16px 16px 16px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{ textAlign: 'center', padding: '30px' }}>
                     <div className="animate-pulse">Loading transaction history...</div>
                 </div>
               ) : selectedPOPayments.payments.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--secondary)' }}>
+                <div style={{ textAlign: 'center', padding: '30px', color: 'var(--secondary)' }}>
                     No payment records found for this PO.
                 </div>
               ) : (
@@ -434,10 +434,10 @@ export default function POFlowManagement() {
                 </table>
               )}
             </div>
-            <div className="details-footer" style={{ padding: '16px 24px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="details-footer" style={{ padding: '10px 16px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
                 <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Receipts:</span>
-                    <span style={{ fontSize: '18px', fontWeight: 800, color: '#059669' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#059669' }}>
                         {formatCurrency(selectedPOPayments.payments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0))}
                     </span>
                 </div>
@@ -450,23 +450,23 @@ export default function POFlowManagement() {
       {selectedPOSupplied && (
         <div className="details-overlay" onClick={() => setSelectedPOSupplied(null)}>
           <div className="details-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%' }}>
-            <div className="details-header" style={{ background: '#f0f9ff' }}>
+            <div className="details-header" style={{ background: '#f0f9ff', padding: '12px 16px' }}>
               <div>
                 <h2 className="text-h2" style={{ color: '#0369a1' }}>Supplied Items History</h2>
-                <p className="text-secondary">{selectedPOSupplied.customer_name} | {selectedPOSupplied.po_number}</p>
+                <p className="text-secondary" style={{ fontSize: '0.8rem', margin: 0 }}>{selectedPOSupplied.customer_name} | {selectedPOSupplied.po_number}</p>
               </div>
-              <button onClick={() => setSelectedPOSupplied(null)} className="btn-close">
-                <span className="material-symbols-outlined">close</span>
+              <button onClick={() => setSelectedPOSupplied(null)} className="btn-close" style={{ width: '28px', height: '28px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
             
-            <div className="details-body" style={{ padding: '0 24px 24px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="details-body" style={{ padding: '0 16px 16px 16px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{ textAlign: 'center', padding: '30px' }}>
                     <div className="animate-pulse">Loading supply records...</div>
                 </div>
               ) : selectedPOSupplied.items.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--secondary)' }}>
+                <div style={{ textAlign: 'center', padding: '30px', color: 'var(--secondary)' }}>
                     No supply records found.
                 </div>
               ) : (
@@ -512,10 +512,10 @@ export default function POFlowManagement() {
                 </table>
               )}
             </div>
-            <div className="details-footer" style={{ padding: '16px 24px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="details-footer" style={{ padding: '10px 16px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
                 <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Supplied Value:</span>
-                    <span style={{ fontSize: '18px', fontWeight: 800, color: '#0369a1' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#0369a1' }}>
                         {formatCurrency(selectedPOSupplied.items.reduce((acc, curr) => acc + (Number(curr.total_value) || 0), 0))}
                     </span>
                 </div>
@@ -528,23 +528,23 @@ export default function POFlowManagement() {
       {selectedPOPending && (
         <div className="details-overlay" onClick={() => setSelectedPOPending(null)}>
           <div className="details-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '1000px', width: '95%' }}>
-            <div className="details-header" style={{ background: '#fff1f2' }}>
+            <div className="details-header" style={{ background: '#fff1f2', padding: '12px 16px' }}>
               <div>
-                <h2 className="text-h2" style={{ color: '#be123c' }}>Pending Supplies Breakdown</h2>
-                <p className="text-secondary">{selectedPOPending.customer_name} | {selectedPOPending.po_number}</p>
+                <h2 className="text-h2" style={{ color: '#be123c', fontSize: '1.1rem', margin: 0 }}>Pending Supplies Breakdown</h2>
+                <p className="text-secondary" style={{ fontSize: '0.8rem', margin: 0 }}>{selectedPOPending.customer_name} | {selectedPOPending.po_number}</p>
               </div>
-              <button onClick={() => setSelectedPOPending(null)} className="btn-close">
-                <span className="material-symbols-outlined">close</span>
+              <button onClick={() => setSelectedPOPending(null)} className="btn-close" style={{ width: '28px', height: '28px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
             
-            <div className="details-body" style={{ padding: '0 24px 24px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="details-body" style={{ padding: '0 16px 16px 16px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{ textAlign: 'center', padding: '30px' }}>
                     <div className="animate-pulse">Analyzing pending items...</div>
                 </div>
               ) : selectedPOPending.items.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#059669', fontWeight: 700 }}>
+                <div style={{ textAlign: 'center', padding: '30px', color: '#059669', fontWeight: 700 }}>
                     All items have been fully supplied!
                 </div>
               ) : (
@@ -582,10 +582,10 @@ export default function POFlowManagement() {
                 </table>
               )}
             </div>
-            <div className="details-footer" style={{ padding: '16px 24px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="details-footer" style={{ padding: '10px 16px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
                 <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Pending Value:</span>
-                    <span style={{ fontSize: '18px', fontWeight: 800, color: '#be123c' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#be123c' }}>
                         {formatCurrency(selectedPOPending.items.reduce((acc, curr) => acc + (Number(curr.pending_value) || 0), 0))}
                     </span>
                 </div>
@@ -598,23 +598,23 @@ export default function POFlowManagement() {
       {selectedPOInvoiced && (
         <div className="details-overlay" onClick={() => setSelectedPOInvoiced(null)}>
           <div className="details-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '850px', width: '90%' }}>
-            <div className="details-header" style={{ background: '#fffbeb' }}>
+            <div className="details-header" style={{ background: '#fffbeb', padding: '12px 16px' }}>
               <div>
-                <h2 className="text-h2" style={{ color: '#d97706' }}>Invoiced Breakdown</h2>
-                <p className="text-secondary">{selectedPOInvoiced.customer_name} | {selectedPOInvoiced.po_number}</p>
+                <h2 className="text-h2" style={{ color: '#d97706', fontSize: '1.1rem', margin: 0 }}>Invoiced Breakdown</h2>
+                <p className="text-secondary" style={{ fontSize: '0.8rem', margin: 0 }}>{selectedPOInvoiced.customer_name} | {selectedPOInvoiced.po_number}</p>
               </div>
-              <button onClick={() => setSelectedPOInvoiced(null)} className="btn-close">
-                <span className="material-symbols-outlined">close</span>
+              <button onClick={() => setSelectedPOInvoiced(null)} className="btn-close" style={{ width: '28px', height: '28px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
             
-            <div className="details-body" style={{ padding: '0 24px 24px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="details-body" style={{ padding: '0 16px 16px 16px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{ textAlign: 'center', padding: '30px' }}>
                     <div className="animate-pulse">Loading invoice history...</div>
                 </div>
               ) : selectedPOInvoiced.invoices.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--secondary)' }}>
+                <div style={{ textAlign: 'center', padding: '30px', color: 'var(--secondary)' }}>
                     No invoice records found for this PO.
                 </div>
               ) : (
@@ -656,10 +656,10 @@ export default function POFlowManagement() {
                 </table>
               )}
             </div>
-            <div className="details-footer" style={{ padding: '16px 24px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="details-footer" style={{ padding: '10px 16px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
                 <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Invoiced:</span>
-                    <span style={{ fontSize: '18px', fontWeight: 800, color: '#d97706' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#d97706' }}>
                         {formatCurrency(selectedPOInvoiced.invoices.reduce((acc, curr) => acc + (Number(curr.grand_total) || 0), 0))}
                     </span>
                 </div>
@@ -683,17 +683,18 @@ export default function POFlowManagement() {
             position: sticky;
             top: 0;
             z-index: 10;
-            font-size: 11px !important;
+            font-size: 12px !important;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.03em;
             color: #1e293b;
             background: #f8fafc;
             box-shadow: inset 0 -1px 0 #e2e8f0;
-            padding: 16px 16px;
+            padding: 10px 12px !important;
             font-weight: 800 !important;
         }
         .data-table td {
-            padding: 16px 16px;
+            padding: 8px 12px !important;
+            font-size: 14px !important;
         }
         .text-center { text-align: center !important; }
         .text-right { text-align: right !important; }
@@ -713,7 +714,7 @@ export default function POFlowManagement() {
         }
         .details-card {
             background: white;
-            border-radius: 16px;
+            border-radius: 8px;
             box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
             overflow: hidden;
             animation: slideUp 0.3s ease-out;
@@ -723,7 +724,7 @@ export default function POFlowManagement() {
             to { transform: translateY(0); opacity: 1; }
         }
         .details-header {
-            padding: 20px 24px;
+            padding: 12px 16px;
             border-bottom: 1px solid var(--outline-variant);
             display: flex;
             justify-content: space-between;
@@ -734,8 +735,8 @@ export default function POFlowManagement() {
             background: white;
             border: 1px solid var(--outline-variant);
             border-radius: 50%;
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;

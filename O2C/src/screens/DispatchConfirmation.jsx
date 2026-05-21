@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
+import Swal from 'sweetalert2';
 import {
   useReactTable,
   getCoreRowModel,
@@ -40,10 +41,10 @@ export default function DispatchConfirmation() {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get('http://localhost:5000/api/dc', { headers });
-      
+
       const transit = res.data.filter(d => d.status === 'in_transit');
       const completed = res.data.filter(d => d.status === 'delivery_confirmed');
-      
+
       setTrackingDCs(transit);
       setCompletedDCs(completed);
     } catch (err) {
@@ -58,7 +59,7 @@ export default function DispatchConfirmation() {
       navigate(`/dispatch-confirmation/${targetId.id}`);
       return;
     }
-    
+
     setLoadingDetails(true);
     setView('detail');
     try {
@@ -78,25 +79,25 @@ export default function DispatchConfirmation() {
     {
       header: 'DC NO',
       accessorKey: 'dc_number',
-      cell: info => <span style={{ fontWeight: 700, color: '#111827', fontSize: '11px' }}>{info.getValue()}</span>,
+      cell: info => <span style={{ fontWeight: 700, color: '#111827', fontSize: '13px' }}>{info.getValue()}</span>,
     },
     {
       header: 'PO NO',
       accessorKey: 'po_number',
-      cell: info => <span style={{ color: '#4B5563', fontSize: '11px' }}>{info.getValue()}</span>,
+      cell: info => <span style={{ color: '#4B5563', fontSize: '13px' }}>{info.getValue()}</span>,
     },
     {
       header: 'CUSTOMER',
       accessorKey: 'customer_name',
-      cell: info => <span style={{ fontSize: '11px' }}>{info.getValue()}</span>,
+      cell: info => <span style={{ fontSize: '13px', color: '#374151' }}>{info.getValue()}</span>,
     },
     {
       header: 'LOGISTICS',
       accessorKey: 'vehicle_no',
       cell: info => (
-        <div style={{ fontSize: '10px' }}>
-          <div style={{ fontWeight: 700, color: '#065F46' }}>{info.getValue()}</div>
-          <div style={{ color: '#6B7280' }}>{info.row.original.driver_name} | {info.row.original.driver_phone}</div>
+        <div style={{ fontSize: '12px' }}>
+          <div style={{ fontWeight: 700, color: '#065F46', fontSize: '13px' }}>{info.getValue()}</div>
+          <div style={{ color: '#6B7280', fontSize: '11px' }}>{info.row.original.driver_name} | {info.row.original.driver_phone}</div>
         </div>
       ),
     },
@@ -111,7 +112,7 @@ export default function DispatchConfirmation() {
         };
         const s = labels[val] || { label: val.toUpperCase(), bg: '#F3F4F6', text: '#374151' };
         return (
-          <span style={{ padding: '2px 10px', borderRadius: '12px', fontSize: '9px', fontWeight: 800, background: s.bg, color: s.text }}>
+          <span style={{ padding: '2px 10px', borderRadius: '12px', fontSize: '10px', fontWeight: 800, background: s.bg, color: s.text }}>
             {s.label}
           </span>
         );
@@ -160,21 +161,21 @@ export default function DispatchConfirmation() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
             {/* STATUS HEADER */}
-            <div className="card" style={{ 
-              padding: '16px 24px', 
+            <div className="card" style={{
+              padding: '16px 24px',
               background: details.status === 'delivery_confirmed' ? '#ECFDF5' : '#EFF6FF',
               border: `1px solid ${details.status === 'delivery_confirmed' ? '#10B981' : '#3B82F6'}`,
               display: 'flex',
               alignItems: 'center',
               gap: '16px'
             }}>
-              <div style={{ 
-                width: '48px', 
-                height: '48px', 
-                borderRadius: '12px', 
-                background: 'white', 
-                display: 'flex', 
-                alignItems: 'center', 
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'white',
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
               }}>
@@ -187,7 +188,7 @@ export default function DispatchConfirmation() {
                   {details.status === 'delivery_confirmed' ? 'SHIPMENT DELIVERED' : 'SHIPMENT IN TRANSIT'}
                 </h4>
                 <p style={{ margin: 0, fontSize: '11px', color: details.status === 'delivery_confirmed' ? '#059669' : '#3B82F6', fontWeight: 600 }}>
-                  {details.status === 'delivery_confirmed' ? `Confirmed at site on ${new Date(details.updated_at).toLocaleDateString()}` : `Left warehouse and currently on the way to destination.`}
+                  {details.status === 'delivery_confirmed' ? `Confirmed at site on ${new Date(details.updated_at).toLocaleDateString('en-IN')}` : `Left warehouse and currently on the way to destination.`}
                 </p>
               </div>
             </div>
@@ -238,7 +239,7 @@ export default function DispatchConfirmation() {
                 <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: '#374151' }}>Manifest (Shipped Items)</h4>
               </div>
               <div className="table-wrapper">
-                <table className="data-table" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
+                <table className="data-table" style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
                   <thead style={{ background: '#F3F4F6' }}>
                     <tr>
                       <th style={{ padding: '8px 12px' }}>SL NO</th>
@@ -313,7 +314,7 @@ export default function DispatchConfirmation() {
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        <button 
+        <button
           onClick={() => setActiveTab('tracking')}
           style={{
             padding: '8px 16px',
@@ -330,7 +331,7 @@ export default function DispatchConfirmation() {
         >
           Active Tracking ({trackingDCs.length})
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('completed')}
           style={{
             padding: '8px 16px',
@@ -350,12 +351,12 @@ export default function DispatchConfirmation() {
       </div>
 
       <div className="table-wrapper" style={{ padding: '0' }}>
-        <table className="data-table" style={{ fontSize: '11px' }}>
+        <table className="data-table" style={{ fontSize: '13px' }}>
           <thead style={{ background: '#F9FAFB' }}>
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '12px 16px', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', borderBottom: '1px solid #E5E7EB' }}>
+                  <th key={header.id} style={{ padding: '10px 14px', fontSize: '12px', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', borderBottom: '1px solid #E5E7EB' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -364,14 +365,14 @@ export default function DispatchConfirmation() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px', color: '#9CA3AF' }}>Loading tracking records...</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', padding: '24px', color: '#9CA3AF', fontSize: '13px' }}>Loading tracking records...</td></tr>
             ) : table.getRowModel().rows.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px', color: '#9CA3AF' }}>No records found in this category.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: '#9CA3AF', fontSize: '13px' }}>No records found in this category.</td></tr>
             ) : (
               table.getRowModel().rows.map(row => (
                 <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
                   {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} style={{ padding: '12px 16px', color: '#374151' }}>
+                    <td key={cell.id} style={{ padding: '10px 14px', fontSize: '13px', color: '#374151' }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}

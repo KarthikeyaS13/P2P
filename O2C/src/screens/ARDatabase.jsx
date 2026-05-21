@@ -28,22 +28,81 @@ const formatIndianCommas = (val) => {
 };
 
 export default function ARDatabase() {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    if (dateStr instanceof Date) {
+      const dd = String(dateStr.getDate()).padStart(2, '0');
+      const mm = String(dateStr.getMonth() + 1).padStart(2, '0');
+      const yyyy = dateStr.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    const cleanStr = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+    
+    if (cleanStr.includes('-')) {
+      const parts = cleanStr.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+    
+    if (cleanStr.includes('/')) {
+      const parts = cleanStr.split('/');
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+
+    try {
+      const d = new Date(cleanStr);
+      if (!isNaN(d.getTime())) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}-${mm}-${yyyy}`;
+      }
+    } catch (e) {}
+    
+    return cleanStr;
+  };
+
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  
+
   // Payment Modal State
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [amountReceived, setAmountReceived] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentRef, setPaymentRef] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  
+
   // View Payments Modal State
   const [paymentHistory, setPaymentHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  
+
   const [statusFilter, setStatusFilter] = useState('all');
   const user = getUser();
 
@@ -79,7 +138,7 @@ export default function ARDatabase() {
         payment_mode: 'NEFT', // Default, could be a dropdown
         transaction_ref: paymentRef
       }, { headers });
-      
+
       Swal.fire({ icon: 'success', title: 'Payment Recorded', text: 'Payment recorded successfully', timer: 2000, showConfirmButton: false });
       setSelectedEntry(null);
       fetchAR();
@@ -111,12 +170,12 @@ export default function ARDatabase() {
 
   const getStatusDisplay = (entry) => {
     if (entry.status === 'paid') return { text: 'PAID', className: 'badge--verified' };
-    
+
     const dueDate = new Date(entry.due_date);
     const today = new Date();
-    today.setHours(0,0,0,0);
-    dueDate.setHours(0,0,0,0);
-    
+    today.setHours(0, 0, 0, 0);
+    dueDate.setHours(0, 0, 0, 0);
+
     if (today <= dueDate) {
       return { text: 'NOT DUE', className: 'badge--pending' };
     } else {
@@ -139,35 +198,35 @@ export default function ARDatabase() {
   });
 
   return (
-    <div className="screen-enter">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button 
+    <div className="screen-enter" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <div className="page-header" style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
             onClick={() => navigate('/dashboard')}
             className="btn-ghost btn-back"
-            style={{ 
-              width: '40px', 
-              height: '40px', 
-              borderRadius: '50%', 
-              display: 'flex', 
-              alignItems: 'center', 
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'center'
             }}
           >
-            <span className="material-symbols-outlined">arrow_back</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
           </button>
           <div>
-            <h1 className="text-h1 page-header__title">Accounts Receivable</h1>
-            <p className="page-header__subtitle">Track invoice payments and outstanding balances</p>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '24px', margin: 0 }}>Accounts Receivable</h1>
+            <p className="page-header__subtitle" style={{ fontSize: '12px', margin: 0 }}>Track invoice payments and outstanding balances</p>
           </div>
         </div>
-        <div className="no-print" style={{ display: 'flex', gap: '12px' }}>
-          <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
-            <select 
-              className="form-input" 
-              value={statusFilter} 
+        <div className="no-print" style={{ display: 'flex', gap: '8px' }}>
+          <div className="form-group" style={{ margin: 0, minWidth: '130px' }}>
+            <select
+              className="form-input"
+              value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ padding: '8px 12px', height: '42px' }}
+              style={{ padding: '0 10px', height: '34px', fontSize: '13px', borderRadius: '6px' }}
             >
               <option value="all">All Status</option>
               <option value="due">Due</option>
@@ -178,7 +237,7 @@ export default function ARDatabase() {
         </div>
       </div>
 
-      
+
       {error && <div style={{ color: 'var(--error)', marginBottom: '16px' }}>{error}</div>}
 
       <div className="card">
@@ -186,26 +245,26 @@ export default function ARDatabase() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Invoice #</th>
-                <th>Customer</th>
-                <th>PO #</th>
-                <th>Due Date</th>
-                <th className="text-right">Amount Due</th>
-                <th className="text-right">Received</th>
-                <th className="text-right">Balance</th>
-                <th>Status</th>
-                {isAccounts && <th className="text-right">Actions</th>}
+                <th style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Invoice #</th>
+                <th style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Customer</th>
+                <th style={{ padding: '6px 10px', fontSize: '0.75rem' }}>PO #</th>
+                <th style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Due Date</th>
+                <th className="text-right" style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Amount Due</th>
+                <th className="text-right" style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Received</th>
+                <th className="text-right" style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Balance</th>
+                <th style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Status</th>
+                {isAccounts && <th className="text-right" style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
               {filteredEntries.map(e => (
                 <tr key={e.id}>
-                  <td className="font-medium">{e.invoice_number}</td>
-                  <td>{e.customer_name}</td>
-                  <td>{e.po_number}</td>
-                  <td>{new Date(e.due_date).toLocaleDateString()}</td>
-                  <td className="text-right">₹{e.amount_due?.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
-                  <td className="text-right">
+                  <td className="font-medium" style={{ padding: '6px 10px', fontSize: '0.85rem' }}>{e.invoice_number}</td>
+                  <td style={{ padding: '6px 10px', fontSize: '0.85rem' }}>{e.customer_name}</td>
+                  <td style={{ padding: '6px 10px', fontSize: '0.85rem' }}>{e.po_number}</td>
+                  <td style={{ padding: '6px 10px', fontSize: '0.85rem' }}>{formatDate(e.due_date)}</td>
+                  <td className="text-right" style={{ padding: '6px 10px', fontSize: '0.85rem' }}>₹{e.amount_due?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="text-right" style={{ padding: '6px 10px', fontSize: '0.85rem' }}>
                     {e.amount_received > 0 ? (
                       <button
                         onClick={() => handleShowPayments(e)}
@@ -223,20 +282,20 @@ export default function ARDatabase() {
                           width: '100%'
                         }}
                       >
-                        ₹{e.amount_received?.toLocaleString('en-IN', {minimumFractionDigits:2})}
+                        ₹{e.amount_received?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </button>
                     ) : (
                       <span style={{ color: '#9CA3AF' }}>₹0.00</span>
                     )}
                   </td>
-                  <td className="text-right font-medium" style={{ color: e.balance > 0 ? 'var(--error)' : 'inherit' }}>
-                    ₹{e.balance?.toLocaleString('en-IN', {minimumFractionDigits:2})}
+                  <td className="text-right font-medium" style={{ padding: '6px 10px', fontSize: '0.85rem', color: e.balance > 0 ? 'var(--error)' : 'inherit' }}>
+                    ₹{e.balance?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
-                  <td>
+                  <td style={{ padding: '6px 10px', fontSize: '0.85rem' }}>
                     {(() => {
                       const status = getStatusDisplay(e);
                       return (
-                        <span className={`badge ${status.className}`} style={{ whiteSpace: 'nowrap' }}>
+                        <span className={`badge ${status.className}`} style={{ whiteSpace: 'nowrap', padding: '2px 8px', fontSize: '11px' }}>
                           <span className="badge__dot"></span>
                           {status.text}
                         </span>
@@ -244,9 +303,9 @@ export default function ARDatabase() {
                     })()}
                   </td>
                   {isAccounts && (
-                    <td className="text-right">
+                    <td className="text-right" style={{ padding: '6px 10px', fontSize: '0.85rem' }}>
                       {e.status !== 'paid' && (
-                        <button className="btn btn-sm btn-outline" onClick={() => {
+                        <button className="btn btn-sm btn-outline" style={{ padding: '2px 8px', height: '26px', fontSize: '11px' }} onClick={() => {
                           setSelectedEntry(e);
                           setAmountReceived(e.balance || '');
                           setPaymentRef('');
@@ -258,7 +317,7 @@ export default function ARDatabase() {
               ))}
               {filteredEntries.length === 0 && (
                 <tr>
-                  <td colSpan={isAccounts ? 9 : 8} className="text-center" style={{ padding: '24px' }}>No AR entries found</td>
+                  <td colSpan={isAccounts ? 9 : 8} className="text-center" style={{ padding: '16px' }}>No AR entries found</td>
                 </tr>
               )}
             </tbody>
@@ -268,15 +327,15 @@ export default function ARDatabase() {
 
       {selectedEntry && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="card card--padded animate-scale-up" style={{ width: '400px', maxWidth: '90%' }}>
-            <h3 className="text-h3" style={{ marginBottom: '16px' }}>Record Payment</h3>
-            <p className="text-body-sm" style={{ marginBottom: '16px' }}>
-              Invoice: <strong>{selectedEntry.invoice_number}</strong><br/>
+          <div className="card animate-scale-up" style={{ width: '400px', maxWidth: '90%', padding: '16px' }}>
+            <h3 className="text-h3" style={{ marginBottom: '10px', fontSize: '1.2rem' }}>Record Payment</h3>
+            <p className="text-body-sm" style={{ marginBottom: '12px', fontSize: '12px' }}>
+              Invoice: <strong>{selectedEntry.invoice_number}</strong><br />
               Balance Due: <strong>₹{selectedEntry.balance?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
             </p>
             <form onSubmit={handleRecordPayment} autoComplete="off">
-              <div className="form-group">
-                <label className="form-label">Amount Received (₹)</label>
+              <div className="form-group" style={{ marginBottom: '10px' }}>
+                <label className="form-label" style={{ fontSize: '11px', marginBottom: '2px' }}>Amount Received (₹)</label>
                 <input
                   type="text"
                   name="ar_amount_received"
@@ -305,11 +364,12 @@ export default function ARDatabase() {
                   required
                   autoComplete="new-password"
                   placeholder="0.00"
+                  style={{ height: '34px', fontSize: '13px', padding: '0 10px', borderRadius: '6px' }}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Payment Date</label>
-                <div className="date-picker-container">
+              <div className="form-group" style={{ marginBottom: '10px' }}>
+                <label className="form-label" style={{ fontSize: '11px', marginBottom: '2px' }}>Payment Date</label>
+                <div className="date-picker-container" style={{ height: '34px' }}>
                   <DatePicker
                     selected={paymentDate ? new Date(paymentDate) : null}
                     onChange={(date) => setPaymentDate(date ? date.toISOString().split('T')[0] : '')}
@@ -318,16 +378,16 @@ export default function ARDatabase() {
                     placeholderText="DD/MM/YYYY"
                     required
                   />
-                  <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                  <span className="material-symbols-outlined calendar-icon" style={{ fontSize: '16px', right: '10px' }}>calendar_today</span>
                 </div>
               </div>
-              <div className="form-group">
-                <label className="form-label">Reference (UTR/Cheque)</label>
-                <input type="text" className="form-input" value={paymentRef} onChange={e => setPaymentRef(e.target.value)} required autoComplete="off" />
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label className="form-label" style={{ fontSize: '11px', marginBottom: '2px' }}>Reference (UTR/Cheque)</label>
+                <input type="text" className="form-input" value={paymentRef} onChange={e => setPaymentRef(e.target.value)} required autoComplete="off" style={{ height: '34px', fontSize: '13px', padding: '0 10px', borderRadius: '6px' }} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setSelectedEntry(null)}>Cancel</button>
-                <button type="submit" className="btn btn-success" disabled={submitting}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                <button type="button" className="btn btn-outline" style={{ height: '32px', fontSize: '12px', padding: '0 12px' }} onClick={() => setSelectedEntry(null)}>Cancel</button>
+                <button type="submit" className="btn btn-success" style={{ height: '32px', fontSize: '12px', padding: '0 16px' }} disabled={submitting}>
                   {submitting ? 'Saving...' : 'Save Payment'}
                 </button>
               </div>
@@ -338,44 +398,44 @@ export default function ARDatabase() {
 
       {paymentHistory && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="card card--padded animate-scale-up" style={{ width: '600px', maxWidth: '95%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #E5E7EB', paddingBottom: '12px' }}>
-              <h3 className="text-h3" style={{ margin: 0 }}>Payment History</h3>
-              <button 
-                onClick={() => setPaymentHistory(null)} 
-                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6B7280' }}
+          <div className="card animate-scale-up" style={{ width: '600px', maxWidth: '95%', padding: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px' }}>
+              <h3 className="text-h3" style={{ margin: 0, fontSize: '1.2rem' }}>Payment History</h3>
+              <button
+                onClick={() => setPaymentHistory(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: '#6B7280' }}
               >
                 &times;
               </button>
             </div>
-            <p className="text-body-sm" style={{ marginBottom: '16px' }}>
+            <p className="text-body-sm" style={{ marginBottom: '12px', fontSize: '12px' }}>
               Invoice Number: <strong>{paymentHistory.invoice_number}</strong>
             </p>
 
             {loadingHistory ? (
-              <div style={{ padding: '24px', textAlign: 'center' }}>Loading payment records...</div>
+              <div style={{ padding: '16px', textAlign: 'center' }}>Loading payment records...</div>
             ) : (
               <>
                 {paymentHistory.payments.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: '#6B7280' }}>No payments recorded for this invoice.</div>
+                  <div style={{ padding: '16px', textAlign: 'center', color: '#6B7280' }}>No payments recorded for this invoice.</div>
                 ) : (
-                  <div style={{ overflowX: 'auto', maxHeight: '300px' }}>
+                  <div style={{ overflowX: 'auto', maxHeight: '250px' }}>
                     <table className="data-table" style={{ width: '100%' }}>
                       <thead>
                         <tr>
-                          <th>Payment Date</th>
-                          <th>Method</th>
-                          <th>Reference / UTR</th>
-                          <th className="text-right">Amount</th>
+                          <th style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Payment Date</th>
+                          <th style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Method</th>
+                          <th style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Reference / UTR</th>
+                          <th className="text-right" style={{ padding: '6px 10px', fontSize: '0.75rem' }}>Amount</th>
                         </tr>
                       </thead>
                       <tbody>
                         {paymentHistory.payments.map((p) => (
                           <tr key={p.id}>
-                            <td>{new Date(p.payment_date).toLocaleDateString('en-IN')}</td>
-                            <td><span className="badge badge--pending">{p.payment_mode || 'NEFT'}</span></td>
-                            <td style={{ fontFamily: 'monospace' }}>{p.transaction_ref || '-'}</td>
-                            <td className="text-right font-medium" style={{ color: 'var(--green)' }}>
+                            <td style={{ padding: '6px 10px', fontSize: '0.85rem' }}>{formatDate(p.payment_date)}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '0.85rem' }}><span className="badge badge--pending" style={{ padding: '1px 6px', fontSize: '10px' }}>{p.payment_mode || 'NEFT'}</span></td>
+                            <td style={{ padding: '6px 10px', fontSize: '0.85rem', fontFamily: 'monospace' }}>{p.transaction_ref || '-'}</td>
+                            <td className="text-right font-medium" style={{ padding: '6px 10px', fontSize: '0.85rem', color: 'var(--green)' }}>
                               ₹{p.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                           </tr>
@@ -384,14 +444,14 @@ export default function ARDatabase() {
                     </table>
                   </div>
                 )}
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', borderTop: '1px solid #E5E7EB', paddingTop: '16px' }}>
-                  <div className="font-semibold" style={{ color: '#374151' }}>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', borderTop: '1px solid #E5E7EB', paddingTop: '12px' }}>
+                  <div className="font-semibold" style={{ color: '#374151', fontSize: '13px' }}>
                     Total Received: <span style={{ color: 'var(--green)' }}>
                       ₹{paymentHistory.payments.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <button type="button" className="btn btn-outline" onClick={() => setPaymentHistory(null)}>Close</button>
+                  <button type="button" className="btn btn-outline" style={{ height: '32px', fontSize: '12px', padding: '0 12px' }} onClick={() => setPaymentHistory(null)}>Close</button>
                 </div>
               </>
             )}

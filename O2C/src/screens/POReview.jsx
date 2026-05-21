@@ -225,10 +225,10 @@ export default function POReview() {
         <button
           onClick={() => handleSelectPO(row.original)}
           className="btn btn-primary"
-          style={{ 
-            height: '32px', 
-            minHeight: 'auto', 
-            padding: '0 16px', 
+          style={{
+            height: '32px',
+            minHeight: 'auto',
+            padding: '0 16px',
             fontSize: '13px',
             borderRadius: '8px'
           }}
@@ -252,7 +252,7 @@ export default function POReview() {
   });
 
   return (
-    <div className="screen-enter">
+    <div className="screen-enter" style={{ maxWidth: '1200px', margin: '0 auto' }}>
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button
@@ -270,14 +270,14 @@ export default function POReview() {
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           <div>
-            <h1 className="text-h1 page-header__title">PO Review</h1>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '24px' }}>PO Review</h1>
             <p className="page-header__subtitle">Review and validate new purchase orders from the Sales team.</p>
           </div>
         </div>
 
-        <div className="card" style={{ padding: '12px 24px', textAlign: 'center', minWidth: '150px', background: 'white', border: '1px solid var(--outline-variant)' }}>
-          <p style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--secondary)', fontWeight: 600, letterSpacing: '0.5px', margin: '0 0 4px' }}>Active Orders</p>
-          <p style={{ fontSize: '24px', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>{filteredData.length}</p>
+        <div className="card" style={{ padding: '8px 16px', textAlign: 'center', minWidth: '120px', background: 'white', border: '1px solid var(--outline-variant)' }}>
+          <p style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--secondary)', fontWeight: 600, letterSpacing: '0.5px', margin: '0 0 2px' }}>Active Orders</p>
+          <p style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>{filteredData.length}</p>
         </div>
       </div>
 
@@ -285,11 +285,11 @@ export default function POReview() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '20px',
-        marginBottom: '24px',
+        gap: '12px',
+        marginBottom: '12px',
         background: 'white',
-        padding: '16px 24px',
-        borderRadius: '12px',
+        padding: '8px 16px',
+        borderRadius: '8px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         border: '1px solid #E5E7EB'
       }}>
@@ -303,11 +303,11 @@ export default function POReview() {
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 width: '100%',
-                height: '42px',
+                height: '34px',
                 padding: '0 12px 0 40px',
                 border: '1px solid #D1D5DB',
-                borderRadius: '8px',
-                fontSize: '14px',
+                borderRadius: '6px',
+                fontSize: '13px',
                 outline: 'none',
                 background: '#F9FAFB'
               }}
@@ -318,12 +318,12 @@ export default function POReview() {
             onChange={(e) => setFilterStatus(e.target.value)}
             style={{
               flex: 1,
-              height: '42px',
-              padding: '0 16px',
+              height: '34px',
+              padding: '0 12px',
               border: '1px solid #D1D5DB',
-              borderRadius: '8px',
+              borderRadius: '6px',
               background: '#F9FAFB',
-              fontSize: '14px',
+              fontSize: '13px',
               cursor: 'pointer',
               color: '#374151',
               outline: 'none'
@@ -353,7 +353,7 @@ export default function POReview() {
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '10px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
+                  <th key={header.id} style={{ padding: '8px 10px', fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -362,12 +362,12 @@ export default function POReview() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={columns.length} style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Loading queue...</td></tr>
+              <tr><td colSpan={columns.length} style={{ padding: '24px', textAlign: 'center', color: '#6B7280' }}>Loading queue...</td></tr>
             ) : table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map(row => (
                 <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} style={{ padding: '8px 16px', fontSize: '0.85rem', color: '#374151' }}>
+                    <td key={cell.id} style={{ padding: '6px 10px', fontSize: '0.85rem', color: '#374151' }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -386,13 +386,13 @@ export default function POReview() {
 
       {/* Pagination UI */}
       <div style={{
-        marginTop: '16px',
+        marginTop: '12px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '12px 16px',
+        padding: '6px 12px',
         background: 'white',
-        borderRadius: '8px',
+        borderRadius: '6px',
         border: '1px solid #E5E7EB'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -424,32 +424,32 @@ export default function POReview() {
           <div className="animate-scale-up" style={{ width: '100%', maxWidth: '1400px', height: '100%', maxHeight: '90vh', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}>
 
             {/* Overlay Header */}
-            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <button className="btn-ghost btn-back" onClick={() => navigate('/po-review')} style={{ padding: '8px', borderRadius: '50%' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_back</span>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button className="btn-ghost btn-back" onClick={() => navigate('/po-review')} style={{ padding: '6px', borderRadius: '50%' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
                 </button>
                 <div>
-                  <h2 className="text-h3" style={{ margin: 0 }}>Review: {selectedPO?.po_number}</h2>
-                  <p style={{ fontSize: '12px', color: 'var(--secondary)' }}>{selectedPO?.customer_name}</p>
+                  <h2 className="text-h3" style={{ margin: 0, fontSize: '1.2rem' }}>Review: {selectedPO?.po_number}</h2>
+                  <p style={{ fontSize: '11px', color: 'var(--secondary)' }}>{selectedPO?.customer_name}</p>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button className="btn-ghost" onClick={() => navigate('/po-review')} style={{ padding: '8px', borderRadius: '50%' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>close</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn-ghost" onClick={() => navigate('/po-review')} style={{ padding: '6px', borderRadius: '50%' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>close</span>
                 </button>
               </div>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px', background: 'var(--surface-container-lowest)' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: 'var(--surface-container-lowest)' }}>
               {loadingDetails ? (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '100px 0' }}>
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 0' }}>
                   <p>Loading PO Details...</p>
                 </div>
               ) : poDetails ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                  <div className="grid-2" style={{ gap: '24px' }}>
-                    <div className="card card--padded" style={{ background: 'white' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="grid-2" style={{ gap: '16px' }}>
+                    <div className="card card--padded" style={{ background: 'white', padding: '12px' }}>
                       <h4 className="text-h4" style={{ marginBottom: '12px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span className="material-symbols-outlined">info</span> PO Details
                       </h4>
@@ -467,17 +467,17 @@ export default function POReview() {
                       </div>
                     </div>
 
-                    <div className="card card--padded" style={{ background: 'white', border: isRejecting ? '2px solid #EF4444' : '1px solid var(--outline-variant)' }}>
-                      <h4 className="text-h4" style={{ marginBottom: '12px', color: isRejecting ? '#EF4444' : 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="card card--padded" style={{ background: 'white', border: isRejecting ? '2px solid #EF4444' : '1px solid var(--outline-variant)', padding: '12px' }}>
+                      <h4 className="text-h4" style={{ marginBottom: '8px', color: isRejecting ? '#EF4444' : 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem' }}>
                         <span className="material-symbols-outlined">{isRejecting ? 'report' : 'fact_check'}</span>
                         {isRejecting ? 'Reason for Denial' : 'Decision'}
                       </h4>
 
                       {!isRejecting ? (
-                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                           <button
                             className="btn btn-success"
-                            style={{ flex: 1, height: '48px', fontWeight: 700, fontSize: '15px' }}
+                            style={{ flex: 1, height: '36px', fontWeight: 700, fontSize: '13px' }}
                             onClick={() => updatePOStatus('accepted')}
                             disabled={actionLoading}
                           >
@@ -485,7 +485,7 @@ export default function POReview() {
                           </button>
                           <button
                             className="btn btn-danger"
-                            style={{ flex: 1, height: '48px', fontWeight: 700, fontSize: '15px' }}
+                            style={{ flex: 1, height: '36px', fontWeight: 700, fontSize: '13px' }}
                             onClick={() => setIsRejecting(true)}
                             disabled={actionLoading}
                           >
@@ -495,25 +495,25 @@ export default function POReview() {
                       ) : (
                         <div className="animate-fade-in">
                           <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '8px' }}>Please specify the reason for denying this Purchase Order. This will be visible to the Sales team.</p>
-                          <div className="form-group" style={{ marginBottom: '16px' }}>
+                          <div className="form-group" style={{ marginBottom: '10px' }}>
                             <textarea
                               className="form-input"
-                              rows="4"
+                              rows="3"
                               placeholder="Type rejection reason here..."
                               value={remarks}
                               onChange={e => setRemarks(e.target.value)}
                               autoFocus
                               style={{
-                                fontSize: '14px',
+                                fontSize: '13px',
                                 borderColor: '#FCA5A5',
                                 background: '#FFF7F7'
                               }}
                             ></textarea>
                           </div>
-                          <div style={{ display: 'flex', gap: '12px' }}>
+                          <div style={{ display: 'flex', gap: '10px' }}>
                             <button
                               className="btn btn-danger"
-                              style={{ flex: 2, height: '42px', fontWeight: 700 }}
+                              style={{ flex: 2, height: '34px', fontWeight: 700, fontSize: '13px' }}
                               onClick={() => {
                                 if (!remarks.trim()) return Swal.fire({ icon: 'warning', title: 'Reason Required', text: 'Please enter a reason for denial' });
                                 updatePOStatus('rejected');
@@ -524,7 +524,7 @@ export default function POReview() {
                             </button>
                             <button
                               className="btn btn-ghost"
-                              style={{ flex: 1, height: '42px', border: '1px solid #D1D5DB' }}
+                              style={{ flex: 1, height: '34px', border: '1px solid #D1D5DB', fontSize: '13px' }}
                               onClick={() => setIsRejecting(false)}
                               disabled={actionLoading}
                             >
@@ -636,14 +636,14 @@ function SummaryTable({ data }) {
   }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
 
   return (
-    <div style={{ marginBottom: '16px' }}>
-      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflowX: 'auto', marginBottom: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1200px' }}>
-          <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+    <div style={{ marginBottom: '24px' }}>
+      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0', overflow: 'hidden', marginBottom: '16px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+          <thead style={{ background: '#F8FAFC' }}>
             {table.getHeaderGroups().map(headerGroup => (
-              <tr key={headerGroup.id}>
+              <tr key={headerGroup.id} style={{ height: '36px' }}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em', borderRight: '1px solid #F3F4F6' }}>
+                  <th key={header.id} style={{ padding: '4px 8px', textAlign: header.id === 'package_name' ? 'left' : 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', height: '36px' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -652,34 +652,34 @@ function SummaryTable({ data }) {
           </thead>
           <tbody>
             {table.getRowModel().rows.map(row => (
-              <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <tr key={row.id} style={{ height: '32px' }}>
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} style={{ padding: '6px 16px', fontSize: '0.8rem', color: '#374151', borderRight: '1px solid #F3F4F6' }}>
+                  <td key={cell.id} style={{ padding: '4px 8px', textAlign: cell.column.id === 'package_name' ? 'left' : 'right', border: '1px solid #E2E8F0', height: '32px' }}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
-          <tfoot style={{ background: '#F9FAFB', fontWeight: 800, borderTop: '2px solid #E5E7EB', color: '#111827' }}>
-            <tr>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>TOTAL</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.75rem' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: '#2563EB' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <tfoot style={{ background: '#F8FAFC', fontWeight: 800, borderTop: '2px solid #E2E8F0' }}>
+            <tr style={{ height: '32px' }}>
+              <td style={{ padding: '4px 8px', textAlign: 'left', border: '1px solid #E2E8F0', height: '32px' }}>TOTAL</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', color: '#2563EB', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tfoot>
         </table>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
-          <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Grand Total Value</p>
-          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        <div style={{ background: '#F0F9FF', padding: '12px 20px', borderRadius: '8px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '280px' }}>
+          <p style={{ margin: '0 0 2px', color: '#0369A1', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revised Grand Total</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '1.5rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
     </div>

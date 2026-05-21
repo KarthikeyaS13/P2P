@@ -36,6 +36,7 @@ export default function RaiseDC() {
   const [showPreview, setShowPreview] = useState(false);
   const [hiddenData, setHiddenData] = useState(null); // { type: 'dc'|'invoice', data: any }
   const [isDownloadingSilent, setIsDownloadingSilent] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
 
 
   useEffect(() => {
@@ -463,13 +464,13 @@ export default function RaiseDC() {
 
   if (view === 'detail') {
     return (
-      <div className="screen-enter">
+      <div className="screen-enter" style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <div className="page-header" style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button onClick={() => navigate('/raise-dc')} className="btn-ghost btn-back" style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
             </button>
-            <h1 className="text-h1 page-header__title" style={{ fontSize: '17px', margin: 0 }}>Raise Delivery Challan</h1>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '16px', margin: 0 }}>Raise Delivery Challan</h1>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', color: '#64748B' }}>Request:</span>
@@ -485,17 +486,17 @@ export default function RaiseDC() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
             {/* AMAZON STYLE STEPPER */}
-            <div className="card animate-slide-up" style={{ padding: '24px 40px', border: '1px solid #E5E7EB', background: 'white' }}>
+            <div className="card animate-slide-up" style={{ padding: '12px 24px', border: '1px solid #E5E7EB', background: 'white' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
                 {/* Connector Lines */}
-                <div style={{ position: 'absolute', top: '15px', left: '40px', right: '40px', height: '2px', background: '#E5E7EB', zIndex: 0 }}></div>
+                <div style={{ position: 'absolute', top: '13px', left: '30px', right: '30px', height: '2px', background: '#E5E7EB', zIndex: 0 }}></div>
                 <div style={{
                   position: 'absolute',
-                  top: '15px',
-                  left: '40px',
-                  width: (details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed') ? 'calc(100% - 80px)' :
-                    details.status === 'in_transit' ? 'calc(66.6% - 40px)' :
-                      (details.status === 'ready_for_dispatch' || details.status === 'dc_approved') ? 'calc(33.3% - 40px)' : '0%',
+                  top: '13px',
+                  left: '30px',
+                  width: (details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed') ? 'calc(100% - 60px)' :
+                    details.status === 'in_transit' ? 'calc(66.6% - 30px)' :
+                      (details.status === 'ready_for_dispatch' || details.status === 'dc_approved') ? 'calc(33.3% - 30px)' : '0%',
                   height: '2px',
                   background: '#10B981',
                   zIndex: 0,
@@ -521,10 +522,10 @@ export default function RaiseDC() {
                     active: (details.status === 'delivery_confirmed' || details.delivery_status === 'delivery_confirmed')
                   }
                 ].map((step, idx) => (
-                  <div key={idx} style={{ zIndex: 1, textAlign: 'center', background: 'white', padding: '0 10px' }}>
+                  <div key={idx} style={{ zIndex: 1, textAlign: 'center', background: 'white', padding: '0 8px' }}>
                     <div style={{
-                      width: '32px',
-                      height: '32px',
+                      width: '26px',
+                      height: '26px',
                       borderRadius: '50%',
                       background: step.active ? '#10B981' : 'white',
                       border: `2px solid ${step.active ? '#10B981' : '#E5E7EB'}`,
@@ -535,11 +536,11 @@ export default function RaiseDC() {
                       color: step.active ? 'white' : '#9CA3AF',
                       transition: 'all 0.3s ease'
                     }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{step.active ? 'check' : step.icon}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>{step.active ? 'check' : step.icon}</span>
                     </div>
-                    <div style={{ marginTop: '8px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: step.active ? '#111827' : '#9CA3AF' }}>{step.label}</div>
-                      <div style={{ fontSize: '11px', color: '#6B7280' }}>{step.sub}</div>
+                    <div style={{ marginTop: '4px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: step.active ? '#111827' : '#9CA3AF' }}>{step.label}</div>
+                      <div style={{ fontSize: '9px', color: '#6B7280' }}>{step.sub}</div>
                     </div>
                   </div>
                 ))}
@@ -547,15 +548,15 @@ export default function RaiseDC() {
             </div>
 
             {/* Logistics & Dispatch Settings (Provided by Stores) */}
-            <div className="card animate-slide-up" style={{ padding: '16px 20px', border: '1px solid #E5E7EB', background: '#F8FAFC' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Logistics & Dispatch Information</h4>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>Requested DC No:</span>
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E40AF' }}>{details.requested_dc_number || 'Auto-Generate'}</span>
+            <div className="card animate-slide-up" style={{ padding: '10px 16px', border: '1px solid #E5E7EB', background: '#F8FAFC' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Logistics & Dispatch Information</h4>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B' }}>Requested DC No:</span>
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: '#1E40AF' }}>{details.requested_dc_number || 'Auto-Generate'}</span>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: '12px' }}>
                 <div className="info-block">
                   <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Vehicle No</label>
                   <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.vehicle_no || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
@@ -596,10 +597,13 @@ export default function RaiseDC() {
                 <div className="info-block">
                   <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Dispatch Proof</label>
                   {details.proof_path ? (
-                    <a href={`${API_BASE_URL}${details.proof_path}`} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid #E2E8F0', borderRadius: '4px', overflow: 'hidden', background: 'white' }}>
+                    <div
+                      onClick={() => setPreviewImage({ url: `${API_BASE_URL}${details.proof_path}`, name: 'Dispatch Proof' })}
+                      style={{ display: 'block', border: '1px solid #E2E8F0', borderRadius: '4px', overflow: 'hidden', background: 'white', cursor: 'pointer' }}
+                    >
                       <img src={`${API_BASE_URL}${details.proof_path}`} alt="Proof" style={{ width: '100%', height: '60px', objectFit: 'cover' }} />
                       <div style={{ fontSize: '10px', textAlign: 'center', padding: '2px', background: '#F1F5F9', color: '#2563EB', fontWeight: 700 }}>VIEW FULL PHOTO</div>
-                    </a>
+                    </div>
                   ) : (
                     <div style={{ fontSize: '12px', color: '#94A3B8', fontStyle: 'italic', padding: '10px', border: '1px dashed #CBD5E1', borderRadius: '4px', textAlign: 'center' }}>No proof uploaded</div>
                   )}
@@ -675,57 +679,57 @@ export default function RaiseDC() {
               const totalQuantity = details.items.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
               return (
                 <div className="card animate-slide-up" style={{ padding: '0', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-                  <div style={{ padding: '12px 20px', borderBottom: '1px solid #E5E7EB', background: '#F8FAFC' }}>
-                    <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>
+                  <div style={{ padding: '8px 16px', borderBottom: '1px solid #E5E7EB', background: '#F8FAFC' }}>
+                    <h3 style={{ margin: 0, fontSize: '12px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>
                       Dispatch Item Summary
                     </h3>
                   </div>
                   <div style={{ overflow: 'auto' }}>
-                    <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                    <table className="data-table" style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
                       <thead style={{ background: '#3B82F6', color: 'white' }}>
                         <tr>
-                          <th style={{ padding: '6px 12px' }}>SL NO</th>
-                          <th style={{ padding: '6px 12px' }}>REFERENCE FROM PO</th>
-                          <th style={{ padding: '6px 12px' }}>PACKAGE</th>
-                          <th style={{ padding: '6px 12px', background: '#b8cbf4ff' }}>HSN (ENTRY)</th>
-                          <th style={{ padding: '6px 12px' }}>DESCRIPTION</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'right' }}>QTY (STORES REQ)</th>
-                          <th style={{ padding: '6px 12px' }}>UOM</th>
+                          <th style={{ padding: '10px 12px', fontSize: '12px' }}>SL NO</th>
+                          <th style={{ padding: '10px 12px', fontSize: '12px' }}>REFERENCE FROM PO</th>
+                          <th style={{ padding: '10px 12px', fontSize: '12px' }}>PACKAGE</th>
+                          <th style={{ padding: '10px 12px', fontSize: '12px', background: '#b8cbf4ff' }}>HSN (ENTRY)</th>
+                          <th style={{ padding: '10px 12px', fontSize: '12px' }}>DESCRIPTION <span style={{ fontSize: '8px', color: '#4B5563' }}>(click to view description)</span></th>
+                          <th style={{ padding: '10px 12px', fontSize: '12px', textAlign: 'right' }}>QTY (STORES REQ)</th>
+                          <th style={{ padding: '10px 12px', fontSize: '12px' }}>UOM</th>
                         </tr>
                       </thead>
                       <tbody>
                         {details.items.map((it, idx) => (
                           <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                            <td style={{ padding: '6px 12px', color: '#9CA3AF' }}>{idx + 1}</td>
-                            <td style={{ padding: '6px 12px', fontWeight: 600 }}>{it.ref_no || '-'}</td>
-                            <td style={{ padding: '6px 12px' }}>{it.package_name || '-'}</td>
-                            <td style={{ padding: '2px 12px' }}>
+                            <td style={{ padding: '10px 12px', color: '#9CA3AF', fontSize: '13px' }}>{idx + 1}</td>
+                            <td style={{ padding: '10px 12px', fontWeight: 600, fontSize: '13px' }}>{it.ref_no || '-'}</td>
+                            <td style={{ padding: '10px 12px', fontSize: '13px' }}>{it.package_name || '-'}</td>
+                            <td style={{ padding: '6px 12px' }}>
                               <input
                                 type="text"
                                 className="input-field"
                                 placeholder="Optional HSN"
                                 value={itemHSNs[it.line_item_id] || ''}
                                 onChange={e => handleHSNChange(it.line_item_id, e.target.value)}
-                                style={{ height: '22px', fontSize: '11px', width: '90px' }}
+                                style={{ height: '26px', fontSize: '8px', width: '100px' }}
                               />
                             </td>
                             <td
-                              style={{ padding: '6px 12px', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1F2937', cursor: 'pointer' }}
+                              style={{ padding: '10px 12px', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1F2937', cursor: 'pointer', fontSize: '13px' }}
                               onClick={() => Swal.fire({ title: 'Item Description', text: it.description, icon: 'info' })}
                             >
                               {it.description}
                             </td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 800, color: '#2563EB', fontSize: '13px' }}>{it.qty}</td>
-                            <td style={{ padding: '6px 12px' }}>{it.uom}</td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#2563EB', fontSize: '13px' }}>{it.qty}</td>
+                            <td style={{ padding: '10px 12px', fontSize: '13px' }}>{it.uom}</td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB' }}>
                         <tr>
-                          <td colSpan="5" style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, fontSize: '12px', color: '#4B5563' }}>
+                          <td colSpan="5" style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, fontSize: '13px', color: '#4B5563' }}>
                             {details.items.length} ITEMS — TOTAL QUANTITY FOR DISPATCH
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, fontSize: '14px', color: '#2563EB' }}>{totalQuantity}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, fontSize: '13px', color: '#2563EB' }}>{totalQuantity}</td>
                           <td></td>
                         </tr>
                       </tfoot>
@@ -953,28 +957,83 @@ export default function RaiseDC() {
             </div>
           </div>
         )}
+
+        {/* PREVIEW IMAGE OVERLAY MODAL */}
+        {previewImage && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '24px'
+          }} onClick={() => setPreviewImage(null)}>
+            <div style={{
+              background: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              position: 'relative'
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                borderBottom: '1px solid #E2E8F0',
+                background: '#F8FAFC'
+              }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>{previewImage.name}</span>
+                <button
+                  onClick={() => setPreviewImage(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#64748B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '4px',
+                    borderRadius: '4px'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                </button>
+              </div>
+              <div style={{ padding: '12px', overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <img
+                  src={previewImage.url}
+                  alt={previewImage.name}
+                  style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: '4px' }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="screen-enter">
-      <div className="page-header" style={{ marginBottom: '16px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+    <div className="screen-enter" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <div className="page-header" style={{ marginBottom: '12px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="text-h1 page-header__title" style={{ fontSize: '18px', margin: 0 }}>Raise Delivery Challan</h1>
-          <p className="page-header__subtitle" style={{ fontSize: '14px', margin: 0 }}>Review and formally issue Delivery Challans for pending store requests.</p>
+          <h1 className="text-h1 page-header__title" style={{ fontSize: '24px', margin: 0 }}>Raise Delivery Challan</h1>
+          <p className="page-header__subtitle" style={{ fontSize: '12px', margin: 0 }}>Review and formally issue Delivery Challans for pending store requests.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ position: 'relative', width: '280px' }}>
-            {/* <span className="material-symbols-outlined" style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-muted)',
-              fontSize: '18px',
-              pointerEvents: 'none'
-            }}>search</span> */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: '260px' }}>
             <input
               type="text"
               placeholder="Search by PO, Customer or DC Reg..."
@@ -982,13 +1041,13 @@ export default function RaiseDC() {
               onChange={e => setGlobalFilter(e.target.value)}
               style={{
                 width: '100%',
-                height: '36px',
-                paddingLeft: '15px',
+                height: '34px',
+                paddingLeft: '12px',
                 paddingRight: '12px',
-                borderRadius: '12px',
+                borderRadius: '6px',
                 border: '1.5px solid #d1d5db',
                 background: 'white',
-                fontSize: '14px',
+                fontSize: '13px',
                 color: 'var(--text-primary)',
                 transition: 'all 0.18s ease',
                 outline: 'none'
@@ -1003,27 +1062,23 @@ export default function RaiseDC() {
               }}
             />
           </div>
-          {/* <button className="btn btn-ghost" onClick={() => navigate('/dashboard')} style={{ height: '36px', fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>dashboard</span>
-            Dashboard
-          </button> */}
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
         <button
           onClick={() => setActiveTab('pending')}
           style={{
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '14px',
+            padding: '6px 12px',
+            borderRadius: '6px',
+            fontSize: '13px',
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.2s',
             border: 'none',
             background: activeTab === 'pending' ? '#111827' : 'white',
             color: activeTab === 'pending' ? 'white' : '#64748B',
-            boxShadow: activeTab === 'pending' ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : 'none'
+            boxShadow: activeTab === 'pending' ? '0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
           }}
         >
           Pending Requests ({requests.length})
@@ -1031,16 +1086,16 @@ export default function RaiseDC() {
         <button
           onClick={() => setActiveTab('tracking')}
           style={{
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '14px',
+            padding: '6px 12px',
+            borderRadius: '6px',
+            fontSize: '13px',
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.2s',
             border: 'none',
             background: activeTab === 'tracking' ? '#111827' : 'white',
             color: activeTab === 'tracking' ? 'white' : '#64748B',
-            boxShadow: activeTab === 'tracking' ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : 'none'
+            boxShadow: activeTab === 'tracking' ? '0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
           }}
         >
           DC Tracking ({trackingDCs.length})
@@ -1053,7 +1108,7 @@ export default function RaiseDC() {
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '10px 16px', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em', borderBottom: '1px solid #E5E7EB' }}>
+                  <th key={header.id} style={{ padding: '10px 14px', fontSize: '12px', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.025em', borderBottom: '1px solid #E5E7EB' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -1062,10 +1117,10 @@ export default function RaiseDC() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px', color: '#9CA3AF' }}>Loading data...</td></tr>
+              <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: '24px', color: '#9CA3AF', fontSize: '13px' }}>Loading data...</td></tr>
             ) : table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px', color: '#9CA3AF' }}>
+                <td colSpan={columns.length} style={{ textAlign: 'center', padding: '32px', color: '#9CA3AF', fontSize: '13px' }}>
                   {activeTab === 'pending' ? 'No pending DC requests found.' : 'No generated Delivery Challans found.'}
                 </td>
               </tr>
@@ -1073,7 +1128,7 @@ export default function RaiseDC() {
               table.getRowModel().rows.map(row => (
                 <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }} onClick={() => handleView(row.original)}>
                   {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} style={{ padding: '8px 16px', color: '#374151' }}>
+                    <td key={cell.id} style={{ padding: '10px 14px', fontSize: '13px', color: '#374151' }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -1288,6 +1343,70 @@ export default function RaiseDC() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* PREVIEW IMAGE OVERLAY MODAL */}
+      {previewImage && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '24px'
+        }} onClick={() => setPreviewImage(null)}>
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            position: 'relative'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 12px',
+              borderBottom: '1px solid #E2E8F0',
+              background: '#F8FAFC'
+            }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>{previewImage.name}</span>
+              <button
+                onClick={() => setPreviewImage(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px',
+                  borderRadius: '4px'
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+            <div style={{ padding: '12px', overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <img
+                src={previewImage.url}
+                alt={previewImage.name}
+                style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: '4px' }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

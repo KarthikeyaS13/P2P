@@ -116,9 +116,9 @@ module.exports = (db, authenticate, requireRole, auditLog) => {
     try {
       const ar = db.prepare('SELECT * FROM ar_entries WHERE id = ?').get(req.params.id);
       if (!ar) return res.status(404).json({ error: 'AR entry not found' });
-      const newReceived = (ar.amount_received || 0) + parseFloat(amount_received || 0);
-      const balance = (ar.amount_due || 0) - newReceived;
-      const status = balance <= 0 ? 'paid' : 'partial';
+      const newReceived = parseFloat(((ar.amount_received || 0) + parseFloat(amount_received || 0)).toFixed(2));
+      const balance = Math.max(0, parseFloat(((ar.amount_due || 0) - newReceived).toFixed(2)));
+      const status = balance <= 0.01 ? 'paid' : 'partial';
       db.prepare(`UPDATE ar_entries SET amount_received=?, balance=?, payment_date=?, payment_reference=?, status=? WHERE id=?`)
         .run(newReceived, balance, payment_date, payment_reference, status, req.params.id);
       auditLog(req.user.id, 'PAYMENT', 'AR', req.params.id, { amount_received, payment_reference });

@@ -16,6 +16,65 @@ import {
 } from '@tanstack/react-table';
 
 export default function NewPO() {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    if (dateStr instanceof Date) {
+      const dd = String(dateStr.getDate()).padStart(2, '0');
+      const mm = String(dateStr.getMonth() + 1).padStart(2, '0');
+      const yyyy = dateStr.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    const cleanStr = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+    
+    if (cleanStr.includes('-')) {
+      const parts = cleanStr.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+    
+    if (cleanStr.includes('/')) {
+      const parts = cleanStr.split('/');
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+
+    try {
+      const d = new Date(cleanStr);
+      if (!isNaN(d.getTime())) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}-${mm}-${yyyy}`;
+      }
+    } catch (e) {}
+    
+    return cleanStr;
+  };
+
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef(null);
@@ -872,11 +931,47 @@ export default function NewPO() {
   };
 
   return (
-    <div style={{ padding: '8px', maxWidth: '100%', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div style={{ padding: '16px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
       <style>{`
         input::-webkit-outer-spin-button,
         input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
+        
+        .compact-form-input {
+          width: 100%;
+          height: 36px !important;
+          padding: 0 12px 0 32px !important;
+          border-radius: 6px !important;
+          border: 1px solid #CBD5E1 !important;
+          font-size: 13px !important;
+          box-sizing: border-box !important;
+          outline: none !important;
+          transition: all 0.2s ease !important;
+          background: #F8FAFC !important;
+        }
+        .compact-form-select, .compact-form-input-text {
+          width: 100%;
+          height: 36px !important;
+          padding: 0 10px !important;
+          border-radius: 6px !important;
+          border: 1px solid #CBD5E1 !important;
+          font-size: 13px !important;
+          box-sizing: border-box !important;
+          outline: none !important;
+          transition: all 0.2s ease !important;
+          background: #F8FAFC !important;
+        }
+        .compact-form-input:focus, .compact-form-select:focus, .compact-form-input-text:focus {
+          border-color: #3B82F6 !important;
+          background: white !important;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+        }
+        .compact-form-input:hover, .compact-form-select:hover, .compact-form-input-text:hover {
+          border-color: #94A3B8 !important;
+        }
+        .react-datepicker-wrapper {
+          width: 100% !important;
+        }
       `}</style>
       {renderFileViewer()}
 
@@ -888,87 +983,88 @@ export default function NewPO() {
         <h2 style={{ margin: 0 }}>Purchase Order Load</h2>
       </div>
 
-      <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+      <div style={{ background: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
 
         {/* STEP 1: Basic & Attachments */}
         {step === 1 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
             <div>
-              <h3 style={{ borderBottom: '1px solid #E5E7EB', paddingBottom: '8px' }}>1. Basic Details</h3>
-              <div style={{ display: 'grid', gap: '16px' }}>
+              <h3 style={{ fontSize: '14px', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontWeight: 700, color: '#334155' }}>1. Basic Details</h3>
+              <div style={{ display: 'grid', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#06070aff' }}>Customer</label>
-                  <select name="customerId" value={basicDetails.customerId} onChange={handleCustomerChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Customer</label>
+                  <select name="customerId" value={basicDetails.customerId} onChange={handleCustomerChange} className="compact-form-select">
                     <option value="">Select Customer</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#06070aff' }}>Location</label>
-                  <select name="locationId" value={basicDetails.locationId} onChange={handleBasicChange} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Location</label>
+                  <select name="locationId" value={basicDetails.locationId} onChange={handleBasicChange} className="compact-form-select">
                     <option value="">Select Location</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#06070aff' }}>PO Number</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>PO Number</label>
                   <input
                     name="poNumber"
                     value={basicDetails.poNumber}
                     onChange={handleBasicChange}
-                    style={{ width: '100%', padding: '6px', borderRadius: '6px', border: `1px solid ${poError ? '#EF4444' : '#D1D5DB'}`, fontSize: '0.8rem' }}
+                    className="compact-form-input-text"
+                    style={{ borderColor: poError ? '#EF4444' : '#CBD5E1' }}
                   />
                   {poError && <p style={{ color: '#EF4444', fontSize: '0.7rem', marginTop: '4px', fontWeight: 600 }}>{poError}</p>}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#06070aff' }}>SPOC Name <span style={{ color: 'red' }}>*</span></label>
-                    <input name="contactName" value={basicDetails.contactName} onChange={handleBasicChange} placeholder="Primary Contact Name" style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SPOC Name <span style={{ color: 'red' }}>*</span></label>
+                    <input name="contactName" value={basicDetails.contactName} onChange={handleBasicChange} placeholder="Primary Contact Name" className="compact-form-input-text" />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#06070aff' }}>SPOC Phone <span style={{ color: 'red' }}>*</span></label>
-                    <input name="contactPhone" value={basicDetails.contactPhone} onChange={handleBasicChange} placeholder="Primary Phone" style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '0.8rem' }} />
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SPOC Phone <span style={{ color: 'red' }}>*</span></label>
+                    <input name="contactPhone" value={basicDetails.contactPhone} onChange={handleBasicChange} placeholder="Primary Phone" className="compact-form-input-text" />
                   </div>
                 </div>
-                <div style={{ display: 'grid', gap: '16px' }}>
+                <div style={{ display: 'grid', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#06070aff', marginBottom: '4px' }}>PO Date</label>
-                    <div className="date-picker-container">
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>PO Date</label>
+                    <div className="date-picker-container" style={{ position: 'relative' }}>
                       <DatePicker
                         selected={basicDetails.poDate ? new Date(basicDetails.poDate) : null}
                         onChange={(date) => handleDateChange('poDate', date)}
                         dateFormat="dd/MM/yyyy"
-                        className="form-input"
+                        className="form-input compact-form-input"
                         placeholderText="DD/MM/YYYY"
                       />
-                      <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                      <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#06070aff', marginBottom: '4px' }}>Start Date</label>
-                      <div className="date-picker-container">
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Start Date</label>
+                      <div className="date-picker-container" style={{ position: 'relative' }}>
                         <DatePicker
                           selected={basicDetails.startDate ? new Date(basicDetails.startDate) : null}
                           onChange={(date) => handleDateChange('startDate', date)}
                           dateFormat="dd/MM/yyyy"
-                          className="form-input"
+                          className="form-input compact-form-input"
                           placeholderText="DD/MM/YYYY"
                         />
-                        <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                        <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
                       </div>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#06070aff', marginBottom: '4px' }}>Est. End Date</label>
-                      <div className="date-picker-container">
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Est. End Date</label>
+                      <div className="date-picker-container" style={{ position: 'relative' }}>
                         <DatePicker
                           selected={basicDetails.endDate ? new Date(basicDetails.endDate) : null}
                           onChange={(date) => handleDateChange('endDate', date)}
                           dateFormat="dd/MM/yyyy"
-                          className="form-input"
+                          className="form-input compact-form-input"
                           placeholderText="DD/MM/YYYY"
                         />
-                        <span className="material-symbols-outlined calendar-icon">calendar_today</span>
+                        <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
                       </div>
                     </div>
                   </div>
@@ -977,18 +1073,18 @@ export default function NewPO() {
             </div>
 
             <div>
-              <h3 style={{ borderBottom: '1px solid #E5E7EB', paddingBottom: '8px' }}>2. Attachments</h3>
-              <div style={{ display: 'grid', gap: '20px' }}>
+              <h3 style={{ fontSize: '14px', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontWeight: 700, color: '#334155' }}>2. Attachments</h3>
+              <div style={{ display: 'grid', gap: '10px' }}>
                 {['po_copy', 'po_annex', 'other'].map(type => (
-                  <div key={type} style={{ border: '1px solid #E5E7EB', padding: '12px', borderRadius: '8px' }}>
-                    <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, marginBottom: '8px', textTransform: 'capitalize' }}>
-                      {type.replace('_', ' ')}
+                  <div key={type} style={{ border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: '6px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', textTransform: 'capitalize' }}>
+                      {type === 'po_copy' ? 'PO Copy' : type === 'po_annex' ? 'PO Annex' : 'Other'}
                     </label>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.xlsm,.csv" onChange={(e) => handleFileChange(type, e.target.files[0])} style={{ flex: 1 }} />
+                      <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.xlsm,.csv" onChange={(e) => handleFileChange(type, e.target.files[0])} style={{ flex: 1, fontSize: '12px' }} />
                       {attachments[type] && (
-                        <button onClick={() => setShowViewer(type)} style={{ background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                        <button onClick={() => setShowViewer(type)} style={{ background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '4px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
                             {attachments[type].name.toLowerCase().endsWith('.xlsx') || attachments[type].name.toLowerCase().endsWith('.xls') ? 'description' : 'visibility'}
                           </span>
                           View
@@ -1005,17 +1101,18 @@ export default function NewPO() {
                 ))}
               </div>
 
-              <div style={{ marginTop: '32px', textAlign: 'center' }}>
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
                 <button
                   onClick={async () => {
                     await handleDownloadTemplate();
                     handleManualEntry();
                   }}
-                  className="btn-primary btn-download-template"
+                  className="btn-primary"
+                  style={{ height: '36px', padding: '0 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', width: 'auto', borderRadius: '6px' }}
                 >
                   <span
                     className="material-symbols-outlined"
-                    style={{ fontSize: '20px' }}
+                    style={{ fontSize: '18px' }}
                   >
                     download
                   </span>
@@ -1025,17 +1122,19 @@ export default function NewPO() {
               </div>
             </div>
 
-            <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #E5E7EB', paddingTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #E5E7EB', paddingTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={nextStep}
                 disabled={loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber || !basicDetails.contactName || !basicDetails.contactPhone}
                 style={{
-                  padding: '12px 32px',
+                  height: '36px',
+                  padding: '0 24px',
                   background: (loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber || !basicDetails.contactName || !basicDetails.contactPhone) ? '#9CA3AF' : '#3B82F6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
                   fontWeight: 600,
+                  fontSize: '13px',
                   cursor: (loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber) ? 'not-allowed' : 'pointer'
                 }}
               >
@@ -1048,18 +1147,18 @@ export default function NewPO() {
         {/* STEP 2: Items Review */}
         {step === 2 && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0 }}>Step 2: Items Review & Calculation</h3>
-              <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#334155' }}>2. Items Review & Calculation</h3>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => !loading && fileInputRef.current.click()}
                   disabled={loading}
-                  style={{ padding: '8px 16px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.8 : 1 }}
+                  style={{ height: '32px', padding: '0 12px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.8 : 1, fontSize: '12px' }}
                 >
                   {loading ? (
-                    <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                    <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                   ) : (
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>upload_file</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
                   )}
                   {loading ? 'Processing...' : 'Excel Upload'}
                 </button>
@@ -1070,21 +1169,19 @@ export default function NewPO() {
                   accept=".xlsx,.xls"
                   onChange={handleDirectExcelUpload}
                 />
-                <button onClick={addRow} style={{ padding: '8px 16px', background: '#10B981', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 600 }}>+ Add Row</button>
+                <button onClick={addRow} style={{ height: '32px', padding: '0 12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 600, fontSize: '12px' }}>+ Add Row</button>
               </div>
             </div>
 
-
-
             {loading && (
-              <div style={{ padding: '40px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                <div className="spinner" style={{ margin: '0 auto 16px', width: '32px', height: '32px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                <h3 style={{ margin: 0, color: '#1e293b' }}>Parsing Excel File...</h3>
-                <p style={{ margin: '4px 0 0', color: '#64748b' }}>Please wait while we process the rows.</p>
+              <div style={{ padding: '30px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
+                <div className="spinner" style={{ margin: '0 auto 12px', width: '28px', height: '28px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                <h3 style={{ margin: 0, color: '#1e293b', fontSize: '14px' }}>Parsing Excel File...</h3>
+                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>Please wait while we process the rows.</p>
               </div>
             )}
 
-            <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '6px', maxHeight: '450px', background: 'white', display: loading ? 'none' : 'block' }}>
+            <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '6px', maxHeight: '400px', background: 'white', display: loading ? 'none' : 'block' }}>
               <table className="no-hover" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.8rem' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 40, background: '#F9FAFB' }}>
                   <tr style={{ whiteSpace: 'nowrap', height: '36px' }}>
@@ -1094,7 +1191,7 @@ export default function NewPO() {
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '180px', fontSize: '11px', fontWeight: 700, color: '#06070aff', height: '36px' }}>Heading</th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '200px', fontSize: '11px', fontWeight: 700, color: '#06070aff', height: '36px' }}>Sub Heading</th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '250px', fontSize: '11px', fontWeight: 700, color: '#06070aff', height: '36px' }}>Item Name</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '300px', fontSize: '11px', fontWeight: 700, color: '#06070aff', height: '36px' }}>Item Description</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', minWidth: '300px', fontSize: '11px', fontWeight: 700, color: '#06070aff', height: '36px' }}>Item Description <span style={{ fontSize: '8px', color: '#4B5563' }}>(click to view description)</span></th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F9FAFB', width: '50px', fontSize: '11px', fontWeight: 700, color: '#06070aff', height: '36px' }}>UOM</th>
 
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFDF5', width: '70px', fontSize: '11px', fontWeight: 800, color: '#065f46', height: '36px' }}>Supply Qty</th>
@@ -1124,11 +1221,11 @@ export default function NewPO() {
                     <tr key={idx} style={{ height: '32px' }}>
                       <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#1e293b', fontWeight: 800, background: '#f1f5f9', fontSize: '0.7rem', position: 'sticky', left: 0, zIndex: 10, borderRight: '2px solid #D1D5DB', height: '32px' }}>{idx + 1}</td>
                       <td style={{ padding: '0', border: '1px solid #E5E7EB', height: '32px' }}>
-                        <input value={it.ref_no} onChange={(e) => updateItem(idx, 'ref_no', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', fontSize: '0.7rem', height: '32px' }} />
+                        <input value={it.ref_no} onChange={(e) => updateItem(idx, 'ref_no', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', fontSize: '0.7rem', height: '32px', background: 'transparent' }} />
                       </td>
                       <td style={{ padding: '0', border: '1px solid #E5E7EB', height: '32px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', height: '32px' }}>
-                          <input value={it.package_name} onChange={(e) => updateItem(idx, 'package_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', fontSize: '0.7rem', height: '32px' }} />
+                          <input value={it.package_name} onChange={(e) => updateItem(idx, 'package_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', fontSize: '0.7rem', height: '32px', background: 'transparent' }} />
                           {it.package_name && it.package_name.length > 20 && (
                             <span className="material-symbols-outlined" style={{ fontSize: '13px', cursor: 'pointer', color: '#3b82f6', opacity: 0.6, marginRight: '4px' }} onClick={() => Swal.fire({ title: 'Package', text: it.package_name })}>open_in_new</span>
                           )}
@@ -1136,7 +1233,7 @@ export default function NewPO() {
                       </td>
                       <td style={{ padding: '0', border: '1px solid #E5E7EB' }}>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <input value={it.heading} onChange={(e) => updateItem(idx, 'heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem' }} />
+                          <input value={it.heading} onChange={(e) => updateItem(idx, 'heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem', background: 'transparent' }} />
                           {it.heading && it.heading.length > 25 && (
                             <span className="material-symbols-outlined" style={{ fontSize: '13px', cursor: 'pointer', color: '#3b82f6', opacity: 0.6, marginRight: '4px' }} onClick={() => Swal.fire({ title: 'Heading', text: it.heading })}>open_in_new</span>
                           )}
@@ -1144,7 +1241,7 @@ export default function NewPO() {
                       </td>
                       <td style={{ padding: '0', border: '1px solid #E5E7EB' }}>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <input value={it.sub_heading} onChange={(e) => updateItem(idx, 'sub_heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem' }} />
+                          <input value={it.sub_heading} onChange={(e) => updateItem(idx, 'sub_heading', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem', background: 'transparent' }} />
                           {it.sub_heading && it.sub_heading.length > 30 && (
                             <span className="material-symbols-outlined" style={{ fontSize: '13px', cursor: 'pointer', color: '#3b82f6', opacity: 0.6, marginRight: '4px' }} onClick={() => Swal.fire({ title: 'Sub Heading', text: it.sub_heading })}>open_in_new</span>
                           )}
@@ -1152,7 +1249,7 @@ export default function NewPO() {
                       </td>
                       <td style={{ padding: '0', border: '1px solid #E5E7EB' }}>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <input value={it.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem', fontWeight: 600 }} />
+                          <input value={it.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem', fontWeight: 600, background: 'transparent' }} />
                           {it.item_name && it.item_name.length > 35 && (
                             <span className="material-symbols-outlined" style={{ fontSize: '13px', cursor: 'pointer', color: '#3b82f6', opacity: 0.6, marginRight: '4px' }} onClick={() => Swal.fire({ title: 'Item Name', text: it.item_name })}>open_in_new</span>
                           )}
@@ -1160,14 +1257,14 @@ export default function NewPO() {
                       </td>
                       <td style={{ padding: '0', border: '1px solid #E5E7EB' }}>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <input value={it.description} onChange={(e) => updateItem(idx, 'description', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem', color: '#4b5563' }} />
+                          <input value={it.description} onChange={(e) => updateItem(idx, 'description', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem', color: '#4b5563', background: 'transparent' }} />
                           {it.description && it.description.length > 40 && (
                             <span className="material-symbols-outlined" style={{ fontSize: '13px', cursor: 'pointer', color: '#3b82f6', opacity: 0.6, marginRight: '4px' }} onClick={() => Swal.fire({ title: 'Description', text: it.description })}>open_in_new</span>
                           )}
                         </div>
                       </td>
                       <td style={{ padding: '0', border: '1px solid #E5E7EB' }}>
-                        <input value={it.uom} onChange={(e) => updateItem(idx, 'uom', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem', textAlign: 'center' }} />
+                        <input value={it.uom} onChange={(e) => updateItem(idx, 'uom', e.target.value)} style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem', textAlign: 'center', background: 'transparent' }} />
                       </td>
 
                       <td style={{ padding: '0', border: '1px solid #E5E7EB', background: '#ECFDF5' }}><input type="number" value={it.supply_qty} onChange={(e) => updateItem(idx, 'supply_qty', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '0 8px', height: '32px', fontSize: '0.7rem', background: 'transparent' }} /></td>
@@ -1221,32 +1318,31 @@ export default function NewPO() {
                 </tbody>
                 <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 20, background: '#0f172a', color: '#ffffff', fontWeight: 700 }}>
                   <tr>
-                    <td colSpan="20" style={{ padding: '6px 12px', textAlign: 'right', fontSize: '1rem', borderTop: '2px solid #334155', color: '#ffffff' }}>GRAND TOTALS:</td>
-                    <td style={{ textAlign: 'right', padding: '6px 12px', fontSize: '1rem', borderTop: '2px solid #334155', color: '#ffffff', whiteSpace: 'nowrap' }}>₹{getSummaryTotals().taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.9rem', color: '#cbd5e1', marginLeft: '4px' }}>(Taxable)</span></td>
-                    <td style={{ textAlign: 'right', padding: '6px 12px', fontSize: '1rem', borderTop: '2px solid #334155', color: '#ffffff', whiteSpace: 'nowrap' }}>₹{getSummaryTotals().gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.9rem', color: '#cbd5e1', marginLeft: '4px' }}>(GST)</span></td>
-                    <td style={{ textAlign: 'right', padding: '6px 12px', background: '#059669', fontSize: '1.1rem', color: '#ffffff', borderTop: '2px solid #065f46', whiteSpace: 'nowrap' }}>₹{getSummaryTotals().grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.9rem', color: '#d1fae5', marginLeft: '4px' }}>(Total)</span></td>
+                    <td colSpan="20" style={{ padding: '4px 8px', textAlign: 'right', fontSize: '0.85rem', borderTop: '2px solid #334155', color: '#ffffff' }}>GRAND TOTALS:</td>
+                    <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.85rem', borderTop: '2px solid #334155', color: '#ffffff', whiteSpace: 'nowrap' }}>₹{getSummaryTotals().taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#cbd5e1', marginLeft: '4px' }}>(Taxable)</span></td>
+                    <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.85rem', borderTop: '2px solid #334155', color: '#ffffff', whiteSpace: 'nowrap' }}>₹{getSummaryTotals().gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#cbd5e1', marginLeft: '4px' }}>(GST)</span></td>
+                    <td style={{ textAlign: 'right', padding: '4px 8px', background: '#059669', fontSize: '0.9rem', color: '#ffffff', borderTop: '2px solid #065f46', whiteSpace: 'nowrap' }}>₹{getSummaryTotals().grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#d1fae5', marginLeft: '4px' }}>(Total)</span></td>
                     <td style={{ borderTop: '2px solid #334155' }}></td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            <div className="form-footer-actions">
-
+            <div className="form-footer-actions" style={{ marginTop: '16px' }}>
               <button
                 onClick={() => setStep(1)}
                 className="btn-secondary"
+                style={{ height: '36px', padding: '0 20px', borderRadius: '6px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
               >
                 ← Back
               </button>
-
               <button
                 onClick={nextStep}
                 className="btn-primary"
+                style={{ height: '36px', padding: '0 20px', borderRadius: '6px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
               >
                 Review
               </button>
-
             </div>
           </div>
         )}
@@ -1254,26 +1350,48 @@ export default function NewPO() {
         {/* STEP 3: Final Summary */}
         {step === 3 && (
           <div>
-            <h3 style={{ marginBottom: '24px' }}>3. Final Summary & Confirmation</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '32px' }}>
-              <div style={{ background: '#F9FAFB', padding: '20px', borderRadius: '8px' }}>
-                <p><strong>PO Number:</strong> {basicDetails.poNumber}</p>
-                <p><strong>Customer:</strong> {customers.find(c => c.id == basicDetails.customerId)?.name}</p>
-                <p><strong>Location:</strong> {locations.find(l => l.id == basicDetails.locationId)?.label}</p>
-                <p><strong>Date:</strong> {basicDetails.poDate}</p>
+            <h3 style={{ fontSize: '1.15rem', marginBottom: '12px', color: '#1E293B', fontWeight: 700 }}>3. Final Summary</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ background: '#F8FAFC', padding: '12px 16px', borderRadius: '6px', border: '1px solid #E2E8F0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>PO Number</span>
+                  <span style={{ fontSize: '13px', color: '#1E293B', fontWeight: 600 }}>{basicDetails.poNumber}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Date</span>
+                  <span style={{ fontSize: '13px', color: '#1E293B', fontWeight: 600 }}>{formatDate(basicDetails.poDate)}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Customer</span>
+                  <span style={{ fontSize: '13px', color: '#1E293B', fontWeight: 600 }}>{customers.find(c => c.id == basicDetails.customerId)?.name}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Location</span>
+                  <span style={{ fontSize: '13px', color: '#1E293B', fontWeight: 600 }}>{locations.find(l => l.id == basicDetails.locationId)?.label}</span>
+                </div>
               </div>
-              <div style={{ background: '#ECFDF5', padding: '20px', borderRadius: '8px', border: '1px solid #A7F3D0', textAlign: 'right' }}>
-                <p style={{ margin: '0 0 4px', color: '#065F46' }}><strong>Overall Subtotal:</strong> ₹{getSummaryTotals().taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                <p style={{ margin: '0 0 4px', color: '#065F46' }}><strong>Overall GST:</strong> ₹{getSummaryTotals().gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                <p style={{ fontSize: '1.5rem', color: '#065F46', margin: 0 }}><strong>Grand Total:</strong> ₹{getSummaryTotals().grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <div style={{ background: '#ECFDF5', padding: '12px 16px', borderRadius: '6px', border: '1px solid #A7F3D0', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#065F46', fontWeight: 500 }}>Overall Subtotal</span>
+                  <span style={{ fontSize: '13px', color: '#065F46', fontWeight: 600 }}>₹{getSummaryTotals().taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#065F46', fontWeight: 500 }}>Overall GST</span>
+                  <span style={{ fontSize: '13px', color: '#065F46', fontWeight: 600 }}>₹{getSummaryTotals().gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div style={{ height: '1px', background: '#A7F3D0', margin: '4px 0' }}></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', color: '#065F46', fontWeight: 700 }}>Grand Total</span>
+                  <span style={{ fontSize: '16px', color: '#065F46', fontWeight: 800 }}>₹{getSummaryTotals().grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
               </div>
             </div>
 
             <SummaryTable data={items} totals={getSummaryTotals()} />
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
-              <button onClick={() => setStep(2)} style={{ padding: '12px 24px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '6px', cursor: 'pointer' }}>← Edit Items</button>
-              <button onClick={handleSubmit} disabled={submitting} style={{ padding: '12px 40px', background: '#059669', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+              <button onClick={() => setStep(2)} style={{ height: '36px', padding: '0 20px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>← Edit Items</button>
+              <button onClick={handleSubmit} disabled={submitting} style={{ height: '36px', padding: '0 24px', background: '#059669', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', fontSize: '13px' }}>
                 {submitting ? 'Creating PO...' : '✓ Confirm & Submit PO'}
               </button>
             </div>
@@ -1282,18 +1400,18 @@ export default function NewPO() {
 
         {showPasteModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '98%', maxWidth: '1400px', maxHeight: '95vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <h3 style={{ margin: 0 }}>Interactive Excel Workspace</h3>
+            <div style={{ background: 'white', padding: '16px', borderRadius: '8px', width: '98%', maxWidth: '1400px', maxHeight: '95vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#334155' }}>Interactive Excel Workspace</h3>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <label style={{ padding: '6px 12px', background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
+                    <label style={{ padding: '0 10px', height: '28px', background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>upload_file</span>
                       Load from Excel
                       <input type="file" accept=".xlsx,.xls,.xlsm,.csv" onChange={handleModalFileUpload} style={{ display: 'none' }} />
                     </label>
-                    <button onClick={handleExportGrid} style={{ padding: '6px 12px', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+                    <button onClick={handleExportGrid} style={{ padding: '0 10px', height: '28px', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>download</span>
                       Save as Excel
                     </button>
                   </div>
@@ -1301,9 +1419,9 @@ export default function NewPO() {
                 <button onClick={() => setPasteRows(prev => [...prev, {
                   ref_no: '', package_name: '', heading: '', sub_heading: '', item_name: '', description: '', uom: '',
                   supply_qty: '', supply_rate: '', supply_gst_rate: '', service_qty: '', service_rate: '', service_gst_rate: ''
-                }])} style={{ padding: '6px 12px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>+ Add Row</button>
+                }])} style={{ padding: '0 10px', height: '28px', background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>+ Add Row</button>
               </div>
-              <p style={{ fontSize: '0.85rem', color: '#6B7280', marginBottom: '16px' }}>Edit cells directly, use <b>Ctrl+V</b> to paste from your desktop Excel, or <b>Load from Excel</b> to import a whole file. Click <b>Save as Excel</b> to export your current work.</p>
+              <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '12px' }}>Edit cells directly, use <b>Ctrl+V</b> to paste from your desktop Excel, or <b>Load from Excel</b> to import a whole file. Click <b>Save as Excel</b> to export your current work.</p>
 
               <div onPaste={handleGridPaste} style={{ flex: 1, overflow: 'auto', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#F9FAFB' }}>
                 <table style={{ width: 'max-content', borderCollapse: 'collapse', fontSize: '0.75rem', background: 'white' }}>
@@ -1368,9 +1486,9 @@ export default function NewPO() {
                   </tbody>
                 </table>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-                <button onClick={() => setShowPasteModal(false)} style={{ padding: '10px 20px', background: '#F3F4F6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-                <button onClick={handleBulkPaste} disabled={pasteRows.every(r => !r.item_name && !r.ref_no)} style={{ padding: '10px 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', opacity: pasteRows.every(r => !r.item_name && !r.ref_no) ? 0.5 : 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button onClick={() => setShowPasteModal(false)} style={{ height: '32px', padding: '0 16px', background: '#F3F4F6', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}>Cancel</button>
+                <button onClick={handleBulkPaste} disabled={pasteRows.every(r => !r.item_name && !r.ref_no)} style={{ height: '32px', padding: '0 20px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 600, cursor: 'pointer', fontSize: '12px', opacity: pasteRows.every(r => !r.item_name && !r.ref_no) ? 0.5 : 1 }}>
                   Process & Sync {pasteRows.filter(r => r.item_name || r.ref_no).length} Items
                 </button>
               </div>
@@ -1471,14 +1589,14 @@ function SummaryTable({ data }) {
   }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
 
   return (
-    <div style={{ marginBottom: '32px' }}>
-      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: '16px' }}>
-        <table className="no-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-          <thead style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+    <div style={{ marginBottom: '24px' }}>
+      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0', overflow: 'hidden', marginBottom: '16px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+          <thead style={{ background: '#F8FAFC' }}>
             {table.getHeaderGroups().map(headerGroup => (
-              <tr key={headerGroup.id}>
+              <tr key={headerGroup.id} style={{ height: '36px' }}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '12px', textAlign: header.id === 'package_name' ? 'left' : 'right', color: '#4B5563', fontWeight: 700, borderRight: '1px solid #F3F4F6' }}>
+                  <th key={header.id} style={{ padding: '4px 8px', textAlign: header.id === 'package_name' ? 'left' : 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', height: '36px' }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -1487,35 +1605,28 @@ function SummaryTable({ data }) {
           </thead>
           <tbody>
             {table.getRowModel().rows.map(row => (
-              <tr key={row.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+              <tr key={row.id} style={{ height: '32px' }}>
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} style={{ padding: '10px 12px', textAlign: cell.column.id === 'package_name' ? 'left' : 'right', borderRight: '1px solid #F3F4F6' }}>
+                  <td key={cell.id} style={{ padding: '4px 8px', textAlign: cell.column.id === 'package_name' ? 'left' : 'right', border: '1px solid #E2E8F0', height: '32px' }}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
-          <tfoot style={{ background: '#0f172a', color: '#ffffff', fontWeight: 700, borderTop: '2px solid #334155', fontSize: '1rem' }}>
-            <tr>
-              <td style={{ padding: '12px', textAlign: 'left', color: '#ffffff' }}>TOTAL</td>
-              <td style={{ padding: '12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(Supply)</span></td>
-              <td style={{ padding: '12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(GST)</span></td>
-              <td style={{ padding: '12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(Service)</span></td>
-              <td style={{ padding: '12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(GST)</span></td>
-              <td style={{ padding: '12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(Taxable)</span></td>
-              <td style={{ padding: '12px', textAlign: 'right', color: '#ffffff' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>(GST)</span></td>
-              <td style={{ padding: '12px', textAlign: 'right', background: '#059669', color: '#ffffff' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.75rem', color: '#d1fae5' }}>(Total)</span></td>
+          <tfoot style={{ background: '#F8FAFC', fontWeight: 800, borderTop: '2px solid #E2E8F0' }}>
+            <tr style={{ height: '32px' }}>
+              <td style={{ padding: '4px 8px', textAlign: 'left', border: '1px solid #E2E8F0', height: '32px' }}>TOTAL</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style={{ padding: '4px 8px', textAlign: 'right', color: '#2563EB', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tfoot>
         </table>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <div style={{ background: '#F0F9FF', padding: '16px 24px', borderRadius: '12px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '300px' }}>
-          <p style={{ margin: '0 0 4px', color: '#0369A1', fontSize: '0.85rem', fontWeight: 600 }}>Final Grand Total</p>
-          <p style={{ margin: 0, color: '#0369A1', fontSize: '2rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-        </div>
       </div>
     </div>
   );

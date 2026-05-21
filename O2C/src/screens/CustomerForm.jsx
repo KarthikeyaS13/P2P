@@ -146,8 +146,19 @@ export default function CustomerForm() {
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
 
-  const labelStyle = { display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500, fontSize: '14px' };
-  const inputStyle = { width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '14px' };
+  const labelStyle = { display: 'block', marginBottom: '6px', color: '#374151', fontWeight: 600, fontSize: '13px' };
+  const inputStyle = {
+    width: '100%',
+    height: '42px',
+    padding: '0 14px',
+    borderRadius: '8px',
+    border: '2px solid #D1D5DB',
+    fontSize: '14px',
+    boxSizing: 'border-box',
+    outline: 'none',
+    transition: 'all 0.2s ease',
+    background: 'white'
+  };
   const sectionTitleStyle = { color: '#1F2937', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontSize: '16px', fontWeight: 600 };
 
   return (
@@ -170,23 +181,23 @@ export default function CustomerForm() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
           <div>
             <label style={labelStyle}>Customer Name (Internal) *</label>
-            <input name="name" value={form.name} onChange={handleChange} placeholder="As per your books" style={inputStyle} />
+            <input className="custom-form-input" name="name" value={form.name} onChange={handleChange} placeholder="As per your books" style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Customer Legal Name (as per PAN)</label>
-            <input name="legal_name" value={form.legal_name} onChange={handleChange} placeholder="As per PAN / GST" style={inputStyle} />
+            <input className="custom-form-input" name="legal_name" value={form.legal_name} onChange={handleChange} placeholder="As per PAN / GST" style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>GSTIN *</label>
-            <input name="gstin" value={form.gstin} onChange={handleChange} placeholder="27AADCB2230M1Z2" style={inputStyle} />
+            <input className="custom-form-input" name="gstin" value={form.gstin} onChange={handleChange} placeholder="27AADCB2230M1Z2" style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Customer ID *</label>
-            <input name="cust_code" value={form.cust_code} onChange={handleChange} style={inputStyle} placeholder="E.g. CUST001" disabled={isEdit} />
+            <input className="custom-form-input" name="cust_code" value={form.cust_code} onChange={handleChange} style={inputStyle} placeholder="E.g. CUST001" disabled={isEdit} />
           </div>
           <div>
             <label style={labelStyle}>PAN Number</label>
-            <input name="pan" value={form.pan} onChange={handleChange} style={inputStyle} placeholder="10 characters" />
+            <input className="custom-form-input" name="pan" value={form.pan} onChange={handleChange} style={inputStyle} placeholder="10 characters" />
           </div>
         </div>
 
@@ -195,21 +206,22 @@ export default function CustomerForm() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
           <div>
             <label style={labelStyle}>Address Line 1 *</label>
-            <input name="address_line1" value={form.address_line1} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="address_line1" value={form.address_line1} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Address Line 2</label>
-            <input name="address_line2" value={form.address_line2} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="address_line2" value={form.address_line2} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Address Line 3</label>
-            <input name="address_line3" value={form.address_line3} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="address_line3" value={form.address_line3} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>City *</label>
             {isCustomCity ? (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
+                  className="custom-form-input"
                   name="city" 
                   value={form.city} 
                   onChange={handleChange} 
@@ -263,7 +275,7 @@ export default function CustomerForm() {
           </div>
           <div>
             <label style={labelStyle}>Pincode *</label>
-            <input name="pincode" value={form.pincode} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="pincode" value={form.pincode} onChange={handleChange} style={inputStyle} />
           </div>
         </div>
 
@@ -272,19 +284,19 @@ export default function CustomerForm() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
           <div>
             <label style={labelStyle}>Contact Person Name *</label>
-            <input name="contact_name" value={form.contact_name} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="contact_name" value={form.contact_name} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Department</label>
-            <input name="contact_department" value={form.contact_department} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="contact_department" value={form.contact_department} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Official Email</label>
-            <input type="email" name="contact_email" value={form.contact_email} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" type="email" name="contact_email" value={form.contact_email} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Official Phone (10 digits) *</label>
-            <input name="contact_phone" value={form.contact_phone} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="contact_phone" value={form.contact_phone} onChange={handleChange} style={inputStyle} />
           </div>
         </div>
 
@@ -293,19 +305,19 @@ export default function CustomerForm() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
           <div>
             <label style={labelStyle}>Contact Person Name</label>
-            <input name="spoc2_name" value={form.spoc2_name} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="spoc2_name" value={form.spoc2_name} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Department</label>
-            <input name="spoc2_department" value={form.spoc2_department} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="spoc2_department" value={form.spoc2_department} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Official Email</label>
-            <input type="email" name="spoc2_email" value={form.spoc2_email} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" type="email" name="spoc2_email" value={form.spoc2_email} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Official Phone (10 digits)</label>
-            <input name="spoc2_phone" value={form.spoc2_phone} onChange={handleChange} style={inputStyle} />
+            <input className="custom-form-input" name="spoc2_phone" value={form.spoc2_phone} onChange={handleChange} style={inputStyle} />
           </div>
         </div>
 
@@ -327,6 +339,22 @@ export default function CustomerForm() {
         </div>
 
       </form>
+      <style>{`
+        input.custom-form-input:focus {
+          border-color: #3B82F6 !important;
+          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+          transform: none !important;
+        }
+        input.custom-form-input:hover {
+          border-color: #9CA3AF !important;
+        }
+        input.custom-form-input:disabled {
+          background-color: #F3F4F6 !important;
+          color: #9CA3AF !important;
+          cursor: not-allowed !important;
+          border-color: #E5E7EB !important;
+        }
+      `}</style>
     </div>
   );
 }

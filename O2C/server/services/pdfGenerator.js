@@ -1,5 +1,7 @@
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const QRCode = require('qrcode');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Helper to split text into lines to fit a specific width
@@ -70,11 +72,30 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
     color: primaryColor,
   });
 
-  // Seller / Issuer details (Left)
+  // Draw company logo (top right, aligned with TAX INVOICE title on the left)
+  try {
+    const logoPath = path.join(__dirname, '../../public/logo.png');
+    if (fs.existsSync(logoPath)) {
+      const logoBuffer = fs.readFileSync(logoPath);
+      const logoImage = await pdfDoc.embedPng(logoBuffer);
+      const logoWidth = 100;
+      const logoHeight = 38; // 365x138 ratio is approx 2.64, so 100 / 2.64 = 37.8
+      page.drawImage(logoImage, {
+        x: rightBoundaryX - logoWidth,
+        y: height - 70,
+        width: logoWidth,
+        height: logoHeight,
+      });
+    }
+  } catch (err) {
+    console.error('[PDFGen] Failed to embed logo in PDF:', err.message);
+  }
+
+  // Seller / Issuer details (Left) - aligned with what we have in the screen
   page.drawText('SUDHA ANALYTICALS', { x: margin, y: height - 90, size: 12, font: helveticaBold, color: textColor });
-  page.drawText('Corporate Office: Industrial Area, Phase II', { x: margin, y: height - 105, size: 9, font: helvetica, color: secondaryColor });
-  page.drawText('Bangalore, Karnataka, India - 560001', { x: margin, y: height - 118, size: 9, font: helvetica, color: secondaryColor });
-  page.drawText('GSTIN: 29SUDHA1234A1Z5', { x: margin, y: height - 131, size: 9, font: helveticaBold, color: textColor });
+  page.drawText('Plot 18A, Sy No 118, Madhapur', { x: margin, y: height - 105, size: 9, font: helvetica, color: secondaryColor });
+  page.drawText('Hyderabad, Telangana - 500037', { x: margin, y: height - 118, size: 9, font: helvetica, color: secondaryColor });
+  page.drawText('GSTIN: 36AGTPG0351P1ZY', { x: margin, y: height - 131, size: 9, font: helveticaBold, color: textColor });
 
   // Invoice Metadata (Right aligned to match screen preview)
   const drawMetaLine = (labelText, valueText, yPos) => {
@@ -82,7 +103,7 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
     const spaceWidth = helvetica.widthOfTextAtSize('  ', 9);
     const valueWidth = helvetica.widthOfTextAtSize(valueText, 9);
     const combinedWidth = labelWidth + spaceWidth + valueWidth;
-    
+
     page.drawText(labelText, {
       x: rightBoundaryX - combinedWidth,
       y: yPos,
@@ -90,7 +111,7 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
       font: helveticaBold,
       color: textColor
     });
-    
+
     page.drawText(valueText, {
       x: rightBoundaryX - valueWidth,
       y: yPos,
@@ -100,9 +121,68 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
     });
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    if (dateStr instanceof Date) {
+      const dd = String(dateStr.getDate()).padStart(2, '0');
+      const mm = String(dateStr.getMonth() + 1).padStart(2, '0');
+      const yyyy = dateStr.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    const cleanStr = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+
+    if (cleanStr.includes('-')) {
+      const parts = cleanStr.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+
+    if (cleanStr.includes('/')) {
+      const parts = cleanStr.split('/');
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          const dd = parts[0].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[2];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+        if (parts[0].length === 4) {
+          const dd = parts[2].padStart(2, '0');
+          const mm = parts[1].padStart(2, '0');
+          const yyyy = parts[0];
+          return `${dd}-${mm}-${yyyy}`;
+        }
+      }
+    }
+
+    try {
+      const d = new Date(cleanStr);
+      if (!isNaN(d.getTime())) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}-${mm}-${yyyy}`;
+      }
+    } catch (e) { }
+
+    return cleanStr;
+  };
+
   drawMetaLine('Invoice No:', invoice.invoice_number || 'DRAFT', height - 90);
-  drawMetaLine('Invoice Date:', invoice.invoice_date || 'N/A', height - 105);
-  drawMetaLine('Due Date:', invoice.due_date || 'N/A', height - 120);
+  drawMetaLine('Invoice Date:', formatDate(invoice.invoice_date) || 'N/A', height - 105);
+  drawMetaLine('Due Date:', formatDate(invoice.due_date) || 'N/A', height - 120);
   drawMetaLine('PO Number:', invoice.po_number || invoice.po_no || 'N/A', height - 135);
 
   // Divider
@@ -267,7 +347,7 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
       ? nameText.substring(0, 36) + '...'
       : nameText;
 
-    const qty = parseFloat(item.quantity || 0).toFixed(2);
+    const qty = Math.round(parseFloat(item.quantity || 0)).toString();
     const rate = parseFloat(item.rate || item.rate_per_unit || 0).toFixed(2);
     const gstPercent = `${parseInt(item.gst_percent || item.gst_rate || 0)}%`;
     const taxable = parseFloat(item.taxable_value || item.value || 0).toFixed(2);
@@ -443,18 +523,6 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
   const authSigY = sigY;
   const authSigCenter = authSigX + authSigWidth / 2; // 480.27
 
-  const authSigTitle = 'AUTHORIZED SIGNATORY';
-  const authSigTitleWidth = helveticaBold.widthOfTextAtSize(authSigTitle, 9);
-  const authSigTitleX = authSigCenter - authSigTitleWidth / 2;
-
-  currentPage.drawText(authSigTitle, {
-    x: authSigTitleX,
-    y: authSigY + 55,
-    size: 9,
-    font: helveticaBold,
-    color: primaryColor,
-  });
-
   // Check if base64 hand signature image data is present
   if (invoice.signature_data && invoice.signature_data.includes('base64,')) {
     try {
@@ -468,17 +536,29 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
 
       currentPage.drawImage(signatureImg, {
         x: sigImgX,
-        y: authSigY + 12,
+        y: authSigY + 28,
         width: sigImgWidth,
         height: sigImgHeight,
       });
     } catch (e) {
       console.error('[PDFGen] Failed to embed hand signature image in PDF:', e.message);
-      currentPage.drawLine({ start: { x: authSigX, y: authSigY + 15 }, end: { x: authSigX + 150, y: authSigY + 15 }, thickness: 0.5, color: textColor });
+      currentPage.drawLine({ start: { x: authSigX, y: authSigY + 32 }, end: { x: authSigX + 150, y: authSigY + 32 }, thickness: 0.5, color: textColor });
     }
   } else {
-    currentPage.drawLine({ start: { x: authSigX, y: authSigY + 15 }, end: { x: authSigX + 150, y: authSigY + 15 }, thickness: 0.5, color: textColor });
+    currentPage.drawLine({ start: { x: authSigX, y: authSigY + 32 }, end: { x: authSigX + 150, y: authSigY + 32 }, thickness: 0.5, color: textColor });
   }
+
+  const authSigTitle = 'AUTHORIZED SIGNATURE';
+  const authSigTitleWidth = helveticaBold.widthOfTextAtSize(authSigTitle, 9);
+  const authSigTitleX = authSigCenter - authSigTitleWidth / 2;
+
+  currentPage.drawText(authSigTitle, {
+    x: authSigTitleX,
+    y: authSigY + 14,
+    size: 9,
+    font: helveticaBold,
+    color: primaryColor,
+  });
 
   const deptTitle = 'Accounts Department';
   const deptTitleWidth = helvetica.widthOfTextAtSize(deptTitle, 8);
@@ -486,7 +566,7 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
 
   currentPage.drawText(deptTitle, {
     x: deptTitleX,
-    y: authSigY,
+    y: authSigY + 2,
     size: 8,
     font: helvetica,
     color: secondaryColor,

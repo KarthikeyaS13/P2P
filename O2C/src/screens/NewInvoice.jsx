@@ -304,39 +304,77 @@ export default function NewInvoice() {
                   <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>inventory_2</span>
                   Billable Items (Based on Site-Received Qty)
                 </h3>
+                <style>{`
+                  .new-invoice-table.data-table th {
+                    padding: 10px 14px !important;
+                    height: 44px !important;
+                    font-size: 12px !important;
+                    vertical-align: middle !important;
+                    box-sizing: border-box !important;
+                    background: #F8FAFC !important;
+                    color: #475569 !important;
+                    border-bottom: 1px solid #E2E8F0 !important;
+                  }
+                  .new-invoice-table.data-table td {
+                    padding: 8px 14px !important;
+                    height: 40px !important;
+                    font-size: 13px !important;
+                    vertical-align: middle !important;
+                    box-sizing: border-box !important;
+                    border-bottom: 1px solid #F1F5F9 !important;
+                    color: #334155 !important;
+                  }
+                  .new-invoice-table.data-table tr {
+                    height: 40px !important;
+                  }
+                  .new-invoice-table.data-table tr:hover {
+                    background: #F8FAFC !important;
+                  }
+                  /* Hide number input spinners */
+                  .new-invoice-table input::-webkit-outer-spin-button,
+                  .new-invoice-table input::-webkit-inner-spin-button {
+                    -webkit-appearance: none;
+                    margin: 0;
+                  }
+                  .new-invoice-table input[type=number] {
+                    -moz-appearance: textfield;
+                  }
+                `}</style>
                 <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
-                  <table className="data-table">
+                  <table className="data-table new-invoice-table">
                     <thead>
                       <tr>
-                        <th style={{ textAlign: 'left' }}>Package</th>
-                        <th style={{ textAlign: 'left' }}>Item Name</th>
+                        <th style={{ textAlign: 'left', width: '100px' }}>Package</th>
+                        <th style={{ textAlign: 'left', width: '150px' }}>Item Name</th>
                         <th style={{ textAlign: 'left' }}>Description</th>
-                        <th className="text-right">Received</th>
-                        <th className="text-right">Invoiced</th>
-                        <th className="text-right">Billable</th>
-                        <th className="text-right" style={{ width: '100px' }}>Invoice Qty</th>
-                        <th className="text-right">Rate</th>
-                        <th className="text-right">GST Rate</th>
-                        <th className="text-right">Taxable</th>
-                        <th className="text-right">GST Amt</th>
-                        <th className="text-right">Total</th>
+                        <th className="text-right" style={{ width: '80px' }}>Received</th>
+                        <th className="text-right" style={{ width: '80px' }}>Invoiced</th>
+                        <th className="text-right" style={{ width: '80px' }}>Billable</th>
+                        <th className="text-right" style={{ width: '80px' }}>Invoice Qty</th>
+                        <th className="text-right" style={{ width: '90px' }}>Rate</th>
+                        <th className="text-right" style={{ width: '70px' }}>GST Rate</th>
+                        <th className="text-right" style={{ width: '100px' }}>Taxable</th>
+                        <th className="text-right" style={{ width: '90px' }}>GST Amt</th>
+                        <th className="text-right" style={{ width: '110px' }}>Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {dcDetails.enrichedItems.map((it, i) => (
                         <tr key={i} style={{ opacity: it.remaining_qty === 0 ? 0.6 : 1 }}>
                           <td>
-                            <div style={{ fontWeight: 600, color: '#475569' }}>{it.package_name}</div>
+                            <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px' }}>{it.package_name}</div>
                           </td>
                           <td>
-                            <div style={{ fontWeight: 700, color: 'var(--primary)' }}>{it.item_name}</div>
-                            <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>HSN: {it.hsn || '-'}</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
+                              <div style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '11px' }}>{it.item_name}</div>
+                              <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 700 }}>HSN: {it.hsn || '-'}</div>
+                            </div>
                           </td>
                           <td style={{ cursor: 'pointer' }} onClick={() => showFullDescription(it.description, it.item_name)}>
                             <div style={{ 
-                              fontSize: '11px', 
+                              fontSize: '10px', 
                               color: '#64748B', 
-                              maxWidth: '180px', 
+                              maxWidth: '140px', 
                               whiteSpace: 'nowrap', 
                               overflow: 'hidden', 
                               textOverflow: 'ellipsis' 
@@ -344,22 +382,16 @@ export default function NewInvoice() {
                               {it.description}
                             </div>
                           </td>
-                          <td className="text-right">
-                            <div style={{ fontWeight: 700 }}>{it.delivered_qty}</div>
-                          </td>
-                          <td className="text-right">
-                            <div style={{ fontWeight: 700, color: '#3b82f6' }}>{it.already_invoiced_qty}</div>
-                          </td>
-                          <td className="text-right">
-                            <div style={{ fontWeight: 700, color: it.remaining_qty === 0 ? 'var(--green)' : '#ef4444' }}>
-                              {it.remaining_qty === 0 ? '0' : it.remaining_qty}
-                            </div>
+                          <td className="text-right" style={{ fontWeight: 700, fontSize: '11px' }}>{it.delivered_qty}</td>
+                          <td className="text-right" style={{ fontWeight: 700, color: '#3b82f6', fontSize: '11px' }}>{it.already_invoiced_qty}</td>
+                          <td className="text-right" style={{ fontWeight: 700, color: it.remaining_qty === 0 ? 'var(--green)' : '#ef4444', fontSize: '11px' }}>
+                            {it.remaining_qty === 0 ? '0' : it.remaining_qty}
                           </td>
                           <td className="text-right">
                             <input
                               type="number"
                               className="form-input text-right"
-                              style={{ padding: '4px 8px', height: '32px' }}
+                              style={{ padding: '0 6px', height: '24px', fontSize: '11px', width: '60px', borderRadius: '4px', border: '1px solid #CBD5E1', display: 'inline-block', boxSizing: 'border-box' }}
                               value={it.quantity}
                               max={it.remaining_qty}
                               min={0}
@@ -367,44 +399,44 @@ export default function NewInvoice() {
                               onChange={(e) => handleQtyChange(i, e.target.value)}
                             />
                           </td>
-                          <td className="text-right">₹{it.rate_per_unit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                          <td className="text-right">{it.gst_percent}%</td>
-                          <td className="text-right">₹{it.taxable_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                          <td className="text-right">₹{it.gst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                          <td className="text-right font-medium" style={{ color: 'var(--primary)', fontWeight: 800 }}>₹{it.total_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="text-right" style={{ fontSize: '11px' }}>₹{it.rate_per_unit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="text-right" style={{ fontSize: '11px' }}>{it.gst_percent}%</td>
+                          <td className="text-right" style={{ fontSize: '11px' }}>₹{it.taxable_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="text-right" style={{ fontSize: '11px' }}>₹{it.gst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="text-right font-medium" style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '11px' }}>₹{it.total_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="summary-card">
-                  <h4 style={{ fontSize: '0.857rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.7)', marginBottom: '12px' }}>Invoice Financial Summary</h4>
-                  <div className="summary-card__row">
+                <div className="summary-card" style={{ padding: '10px 14px', borderRadius: '6px', marginTop: '12px' }}>
+                  <h4 style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.7)', marginBottom: '6px', fontWeight: 700 }}>Invoice Financial Summary</h4>
+                  <div className="summary-card__row" style={{ padding: '4px 0', fontSize: '11px' }}>
                     <span>Subtotal</span>
                     <span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="summary-card__row">
+                  <div className="summary-card__row" style={{ padding: '4px 0', fontSize: '11px' }}>
                     <span>GST Total</span>
                     <span>₹{gstTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="summary-card__row" style={{ borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '12px', marginTop: '4px' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Estimated Grand Total</span>
-                    <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <div className="summary-card__row" style={{ borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '6px', marginTop: '4px', paddingBottom: '2px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700 }}>Estimated Grand Total</span>
+                    <span style={{ fontSize: '14px', fontWeight: 900 }}>₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>
             </>
           )}
 
-          <div className="form-group" style={{ marginTop: '24px' }}>
-            <label className="form-label">Notes / Declaration</label>
-            <textarea className="form-input" rows="2" value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Goods once sold cannot be returned. Payment due within 30 days."></textarea>
+          <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
+            <label className="form-label" style={{ fontSize: '10px', color: '#4B5563', marginBottom: '2px', display: 'block' }}>Notes / Declaration</label>
+            <textarea className="form-input" rows="2" value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Goods once sold cannot be returned. Payment due within 30 days." style={{ fontSize: '11px', padding: '6px 10px', height: '48px', resize: 'none', boxSizing: 'border-box' }}></textarea>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
-            <button type="button" className="btn btn-outline" onClick={() => navigate(-1)}>Discard</button>
-            <button type="submit" className="btn btn-primary" disabled={submitting || !dcDetails || subtotal === 0}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+            <button type="button" className="btn btn-outline" onClick={() => navigate(-1)} style={{ height: '30px', padding: '0 14px', fontSize: '12px' }}>Discard</button>
+            <button type="submit" className="btn btn-primary" disabled={submitting || !dcDetails || subtotal === 0} style={{ height: '30px', padding: '0 18px', fontSize: '12px' }}>
               {submitting
                 ? (isAccounts ? 'Generating...' : 'Sending Request...')
                 : (isAccounts ? 'Issue & Generate Official Invoice' : 'Send Invoice Request to Accounts')}
