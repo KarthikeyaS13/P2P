@@ -43,7 +43,7 @@ export default function VerifyDocument() {
     setSearched(true);
 
     try {
-      const res = await axios.get(`http://localhost:5000/api/public/verify-qr?invoice_id=${invoiceId}&token=${token}`);
+      const res = await axios.get(`/api/public/verify-qr?invoice_id=${invoiceId}&token=${token}`);
       setDocData(res.data.invoice);
 
       setCryptoResult({
@@ -82,7 +82,7 @@ export default function VerifyDocument() {
     setSearched(true);
 
     try {
-      const res = await axios.get(`http://localhost:5000/api/public/verify-document/${hashStr.trim()}`);
+      const res = await axios.get(`/api/public/verify-document/${hashStr.trim()}`);
       setDocData(res.data);
 
       // Since it's a hash query against the ledger DB, we verify the ledger's registration
@@ -126,7 +126,7 @@ export default function VerifyDocument() {
     formData.append('pdf', file);
 
     try {
-      const res = await axios.post('http://localhost:5000/api/public/verify-pdf', formData, {
+      const res = await axios.post('/api/public/verify-pdf', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 

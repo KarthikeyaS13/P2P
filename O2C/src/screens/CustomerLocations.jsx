@@ -21,7 +21,7 @@ export default function CustomerLocations() {
   const fetchCustomerData = () => {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
-    axios.get(`http://localhost:5000/api/customers/${id}`, { headers })
+    axios.get(`/api/customers/${id}`, { headers })
       .then(res => {
         setCustomer(res.data);
         setLocations(res.data.locations || []);
@@ -49,7 +49,7 @@ export default function CustomerLocations() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        await axios.delete(`http://localhost:5000/api/locations/${locationId}`, { headers });
+        await axios.delete(`/api/locations/${locationId}`, { headers });
         fetchCustomerData();
         Swal.fire({ icon: 'success', title: 'Deleted!', text: 'Location has been deleted.', timer: 2000, showConfirmButton: false });
       } catch (err) {

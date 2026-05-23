@@ -29,19 +29,19 @@ export default function Dashboard() {
       const headers = { Authorization: `Bearer ${token}` };
       let res;
       if (type === 'active_pos') {
-        res = await axios.get('http://localhost:5000/api/pos', { headers });
+        res = await axios.get('/api/pos', { headers });
         setSummaryData(res.data.filter(p => !['rejected', 'invoice_closed'].includes(p.status)));
       } else if (type === 'pending_pos') {
-        res = await axios.get('http://localhost:5000/api/pos?status=pending', { headers });
+        res = await axios.get('/api/pos?status=pending', { headers });
         setSummaryData(res.data);
       } else if (type === 'pending_dcs') {
-        res = await axios.get('http://localhost:5000/api/dc', { headers });
+        res = await axios.get('/api/dc', { headers });
         setSummaryData(res.data.filter(d => ['draft', 'raised'].includes(d.status)));
       } else if (type === 'pending_invoice_requests') {
-        res = await axios.get('http://localhost:5000/api/dc', { headers });
+        res = await axios.get('/api/dc', { headers });
         setSummaryData(res.data.filter(d => d.delivery_status === 'delivery_confirmed'));
       } else if (type === 'total_customers') {
-        res = await axios.get('http://localhost:5000/api/customers', { headers });
+        res = await axios.get('/api/customers', { headers });
         setSummaryData(res.data);
       }
     } catch (err) {
@@ -60,8 +60,8 @@ export default function Dashboard() {
 
         // Parallel fetch for speed
         const [dashRes, dcRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/dashboard', { headers }),
-          axios.get('http://localhost:5000/api/dc', { headers })
+          axios.get('/api/dashboard', { headers }),
+          axios.get('/api/dc', { headers })
         ]);
 
         setData(dashRes.data);
@@ -70,8 +70,8 @@ export default function Dashboard() {
         if (userRole === 'admin') {
           try {
             const [addrRes, poFlowRes] = await Promise.all([
-              axios.get('http://localhost:5000/api/master-addresses', { headers }),
-              axios.get('http://localhost:5000/api/po-flow', { headers })
+              axios.get('/api/master-addresses', { headers }),
+              axios.get('/api/po-flow', { headers })
             ]);
             setMasterAddressCount(addrRes.data?.length || 0);
             setPoFlowCount(poFlowRes.data?.length || 0);
@@ -88,7 +88,7 @@ export default function Dashboard() {
 
     fetchDashboard();
 
-    // Clear drafts when landing on dashboard to ensure "New PO" starts fresh
+    // Clear drafts when landing on dashboard to ensure "New Sales Order" starts fresh
     sessionStorage.removeItem('new_po_draft');
     sessionStorage.removeItem('new_nt_po_draft');
   }, [user]);
@@ -131,7 +131,7 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginTop: '24px' }}>
           <div className="feature-card animate-fade animate-stagger-1" onClick={() => navigate('/po-review')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PO Review</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sales Order Review</span>
               <div className="feature-card__icon" style={{ background: '#EEF2FF', color: '#4F46E5', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>rate_review</span>
               </div>
@@ -146,7 +146,7 @@ export default function Dashboard() {
 
           <div className="feature-card animate-fade animate-stagger-2" onClick={() => navigate('/raise-dc')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Raise DC</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Raise Delivery Challan</span>
               <div className="feature-card__icon" style={{ background: '#ECFDF5', color: '#10B981', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>verified</span>
               </div>
@@ -206,22 +206,22 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginTop: '24px' }}>
           <div className="feature-card animate-fade animate-stagger-1" onClick={() => navigate('/new-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>New PO</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>New Sales Order</span>
               <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#EEF2FF', color: '#4F46E5' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_shopping_cart</span>
               </div>
             </div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Create and upload a new standard Purchase Order.</p>
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Create and upload a new standard Sales Order.</p>
           </div>
 
           <div className="feature-card animate-fade animate-stagger-2" onClick={() => navigate('/new-nt-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>New NT PO</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>New NT Sales Order</span>
               <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#F5F3FF', color: '#8B5CF6' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>post_add</span>
               </div>
             </div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Initiate a Non-Tendered/Internal Purchase Order.</p>
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Initiate a Non-Tendered/Internal Sales Order.</p>
           </div>
 
           <div className="feature-card animate-fade animate-stagger-3" onClick={() => navigate('/invoice-request')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
@@ -243,12 +243,12 @@ export default function Dashboard() {
 
           <div className="feature-card animate-fade animate-stagger-4" onClick={() => navigate('/edit-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>Edit PO</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>Edit Sales Order</span>
               <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#ECFDF5', color: '#10B981' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit_document</span>
               </div>
             </div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Modify existing Purchase Order details.</p>
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Modify existing Sales Order details.</p>
           </div>
         </div>
       </div>
@@ -268,12 +268,12 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginTop: '24px' }}>
           <div className="feature-card animate-fade animate-stagger-1" onClick={() => navigate('/dc-request')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>Create DC Request</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>Create Delivery Challan Request</span>
               <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#ECFDF5', color: '#10B981' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_task</span>
               </div>
             </div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Request material dispatch for approved Purchase Orders.</p>
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Request material dispatch for approved Sales Orders.</p>
           </div>
 
           <div className="feature-card animate-fade animate-stagger-2" onClick={() => navigate('/dispatch-confirmation')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
@@ -344,7 +344,7 @@ export default function Dashboard() {
 
           <div className="feature-card animate-fade animate-stagger-3" onClick={() => navigate('/po-flow')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PO Flow Management</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sales Order Flow Management</span>
               <div className="feature-card__icon" style={{ background: '#FFF7ED', color: '#F97316', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_tree</span>
               </div>
@@ -371,9 +371,9 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginTop: '24px' }}>
-        <div className="stat-card animate-fade animate-stagger-1" onClick={() => handleCardClick('active_pos', 'Active Purchase Orders')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
+        <div className="stat-card animate-fade animate-stagger-1" onClick={() => handleCardClick('active_pos', 'Active Sales Orders')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active POs</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Sales Orders</span>
             <div style={{ color: '#4F46E5', background: '#EEF2FF', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_shopping_cart</span>
             </div>
@@ -386,9 +386,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card animate-fade animate-stagger-2" onClick={() => handleCardClick('pending_pos', 'Pending PO Review')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
+        <div className="stat-card animate-fade animate-stagger-2" onClick={() => handleCardClick('pending_pos', 'Pending Sales Order Review')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending PO Review</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending Sales Order Review</span>
             <div style={{ color: '#D97706', background: '#FFF7ED', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>rate_review</span>
             </div>
@@ -402,9 +402,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card animate-fade animate-stagger-3" onClick={() => handleCardClick('pending_dcs', 'Pending DC Requests')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
+        <div className="stat-card animate-fade animate-stagger-3" onClick={() => handleCardClick('pending_dcs', 'Pending Delivery Challan Requests')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending DC Requests</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending Delivery Challan Requests</span>
             <div style={{ color: '#10B981', background: '#ECFDF5', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>local_shipping</span>
             </div>
@@ -473,13 +473,13 @@ export default function Dashboard() {
                   <table className="data-table">
                     <thead>
                       {summaryConfig.type.includes('pos') && (
-                        <tr><th>PO Number</th><th>Customer</th><th>Status</th><th className="text-right">Total</th></tr>
+                        <tr><th>Sales Order Number</th><th>Customer</th><th>Status</th><th className="text-right">Total</th></tr>
                       )}
                       {summaryConfig.type === 'pending_dcs' && (
-                        <tr><th>DC Number</th><th>PO Number</th><th>Status</th><th>Date</th></tr>
+                        <tr><th>Delivery Challan Number</th><th>Sales Order Number</th><th>Status</th><th>Date</th></tr>
                       )}
                       {summaryConfig.type === 'pending_invoice_requests' && (
-                        <tr><th>DC Number</th><th>Customer</th><th>PO Number</th><th>Date</th></tr>
+                        <tr><th>Delivery Challan Number</th><th>Customer</th><th>Sales Order Number</th><th>Date</th></tr>
                       )}
                       {summaryConfig.type === 'total_customers' && (
                         <tr><th>Customer Name</th><th>Code</th><th>Location Count</th></tr>

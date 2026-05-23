@@ -44,7 +44,7 @@ export default function CustomerForm() {
     if (isEdit) {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      axios.get(`http://localhost:5000/api/customers/${id}`, { headers })
+      axios.get(`/api/customers/${id}`, { headers })
         .then(res => {
           setForm(res.data);
           if (res.data.city) {
@@ -125,7 +125,7 @@ export default function CustomerForm() {
     };
 
     if (isEdit) {
-      axios.put(`http://localhost:5000/api/customers/${id}`, payload, { headers })
+      axios.put(`/api/customers/${id}`, payload, { headers })
         .then(() => {
           Swal.fire({ icon: 'success', title: 'Updated', text: 'Customer updated successfully', timer: 2000, showConfirmButton: false });
           navigate('/customers');
@@ -133,7 +133,7 @@ export default function CustomerForm() {
         .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to update' }))
         .finally(() => setSubmitting(false));
     } else {
-      axios.post('http://localhost:5000/api/customers', payload, { headers })
+      axios.post('/api/customers', payload, { headers })
         .then(res => {
           const newId = res.data.id;
           Swal.fire({ icon: 'success', title: 'Customer Created', text: 'Customer created! Now add their locations.', timer: 3000, showConfirmButton: false });

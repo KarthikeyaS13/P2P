@@ -25,7 +25,7 @@ export default function NewPO() {
       return `${dd}-${mm}-${yyyy}`;
     }
     const cleanStr = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
-    
+
     if (cleanStr.includes('-')) {
       const parts = cleanStr.split('-');
       if (parts.length === 3) {
@@ -43,7 +43,7 @@ export default function NewPO() {
         }
       }
     }
-    
+
     if (cleanStr.includes('/')) {
       const parts = cleanStr.split('/');
       if (parts.length === 3) {
@@ -70,8 +70,8 @@ export default function NewPO() {
         const yyyy = d.getFullYear();
         return `${dd}-${mm}-${yyyy}`;
       }
-    } catch (e) {}
-    
+    } catch (e) { }
+
     return cleanStr;
   };
 
@@ -130,7 +130,7 @@ export default function NewPO() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get('http://localhost:5000/api/customers', { headers });
+        const res = await axios.get('/api/customers', { headers });
         setCustomers(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error('Failed to fetch customers', err);
@@ -174,7 +174,7 @@ export default function NewPO() {
         try {
           const token = sessionStorage.getItem('token');
           const headers = { Authorization: `Bearer ${token}` };
-          const res = await axios.get(`http://localhost:5000/api/locations?customer_id=${basicDetails.customerId}`, { headers });
+          const res = await axios.get(`/api/locations?customer_id=${basicDetails.customerId}`, { headers });
           setLocations(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
           console.error('Failed to fetch locations', err);
@@ -220,7 +220,7 @@ export default function NewPO() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/pos/check-unique?po_number=${encodeURIComponent(basicDetails.poNumber)}`, { headers });
+      const res = await axios.get(`/api/pos/check-unique?po_number=${encodeURIComponent(basicDetails.poNumber)}`, { headers });
       if (!res.data.unique) {
         setPoError('This PO number already exists in the system.');
       } else {
@@ -251,7 +251,7 @@ export default function NewPO() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' };
-      const res = await axios.post('http://localhost:5000/api/upload-multi', formData, { headers });
+      const res = await axios.post('/api/upload-multi', formData, { headers });
       setAttachmentPaths(res.data);
       return res.data;
     } catch (err) {
@@ -825,7 +825,7 @@ export default function NewPO() {
       const headers = { Authorization: `Bearer ${token}` };
 
       if (!basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber) {
-        return Swal.fire({ icon: 'warning', title: 'Missing Details', text: 'Please fill in all basic details (Customer, Location, PO Number)' });
+        return Swal.fire({ icon: 'warning', title: 'Missing Details', text: 'Please fill in all basic details (Customer, Location, Sales Order Number)' });
       }
 
       const subtotal = items.reduce((acc, it) => acc + it.total_taxable, 0);
@@ -848,9 +848,9 @@ export default function NewPO() {
         items
       };
 
-      await axios.post('http://localhost:5000/api/pos', payload, { headers });
+      await axios.post('/api/pos', payload, { headers });
       sessionStorage.removeItem('new_po_draft');
-      Swal.fire({ icon: 'success', title: 'Created', text: 'Purchase Order created successfully!', timer: 2000, showConfirmButton: false });
+      Swal.fire({ icon: 'success', title: 'Created', text: 'Sales Order created successfully!', timer: 2000, showConfirmButton: false });
       navigate('/dashboard');
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to create PO' });
@@ -980,7 +980,7 @@ export default function NewPO() {
           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
           Back
         </button>
-        <h2 style={{ margin: 0 }}>Purchase Order Load</h2>
+        <h2 style={{ margin: 0 }}>Sales Order</h2>
       </div>
 
       <div style={{ background: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -1006,7 +1006,7 @@ export default function NewPO() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>PO Number</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Sales Order Number</label>
                   <input
                     name="poNumber"
                     value={basicDetails.poNumber}
@@ -1016,19 +1016,20 @@ export default function NewPO() {
                   />
                   {poError && <p style={{ color: '#EF4444', fontSize: '0.7rem', marginTop: '4px', fontWeight: 600 }}>{poError}</p>}
                 </div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginTop: '6px', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px' }}>Customer SPOC</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SPOC Name <span style={{ color: 'red' }}>*</span></label>
-                    <input name="contactName" value={basicDetails.contactName} onChange={handleBasicChange} placeholder="Primary Contact Name" className="compact-form-input-text" />
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Name <span style={{ color: 'red' }}>*</span></label>
+                    <input name="contactName" value={basicDetails.contactName} onChange={handleBasicChange} placeholder="Primary Contact Name" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SPOC Phone <span style={{ color: 'red' }}>*</span></label>
-                    <input name="contactPhone" value={basicDetails.contactPhone} onChange={handleBasicChange} placeholder="Primary Phone" className="compact-form-input-text" />
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Phone <span style={{ color: 'red' }}>*</span></label>
+                    <input name="contactPhone" value={basicDetails.contactPhone} onChange={handleBasicChange} placeholder="Primary Phone" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
                   </div>
                 </div>
                 <div style={{ display: 'grid', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>PO Date</label>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Sales Order Date</label>
                     <div className="date-picker-container" style={{ position: 'relative' }}>
                       <DatePicker
                         selected={basicDetails.poDate ? new Date(basicDetails.poDate) : null}
@@ -1354,7 +1355,7 @@ export default function NewPO() {
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div style={{ background: '#F8FAFC', padding: '12px 16px', borderRadius: '6px', border: '1px solid #E2E8F0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>PO Number</span>
+                  <span style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Sales Order Number</span>
                   <span style={{ fontSize: '13px', color: '#1E293B', fontWeight: 600 }}>{basicDetails.poNumber}</span>
                 </div>
                 <div>

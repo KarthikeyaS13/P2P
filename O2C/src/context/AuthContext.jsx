@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = sessionStorage.getItem('token');
     if (token) {
-      axios.get('http://localhost:5000/api/me', {
+      axios.get('/api/me', {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => setUser(res.data))

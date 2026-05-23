@@ -26,7 +26,7 @@ export default function Header() {
       if (searchQuery.length >= 2) {
         try {
           const token = sessionStorage.getItem('token');
-          const res = await axios.get(`http://localhost:5000/api/search?q=${searchQuery}`, {
+          const res = await axios.get(`/api/search?q=${searchQuery}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           setSearchResults(res.data);

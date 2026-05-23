@@ -28,7 +28,7 @@ export default function EditPO() {
   const [selectedLocation, setSelectedLocation] = useState('');
   const [selectedPO, setSelectedPO] = useState(null);
 
-  // PO Details
+  // Sales Order Details
   const [poDetails, setPODetails] = useState(null);
   const [items, setItems] = useState([]);
   const [newVersionLabel, setNewVersionLabel] = useState('');
@@ -164,8 +164,8 @@ export default function EditPO() {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         const [cRes, pRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/customers', { headers }),
-          axios.get('http://localhost:5000/api/pos', { headers })
+          axios.get('/api/customers', { headers }),
+          axios.get('/api/pos', { headers })
         ]);
         setCustomers(Array.isArray(cRes.data) ? cRes.data : []);
         setAllPOs(Array.isArray(pRes.data) ? pRes.data : []);
@@ -187,7 +187,7 @@ export default function EditPO() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get(`http://localhost:5000/api/locations?customer_id=${val}`, { headers });
+        const res = await axios.get(`/api/locations?customer_id=${val}`, { headers });
         setLocations(Array.isArray(res.data) ? res.data : []);
       } catch (err) { console.error(err); }
     }
@@ -205,7 +205,7 @@ export default function EditPO() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/pos/${poId}`, { headers });
+      const res = await axios.get(`/api/pos/${poId}`, { headers });
       const data = res.data;
 
       setPODetails(data);
@@ -313,7 +313,7 @@ export default function EditPO() {
         }))
       };
 
-      await axios.put(`http://localhost:5000/api/pos/${poDetails.id}`, payload, { headers });
+      await axios.put(`/api/pos/${poDetails.id}`, payload, { headers });
 
       // Clear draft after successful submission
       sessionStorage.removeItem(`edit_po_draft_${poDetails.id}`);
@@ -471,7 +471,7 @@ export default function EditPO() {
                 </select>
               </div>
               <div>
-                <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '4px', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Existing Purchase Order</label>
+                <label style={{ fontSize: '10px', fontWeight: 800, display: 'block', marginBottom: '4px', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Existing Sales Order</label>
                 <select value={selectedPO || ''} onChange={handlePOSelect} style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px' }}>
                   <option value="">-- Select PO --</option>
                   {allPOs.filter(p => p.customer_id == selectedCustomer && p.location_id == selectedLocation).map(po => (
@@ -481,17 +481,17 @@ export default function EditPO() {
               </div>
             </div>
 
-            {loading && <div style={{ textAlign: 'center', padding: '20px' }}><p style={{ fontSize: '13px' }}>Loading PO Details...</p></div>}
+            {loading && <div style={{ textAlign: 'center', padding: '20px' }}><p style={{ fontSize: '13px' }}>Loading Sales Order Details...</p></div>}
 
             {poDetails && (
               <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '8px', border: '1px solid #E5E7EB', marginBottom: '20px', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
                   <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
-                    <p style={{ color: '#6B7280', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>New Version PO No</p>
+                    <p style={{ color: '#6B7280', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>New Version Sales Order No</p>
                     <p style={{ fontWeight: 800, margin: 0, fontSize: '1rem', color: '#2563EB' }}>{newVersionLabel}</p>
                   </div>
                   <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
-                    <p style={{ color: '#6B7280', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>PO Date</p>
+                    <p style={{ color: '#6B7280', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>Sales Order Date</p>
                     <p style={{ fontWeight: 700, margin: 0, fontSize: '0.9rem' }}>{formatDate(poDetails.po_date)}</p>
                   </div>
                   <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
@@ -686,10 +686,10 @@ export default function EditPO() {
 
             <div style={{ background: '#F9FAFB', padding: '24px', borderRadius: '12px', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '32px' }}>
               <div>
-                <p style={{ margin: '0 0 8px' }}><strong>PO Number:</strong> {newVersionLabel}</p>
+                <p style={{ margin: '0 0 8px' }}><strong>Sales Order Number:</strong> {newVersionLabel}</p>
                 <p style={{ margin: '0 0 8px' }}><strong>Customer:</strong> {customers.find(c => c.id == selectedCustomer)?.name}</p>
                 <p style={{ margin: '0 0 8px' }}><strong>Location:</strong> {locations.find(l => l.id == selectedLocation)?.label}</p>
-                <p style={{ margin: 0 }}><strong>PO Date:</strong> {formatDate(poDetails?.po_date)}</p>
+                <p style={{ margin: 0 }}><strong>Sales Order Date:</strong> {formatDate(poDetails?.po_date)}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ color: '#6B7280', margin: '0 0 4px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.8rem' }}>Overall Revised Subtotal</p>

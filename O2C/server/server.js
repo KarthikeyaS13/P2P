@@ -2172,6 +2172,8 @@ app.get('/api/dc/:id', authenticate, (req, res) => {
         pi.item_name,
         pi.description,
         pi.uom,
+        pi.supply_qty as supply_qty,
+        pi.service_qty as service_qty,
         pi.supply_rate as unit_price,
         pi.supply_gst_rate as gst_rate,
         pi.total_taxable as po_taxable_value,

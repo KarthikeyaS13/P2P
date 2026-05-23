@@ -14,7 +14,7 @@ export default function POManagement() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
 
-    axios.get('http://localhost:5000/api/pos', { headers })
+    axios.get('/api/pos', { headers })
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : [];
         setPOs(data);
@@ -56,7 +56,7 @@ export default function POManagement() {
           >
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
           </button>
-          <h2 style={{ margin: 0, color: '#111827' }}>Active Purchase Orders</h2>
+          <h2 style={{ margin: 0, color: '#111827' }}>Active Sales Orders</h2>
         </div>
       </div>
 
@@ -90,17 +90,17 @@ export default function POManagement() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#6B7280' }}>Loading purchase orders...</div>
+        <div style={{ textAlign: 'center', padding: '40px', color: '#6B7280' }}>Loading sales orders...</div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#6B7280', background: '#F9FAFB', borderRadius: '8px' }}>
-          No purchase orders found
+          No sales orders found
         </div>
       ) : (
         <div className="table-wrapper">
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead style={{ background: '#F3F4F6' }}>
               <tr>
-                <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600 }}>PO Number</th>
+                <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600 }}>Sales Order Number</th>
                 <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600 }}>Customer</th>
                 <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600 }}>Location</th>
                 <th style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#374151', fontWeight: 600 }}>Value</th>
@@ -119,7 +119,7 @@ export default function POManagement() {
                   <td style={{ padding: '12px 16px', color: '#111827', fontWeight: 500 }}>₹{Number(p.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td style={{ padding: '12px 16px', color: '#4B5563' }}>{new Date(p.po_date || p.created_at).toLocaleDateString('en-IN')}</td>
                   <td style={{ padding: '12px 16px' }}>{getStatusBadge(p.status)}</td>
-                  <td style={{ padding: '12px 16px', color: '#4B5563' }}>{p.is_nt_po ? 'NT PO' : 'Regular'}</td>
+                  <td style={{ padding: '12px 16px', color: '#4B5563' }}>{p.is_nt_po ? 'NT Sales Order' : 'Regular'}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <button 
                       onClick={() => navigate(`/pos/${p.id}`)}

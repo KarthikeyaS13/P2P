@@ -83,8 +83,8 @@ export default function InvoiceApproval() {
 
   const fetchGlobalSignature = async () => {
     try {
-      console.log('Fetching global signature from http://localhost:5000/api/global-settings/authorized_signature...');
-      const res = await axios.get('http://localhost:5000/api/global-settings/authorized_signature');
+      console.log('Fetching global signature from /api/global-settings/authorized_signature...');
+      const res = await axios.get('/api/global-settings/authorized_signature');
       console.log('Global signature fetch response:', res.data);
       if (res.data && res.data.value) {
         setGlobalSig(res.data.value);
@@ -127,7 +127,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:5000/api/invoices', { headers });
+      const res = await axios.get('/api/invoices', { headers });
       setInvoices(res.data);
     } catch (err) {
       console.error('Fetch error:', err);
@@ -140,7 +140,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/invoices/${invId}`, { headers });
+      const res = await axios.get(`/api/invoices/${invId}`, { headers });
       setSelectedInvoice(res.data);
       if (res.data.verification_state) {
         try {
@@ -235,7 +235,7 @@ export default function InvoiceApproval() {
 
     try {
       const token = sessionStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/invoices/${inv.id}/pdf?regenerate=true`, {
+      const response = await axios.get(`/api/invoices/${inv.id}/pdf?regenerate=true`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -287,7 +287,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/invoices/${invId}`, { headers });
+      const res = await axios.get(`/api/invoices/${invId}`, { headers });
 
       setHiddenInvoice(res.data);
       // Wait for React to render the hidden container in the DOM
@@ -308,7 +308,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/payment`, paymentForm, { headers });
+      await axios.post(`/api/invoices/${selectedInvoice.id}/payment`, paymentForm, { headers });
 
       // Reset form fields after successful post
       setPaymentForm({
@@ -355,7 +355,7 @@ export default function InvoiceApproval() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/approve`, {}, { headers });
+        await axios.post(`/api/invoices/${selectedInvoice.id}/approve`, {}, { headers });
         fetchInvoiceDetails(selectedInvoice.id);
         fetchData();
         Swal.fire({ icon: 'success', title: 'Invoice Approved', text: "Invoice Approved Successfully!", timer: 2000, showConfirmButton: false });
@@ -380,7 +380,7 @@ export default function InvoiceApproval() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        await axios.post(`http://localhost:5000/api/invoices/${selectedInvoice.id}/reject`, {}, { headers });
+        await axios.post(`/api/invoices/${selectedInvoice.id}/reject`, {}, { headers });
         fetchInvoiceDetails(selectedInvoice.id);
         fetchData();
         Swal.fire({ icon: 'success', title: 'Rejected', text: "Request Rejected.", timer: 2000, showConfirmButton: false });
@@ -394,7 +394,7 @@ export default function InvoiceApproval() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.put(`http://localhost:5000/api/invoices/${selectedInvoice.id}/draft`, {
+      await axios.put(`/api/invoices/${selectedInvoice.id}/draft`, {
         verification_state: verificationState,
         notes: draftNotes
       }, { headers });
@@ -602,7 +602,7 @@ export default function InvoiceApproval() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: '#E2E8F0', border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden', marginBottom: '20px' }}>
                   <div style={{ background: '#F8FAFC', padding: '10px' }}>
-                    <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Purchase Order</div>
+                    <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Sales Order</div>
                     <div style={{ fontSize: '13px', fontWeight: 700 }}>{inv.po_no}</div>
                     <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(inv.po_date).toLocaleDateString('en-IN')}</div>
                   </div>
@@ -1022,7 +1022,7 @@ export default function InvoiceApproval() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: '#E2E8F0', border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden', marginBottom: '40px' }}>
               <div style={{ background: '#F8FAFC', padding: '16px' }}>
-                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Purchase Order</div>
+                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Sales Order</div>
                 <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenInvoice.po_no}</div>
                 <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenInvoice.po_date).toLocaleDateString('en-IN')}</div>
               </div>

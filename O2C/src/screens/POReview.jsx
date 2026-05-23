@@ -48,7 +48,7 @@ export default function POReview() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:5000/api/pos', { headers });
+      const res = await axios.get('/api/pos', { headers });
       setPendingPOs(res.data);
     } catch (err) {
       console.error(err);
@@ -73,7 +73,7 @@ export default function POReview() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/pos/${po.id}`, { headers });
+      const res = await axios.get(`/api/pos/${po.id}`, { headers });
       const details = res.data;
       setPoDetails(details);
 
@@ -108,7 +108,7 @@ export default function POReview() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.put(`http://localhost:5000/api/pos/${selectedPO.id}/status`, {
+      await axios.put(`/api/pos/${selectedPO.id}/status`, {
         status, remarks
       }, { headers });
 
@@ -180,7 +180,7 @@ export default function POReview() {
   const columns = useMemo(() => [
     {
       accessorKey: 'po_number',
-      header: 'PO Number',
+      header: 'Sales Order Number',
       cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue() || info.row.original.order_id}</span>,
     },
     {
@@ -270,8 +270,8 @@ export default function POReview() {
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           <div>
-            <h1 className="text-h1 page-header__title" style={{ fontSize: '24px' }}>PO Review</h1>
-            <p className="page-header__subtitle">Review and validate new purchase orders from the Sales team.</p>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '24px' }}>Sales Order Review</h1>
+            <p className="page-header__subtitle">Review and validate new sales orders from the Sales team.</p>
           </div>
         </div>
 
@@ -376,7 +376,7 @@ export default function POReview() {
             ) : (
               <tr>
                 <td colSpan={columns.length} style={{ padding: '48px', textAlign: 'center', color: '#6B7280' }}>
-                  No pending purchase orders found.
+                  No pending sales orders found.
                 </td>
               </tr>
             )}
@@ -444,14 +444,14 @@ export default function POReview() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: 'var(--surface-container-lowest)' }}>
               {loadingDetails ? (
                 <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 0' }}>
-                  <p>Loading PO Details...</p>
+                  <p>Loading Sales Order Details...</p>
                 </div>
               ) : poDetails ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div className="grid-2" style={{ gap: '16px' }}>
                     <div className="card card--padded" style={{ background: 'white', padding: '12px' }}>
                       <h4 className="text-h4" style={{ marginBottom: '12px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="material-symbols-outlined">info</span> PO Details
+                        <span className="material-symbols-outlined">info</span> Sales Order Details
                       </h4>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         <div>
@@ -494,7 +494,7 @@ export default function POReview() {
                         </div>
                       ) : (
                         <div className="animate-fade-in">
-                          <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '8px' }}>Please specify the reason for denying this Purchase Order. This will be visible to the Sales team.</p>
+                          <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '8px' }}>Please specify the reason for denying this Sales Order. This will be visible to the Sales team.</p>
                           <div className="form-group" style={{ marginBottom: '10px' }}>
                             <textarea
                               className="form-input"

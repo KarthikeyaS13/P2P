@@ -44,7 +44,7 @@ export default function ProjectsModule() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:5000/api/dc', { headers });
+      const res = await axios.get('/api/dc', { headers });
       // Only show awaiting site confirmation
       const pending = res.data.filter(d => d.delivery_status === 'awaiting_site_confirmation');
       setDeliveries(pending);
@@ -61,7 +61,7 @@ export default function ProjectsModule() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/dc/${dc.id}`, { headers });
+      const res = await axios.get(`/api/dc/${dc.id}`, { headers });
       setDetails(res.data);
 
       // Initialize items
@@ -94,6 +94,28 @@ export default function ProjectsModule() {
       return;
     }
 
+    // Validate that received_qty does not exceed quantity_dispatched
+    for (const it of details.items) {
+      const state = itemStates[it.id];
+      const recQty = parseFloat(state?.received_qty || 0);
+      if (recQty > it.quantity_dispatched) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Validation Error',
+          text: `Received quantity for "${it.item_name || it.description}" cannot exceed the sent quantity (${it.quantity_dispatched}).`
+        });
+        return;
+      }
+      if (recQty < 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Validation Error',
+          text: `Received quantity for "${it.item_name || it.description}" cannot be negative.`
+        });
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const token = sessionStorage.getItem('token');
@@ -119,7 +141,7 @@ export default function ProjectsModule() {
         'Content-Type': 'multipart/form-data'
       };
 
-      await axios.post(`http://localhost:5000/api/dc/${details.id}/confirm-delivery`, formData, { headers });
+      await axios.post(`/api/dc/${details.id}/confirm-delivery`, formData, { headers });
 
       Swal.fire({ icon: 'success', title: 'Confirmed', text: `Delivery for DC ${details.dc_number} confirmed successfully! Proceeding to Invoice Request.`, timer: 3000, showConfirmButton: false });
       navigate('/invoice-request');
@@ -132,7 +154,7 @@ export default function ProjectsModule() {
   };
 
   const columns = useMemo(() => [
-    { header: 'DC Number', accessorKey: 'dc_number', cell: info => <span style={{ fontWeight: 700, color: '#2563EB', fontSize: '11px' }}>{info.getValue()}</span> },
+    { header: 'Delivery Challan Number', accessorKey: 'dc_number', cell: info => <span style={{ fontWeight: 700, color: '#2563EB', fontSize: '11px' }}>{info.getValue()}</span> },
     { header: 'Customer', accessorKey: 'customer_name' },
     { header: 'Location', accessorKey: 'location_name' },
     { header: 'Dispatch Date', accessorKey: 'dispatch_date', cell: info => new Date(info.getValue()).toLocaleDateString('en-IN') },
@@ -212,7 +234,7 @@ export default function ProjectsModule() {
             <div className="card animate-slide-up" style={{ padding: '10px 14px', background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '6px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
                 <div className="info-block">
-                  <label style={{ fontSize: '9px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800, marginBottom: '2px', display: 'block' }}>DC Number</label>
+                  <label style={{ fontSize: '9px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800, marginBottom: '2px', display: 'block' }}>Delivery Challan Number</label>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: '#1F2937' }}>{details.dc_number}</div>
                 </div>
                 <div className="info-block">
@@ -254,8 +276,24 @@ export default function ProjectsModule() {
                           <input
                             type="number"
                             className="form-input"
+                            min="0"
+                            max={it.quantity_dispatched}
                             value={itemStates[it.id]?.received_qty || 0}
-                            onChange={e => setItemStates({ ...itemStates, [it.id]: { ...itemStates[it.id], received_qty: e.target.value } })}
+                            onChange={e => {
+                              const val = parseFloat(e.target.value) || 0;
+                              if (val > it.quantity_dispatched) {
+                                Swal.fire({
+                                  icon: 'warning',
+                                  title: 'Invalid Quantity',
+                                  text: `Received quantity cannot exceed sent quantity (${it.quantity_dispatched}).`
+                                });
+                                setItemStates({ ...itemStates, [it.id]: { ...itemStates[it.id], received_qty: it.quantity_dispatched } });
+                              } else if (val < 0) {
+                                setItemStates({ ...itemStates, [it.id]: { ...itemStates[it.id], received_qty: 0 } });
+                              } else {
+                                setItemStates({ ...itemStates, [it.id]: { ...itemStates[it.id], received_qty: e.target.value } });
+                              }
+                            }}
                             style={{ width: '70px', height: '22px', textAlign: 'right', fontSize: '11px', padding: '0 4px', border: '1px solid #CBD5E1', borderRadius: '4px' }}
                           />
                         </td>

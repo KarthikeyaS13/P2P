@@ -40,7 +40,7 @@ export default function DispatchConfirmation() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:5000/api/dc', { headers });
+      const res = await axios.get('/api/dc', { headers });
 
       const transit = res.data.filter(d => d.status === 'in_transit');
       const completed = res.data.filter(d => d.status === 'delivery_confirmed');
@@ -65,7 +65,7 @@ export default function DispatchConfirmation() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/dc/${targetId}`, { headers });
+      const res = await axios.get(`/api/dc/${targetId}`, { headers });
       setDetails(res.data);
     } catch (err) {
       console.error(err);
@@ -77,12 +77,12 @@ export default function DispatchConfirmation() {
 
   const columns = useMemo(() => [
     {
-      header: 'DC NO',
+      header: 'Delivery Challan No',
       accessorKey: 'dc_number',
       cell: info => <span style={{ fontWeight: 700, color: '#111827', fontSize: '13px' }}>{info.getValue()}</span>,
     },
     {
-      header: 'PO NO',
+      header: 'Sales Order No',
       accessorKey: 'po_number',
       cell: info => <span style={{ color: '#4B5563', fontSize: '13px' }}>{info.getValue()}</span>,
     },
@@ -235,32 +235,52 @@ export default function DispatchConfirmation() {
 
             {/* Items Summary Card */}
             <div className="card" style={{ padding: '0', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-              <div style={{ padding: '12px 20px', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-                <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: '#374151' }}>Manifest (Shipped Items)</h4>
+              <div style={{ padding: '8px 16px', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                <h4 style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Manifest (Shipped Items)</h4>
               </div>
               <div className="table-wrapper">
-                <table className="data-table" style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
+                <table className="data-table" style={{ fontSize: '11px', whiteSpace: 'nowrap', width: '100%', borderCollapse: 'collapse' }}>
                   <thead style={{ background: '#F3F4F6' }}>
-                    <tr>
-                      <th style={{ padding: '8px 12px' }}>SL NO</th>
-                      <th style={{ padding: '8px 12px' }}>REF NO</th>
-                      <th style={{ padding: '8px 12px' }}>ITEM NAME</th>
-                      <th style={{ padding: '8px 12px' }}>DESCRIPTION</th>
-                      <th style={{ padding: '8px 12px' }}>UOM</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>TOTAL ORDERED</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right', background: '#EFF6FF', color: '#1E40AF' }}>THIS SHIPMENT</th>
+                    <tr style={{ height: '30px' }}>
+                      <th style={{ padding: '6px 8px', fontSize: '11px', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', textAlign: 'left' }}>SL NO</th>
+                      <th style={{ padding: '6px 8px', fontSize: '11px', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', textAlign: 'left' }}>REF NO</th>
+                      <th style={{ padding: '6px 8px', fontSize: '11px', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', textAlign: 'left' }}>ITEM NAME</th>
+                      <th style={{ padding: '6px 8px', fontSize: '11px', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', textAlign: 'left' }}>DESCRIPTION</th>
+                      <th style={{ padding: '6px 8px', fontSize: '11px', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', textAlign: 'left' }}>UOM</th>
+                      <th style={{ padding: '6px 8px', fontSize: '11px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', textAlign: 'right', background: '#EFF6FF' }}>THIS SHIPMENT</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Array.isArray(details?.items) && details.items.map((it, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                        <td style={{ padding: '8px 12px', color: '#9CA3AF' }}>{idx + 1}</td>
-                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{it.ref_no || '-'}</td>
-                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{it.item_name}</td>
-                        <td style={{ padding: '8px 12px', color: '#6B7280', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description}</td>
-                        <td style={{ padding: '8px 12px' }}>{it.uom}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right' }}>{it.supply_qty}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 800, color: '#2563EB', background: '#EFF6FF' }}>{it.quantity_dispatched}</td>
+                      <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6', height: '28px' }}>
+                        <td style={{ padding: '4px 8px', color: '#9CA3AF', fontSize: '11px' }}>{idx + 1}</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 600, fontSize: '11px' }}>{it.ref_no || '-'}</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 600, fontSize: '11px' }}>{it.item_name}</td>
+                        <td 
+                          style={{ 
+                            padding: '4px 8px', 
+                            color: '#2563EB', 
+                            maxWidth: '200px', 
+                            overflow: 'hidden', 
+                            textOverflow: 'ellipsis',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            fontSize: '11px'
+                          }}
+                          onClick={() => {
+                            Swal.fire({
+                              title: it.item_name,
+                              html: `<div style="text-align: left; font-size: 13px; white-space: pre-wrap; line-height: 1.5; color: #374151;">${it.description || 'No description available.'}</div>`,
+                              confirmButtonText: 'Close',
+                              confirmButtonColor: '#3b82f6'
+                            });
+                          }}
+                          title="Click to view full description"
+                        >
+                          {it.description || '-'}
+                        </td>
+                        <td style={{ padding: '4px 8px', fontSize: '11px' }}>{it.uom}</td>
+                        <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 800, color: '#2563EB', background: '#EFF6FF', fontSize: '11px' }}>{it.quantity_dispatched}</td>
                       </tr>
                     ))}
                   </tbody>

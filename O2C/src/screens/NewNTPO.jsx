@@ -258,7 +258,7 @@ export default function NewNTPO() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get('http://localhost:5000/api/customers', { headers });
+        const res = await axios.get('/api/customers', { headers });
         setCustomers(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error(err);
@@ -282,7 +282,7 @@ export default function NewNTPO() {
         try {
           const token = sessionStorage.getItem('token');
           const headers = { Authorization: `Bearer ${token}` };
-          const res = await axios.get(`http://localhost:5000/api/locations?customer_id=${selectedCustomer}`, { headers });
+          const res = await axios.get(`/api/locations?customer_id=${selectedCustomer}`, { headers });
           setLocations(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
           console.error(err);
@@ -305,7 +305,7 @@ export default function NewNTPO() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/pos/check-unique?po_number=${encodeURIComponent(val)}`, { headers });
+      const res = await axios.get(`/api/pos/check-unique?po_number=${encodeURIComponent(val)}`, { headers });
       if (!res.data.unique) {
         setPoError('This PO number already exists in the system.');
       } else {
@@ -331,7 +331,7 @@ export default function NewNTPO() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get('http://localhost:5000/api/pos?type=original', { headers });
+        const res = await axios.get('/api/pos?type=original', { headers });
         setOriginalPOs(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error(err);
@@ -460,7 +460,7 @@ export default function NewNTPO() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' };
-      const res = await axios.post('http://localhost:5000/api/upload-multi', formData, { headers });
+      const res = await axios.post('/api/upload-multi', formData, { headers });
       setAttachmentPaths(res.data);
       return res.data;
     } catch (err) {
@@ -843,12 +843,12 @@ export default function NewNTPO() {
         items
       };
 
-      await axios.post('http://localhost:5000/api/pos', payload, { headers });
+      await axios.post('/api/pos', payload, { headers });
       sessionStorage.removeItem('new_nt_po_draft');
-      Swal.fire({ icon: 'success', title: 'Created', text: 'NT Purchase Order created successfully!', timer: 2000, showConfirmButton: false });
+      Swal.fire({ icon: 'success', title: 'Created', text: 'NT Sales Order created successfully!', timer: 2000, showConfirmButton: false });
       navigate('/dashboard');
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to create NT PO' });
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to create NT Sales Order' });
     } finally {
       setSubmitting(false);
     }
@@ -987,13 +987,13 @@ export default function NewNTPO() {
                   <option value="">-- Select Original PO --</option>
                   {originalPOs.map(po => <option key={po.id} value={po.id}>{(po.po_number || po.order_id).replace(/-(\d{10,})$/, '')} - {po.customer_name}</option>)}
                 </select>
-                {linkedPoId && <div style={{ background: '#D1FAE5', padding: '10px 14px', borderRadius: '6px', border: '1px solid #6EE7B7', marginTop: '12px', fontSize: '13px' }}><strong>Generated NT PO:</strong> {poNumber}</div>}
+                {linkedPoId && <div style={{ background: '#D1FAE5', padding: '10px 14px', borderRadius: '6px', border: '1px solid #6EE7B7', marginTop: '12px', fontSize: '13px' }}><strong>Generated NT Sales Order:</strong> {poNumber}</div>}
                 {poError && <p style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '6px', fontWeight: 600 }}>{poError}</p>}
               </div>
             )}
             {hasOriginalPO === false && (
               <div style={{ maxWidth: '500px', marginTop: '16px' }}>
-                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '2px', display: 'block' }}>Enter Internal NT PO Number</label>
+                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '2px', display: 'block' }}>Enter Internal NT Sales Order Number</label>
                 <input
                   type="text"
                   value={poNumber}
@@ -1011,7 +1011,7 @@ export default function NewNTPO() {
         {step === 3 && (
           <div style={{ display: 'grid', gap: '12px', marginBottom: '16px', maxWidth: '600px' }}>
             <div>
-              <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>PO Date</label>
+              <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Sales Order Date</label>
               <div className="date-picker-container" style={{ position: 'relative' }}>
                 <DatePicker
                   selected={poDate ? new Date(poDate) : null}
@@ -1377,7 +1377,7 @@ export default function NewNTPO() {
             <h3 style={{ fontSize: '1.15rem', marginBottom: '12px', color: '#1E293B', fontWeight: 700 }}>5. Final Summary</h3>
             <div style={{ background: '#F9FAFB', padding: '12px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div>
-                <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>PO Number:</strong> {poNumber}</p>
+                <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>Sales Order Number:</strong> {poNumber}</p>
                 <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>Customer:</strong> {customers.find(c => c.id == selectedCustomer)?.name}</p>
                 <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>Location:</strong> {locations.find(l => l.id == selectedLocation)?.label}</p>
                 <p style={{ margin: 0, fontSize: '13px' }}><strong>Dates:</strong> {formatDate(poDate)} (PO) | {formatDate(startDate)} to {formatDate(endDate)}</p>
@@ -1392,7 +1392,7 @@ export default function NewNTPO() {
             <SummaryTable data={items} />
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px', justifyContent: 'flex-end' }}>
               <button onClick={() => setStep(4)} style={{ height: '36px', padding: '0 20px', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>← Edit Items</button>
-              <button onClick={handleSubmit} disabled={submitting} style={{ height: '36px', padding: '0 20px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '13px', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Creating NT PO...' : '✓ Confirm & Submit NT PO'}</button>
+              <button onClick={handleSubmit} disabled={submitting} style={{ height: '36px', padding: '0 20px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '13px', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Creating NT Sales Order...' : '✓ Confirm & Submit NT Sales Order'}</button>
             </div>
           </div>
         )}

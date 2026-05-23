@@ -22,7 +22,7 @@ export default function Customers() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     
-    axios.get('http://localhost:5000/api/customers', { headers })
+    axios.get('/api/customers', { headers })
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : [];
         setCustomers(data);
@@ -34,7 +34,7 @@ export default function Customers() {
   const handleDelete = async (id, name) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
-      html: `You are about to delete <b>${name}</b>.<br/><br/><span style="color: #EF4444; font-weight: 700;">WARNING:</span> This will permanently delete all related Purchase Orders, Delivery Challans, and Invoices.<br/><br/>This action is irreversible.`,
+      html: `You are about to delete <b>${name}</b>.<br/><br/><span style="color: #EF4444; font-weight: 700;">WARNING:</span> This will permanently delete all related Sales Orders, Delivery Challans, and Invoices.<br/><br/>This action is irreversible.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#EF4444',
@@ -45,7 +45,7 @@ export default function Customers() {
     if (result.isConfirmed) {
       try {
         const token = sessionStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/api/customers/${id}`, {
+        await axios.delete(`/api/customers/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         Swal.fire({

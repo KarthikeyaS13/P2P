@@ -19,13 +19,13 @@ export default function Sidebar() {
     routes = routes.concat([
       { path: '/customers', label: 'Customers', icon: 'group' },
       { path: '/master-address', label: 'Master Address', icon: 'location_on' },
-      { path: '/po-flow', label: 'PO Flow Management', icon: 'account_tree' },
+      { path: '/po-flow', label: 'Sales Order Flow Management', icon: 'account_tree' },
     ]);
   } else if (role === 'sales') {
     routes = routes.concat([
-      { path: '/new-po', label: 'New PO', icon: 'add_shopping_cart' },
-      { path: '/new-nt-po', label: 'New NT PO', icon: 'post_add' },
-      { path: '/edit-po', label: 'Edit PO', icon: 'edit_document' },
+      { path: '/new-po', label: 'New Sales Order', icon: 'add_shopping_cart' },
+      { path: '/new-nt-po', label: 'New NT Sales Order', icon: 'post_add' },
+      { path: '/edit-po', label: 'Edit Sales Order', icon: 'edit_document' },
       { path: '/invoice-request', label: 'Invoice Req', icon: 'receipt_long' },
     ]);
   } else if (role === 'projects') {
@@ -34,14 +34,14 @@ export default function Sidebar() {
     ]);
   } else if (role === 'stores') {
     routes = routes.concat([
-      { path: '/dc-request', label: 'DC Requests', icon: 'local_shipping' },
-      { path: '/dispatch-confirmation', label: "Accepted DC's", icon: 'inventory' },
+      { path: '/dc-request', label: 'Delivery Challan Requests', icon: 'local_shipping' },
+      { path: '/dispatch-confirmation', label: "Accepted Delivery Challans", icon: 'inventory' },
     ]);
   } else if (role === 'accounts') {
     routes = routes.concat([
       { path: '/verify', label: 'Verify Document', icon: 'gpp_good' },
-      { path: '/po-review', label: 'PO Review', icon: 'rate_review' },
-      { path: '/raise-dc', label: 'Raise DC', icon: 'local_shipping' },
+      { path: '/po-review', label: 'Sales Order Review', icon: 'rate_review' },
+      { path: '/raise-dc', label: 'Raise Delivery Challan', icon: 'local_shipping' },
       { path: '/invoice-approval', label: 'Invoice Approval', icon: 'receipt_long' },
       { path: '/ar-database', label: 'AR Database', icon: 'payments' },
     ]);

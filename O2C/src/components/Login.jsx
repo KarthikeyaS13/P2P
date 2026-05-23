@@ -15,7 +15,7 @@ export default function Login({ onSuccess }) {
     setError(null);
 
     try {
-      const res = await axios.post('http://localhost:5000/api/login', { username, password });
+      const res = await axios.post('/api/login', { username, password });
       const data = res.data;
       login(data.token, data.user);
       onSuccess();

@@ -31,7 +31,7 @@ export default function MasterAddress() {
   // Fetch global signature on load
   const fetchGlobalSignature = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/global-settings/authorized_signature');
+      const res = await axios.get('/api/global-settings/authorized_signature');
       if (res.data && res.data.value) {
         setGlobalSig(res.data.value);
       }
@@ -106,7 +106,7 @@ export default function MasterAddress() {
     if (sigType === 'draw') {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      
+
       // Check if canvas is empty
       const ctx = canvas.getContext('2d');
       const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -133,7 +133,7 @@ export default function MasterAddress() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.post('http://localhost:5000/api/global-settings/authorized_signature', { value: dataUrl }, { headers });
+      await axios.post('/api/global-settings/authorized_signature', { value: dataUrl }, { headers });
       setGlobalSig(dataUrl);
       Swal.fire({ icon: 'success', title: 'Success', text: 'Authorized signature updated successfully!', timer: 1500, showConfirmButton: false });
     } catch (err) {
@@ -155,7 +155,7 @@ export default function MasterAddress() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        await axios.post('http://localhost:5000/api/global-settings/authorized_signature', { value: null }, { headers });
+        await axios.post('/api/global-settings/authorized_signature', { value: null }, { headers });
         setGlobalSig(null);
         if (sigType === 'draw') clearCanvas();
         Swal.fire('Removed!', 'Authorized signature has been removed.', 'success');
@@ -169,7 +169,7 @@ export default function MasterAddress() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get('http://localhost:5000/api/master-addresses', { headers });
+      const res = await axios.get('/api/master-addresses', { headers });
       setAddresses(res.data);
     } catch (err) {
       console.error(err);
@@ -183,15 +183,15 @@ export default function MasterAddress() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       if (isEditing) {
-        await axios.put(`http://localhost:5000/api/master-addresses/${editId}`, form, { headers });
+        await axios.put(`/api/master-addresses/${editId}`, form, { headers });
         Swal.fire({ icon: 'success', title: 'Success', text: 'Location updated successfully', timer: 1500, showConfirmButton: false });
       } else {
-        await axios.post('http://localhost:5000/api/master-addresses', form, { headers });
+        await axios.post('/api/master-addresses', form, { headers });
         Swal.fire({ icon: 'success', title: 'Success', text: 'Location added successfully', timer: 1500, showConfirmButton: false });
       }
-      
+
       handleCloseForm();
       fetchAddresses();
     } catch (err) {
@@ -237,7 +237,7 @@ export default function MasterAddress() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        await axios.delete(`http://localhost:5000/api/master-addresses/${id}`, { headers });
+        await axios.delete(`/api/master-addresses/${id}`, { headers });
         Swal.fire('Deleted!', 'Location has been deleted.', 'success');
         fetchAddresses();
       } catch (err) {
@@ -258,14 +258,14 @@ export default function MasterAddress() {
               {activeSection === 'address' ? 'Master Addresses' : 'Centralized Signature'}
             </h1>
             <p className="page-header__subtitle" style={{ fontSize: '0.85rem', margin: 0 }}>
-              {activeSection === 'address' 
-                ? 'Manage corporate and warehouse dispatch locations' 
+              {activeSection === 'address'
+                ? 'Manage corporate and warehouse dispatch locations'
                 : 'Configure company authorization signature for transactions'}
             </p>
           </div>
         </div>
         {activeSection === 'address' && (
-          <button onClick={() => { if(showForm) handleCloseForm(); else setShowForm(true); }} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.85rem', height: '32px' }}>
+          <button onClick={() => { if (showForm) handleCloseForm(); else setShowForm(true); }} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.85rem', height: '32px' }}>
             <span className="material-symbols-outlined" style={{ marginRight: '6px', fontSize: '16px' }}>{showForm ? 'close' : 'add'}</span>
             {showForm ? 'Cancel' : 'Add Location'}
           </button>
@@ -377,8 +377,8 @@ export default function MasterAddress() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }} className="animate-fade">
               {addresses.map(addr => (
-                <div key={addr.id} className="card" style={{ 
-                  position: 'relative', 
+                <div key={addr.id} className="card" style={{
+                  position: 'relative',
                   border: addr.is_default ? '2px solid #10B981' : '1px solid #E5E7EB',
                   background: addr.is_default ? '#F0FDF4' : 'white',
                   padding: '12px',
@@ -389,16 +389,16 @@ export default function MasterAddress() {
                   minHeight: '150px'
                 }}>
                   {!!addr.is_default && (
-                    <div style={{ 
-                      position: 'absolute', 
-                      top: '8px', 
-                      right: '8px', 
-                      background: '#10B981', 
-                      color: 'white', 
-                      padding: '2px 6px', 
-                      borderRadius: '12px', 
-                      fontSize: '9px', 
-                      fontWeight: 800 
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: '#10B981',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '12px',
+                      fontSize: '9px',
+                      fontWeight: 800
                     }}>DEFAULT</div>
                   )}
                   <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', fontWeight: 700, color: 'var(--secondary)' }}>{addr.name}</h4>
@@ -434,8 +434,8 @@ export default function MasterAddress() {
           {/* Authorized Signatory settings card */}
           <div className="card animate-slide-up" style={{ padding: '16px', borderRadius: '12px', marginTop: '16px', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
-              <h3 className="text-h3" style={{ color: 'var(--secondary)', marginBottom: '4px', fontSize: '1.1rem' }}>Authorized Signatory Settings</h3>
-              <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>Configure the default authorized signature drawn or uploaded from your system. This will automatically fetch in Raise DC and Invoice Approval transactions.</p>
+              <h3 className="text-h3" style={{ color: 'var(--secondary)', marginBottom: '4px', fontSize: '1.1rem' }}>Authorized Signature Settings</h3>
+              <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>Configure the default authorized signature drawn or uploaded from your system. This will automatically fetch in Raise Delivery Challan and Invoice Approval transactions.</p>
             </div>
 
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
@@ -443,17 +443,17 @@ export default function MasterAddress() {
               <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', gap: '12px', borderRight: '1px solid #E5E7EB', paddingRight: '16px' }}>
                 {/* Signature Input Mode Selection */}
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    type="button" 
-                    onClick={() => setSigType('draw')} 
+                  <button
+                    type="button"
+                    onClick={() => setSigType('draw')}
                     className={`btn ${sigType === 'draw' ? 'btn-primary' : 'btn-outline'}`}
                     style={{ height: '32px', fontSize: '12px', padding: '0 12px' }}
                   >
                     Draw Signature
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setSigType('upload')} 
+                  <button
+                    type="button"
+                    onClick={() => setSigType('upload')}
                     className={`btn ${sigType === 'upload' ? 'btn-primary' : 'btn-outline'}`}
                     style={{ height: '32px', fontSize: '12px', padding: '0 12px' }}
                   >
@@ -520,7 +520,7 @@ export default function MasterAddress() {
               {/* Active Preview */}
               <div style={{ flex: '1 1 240px', display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center' }}>
                 <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#6B7280', letterSpacing: '0.05em' }}>Active Authorized Signature</span>
-                
+
                 {globalSig ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
                     <div style={{

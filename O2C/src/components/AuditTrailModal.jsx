@@ -16,7 +16,7 @@ export default function AuditTrailModal({ isOpen, onClose, moduleName, reference
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/audit-logs/${moduleName}/${referenceId}`, { headers });
+      const res = await axios.get(`/api/audit-logs/${moduleName}/${referenceId}`, { headers });
       // Sort logs by ID ascending for sequence numbering
       setLogs(res.data.sort((a, b) => a.id - b.id));
     } catch (err) {

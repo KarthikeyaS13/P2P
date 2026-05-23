@@ -46,8 +46,8 @@ export default function InvoiceRequest() {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const [invRes, dcRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/invoices', { headers }),
-        axios.get('http://localhost:5000/api/dc', { headers })
+        axios.get('/api/invoices', { headers }),
+        axios.get('/api/dc', { headers })
       ]);
       setInvoices(invRes.data);
       setPendingDCs(dcRes.data.filter(d =>
@@ -74,7 +74,7 @@ export default function InvoiceRequest() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/invoices/${invId}`, { headers });
+      const res = await axios.get(`/api/invoices/${invId}`, { headers });
       setSelectedInvoice(res.data);
     } catch (err) {
       console.error('Invoice detail error:', err);
@@ -118,7 +118,7 @@ export default function InvoiceRequest() {
   ], [navigate]);
 
   const pendingColumns = useMemo(() => [
-    { header: 'PO Number', accessorKey: 'po_no' },
+    { header: 'Sales Order Number', accessorKey: 'po_no' },
     { header: 'Customer', accessorKey: 'customer_name' },
     { header: 'Delivered On', accessorKey: 'dispatch_date', cell: ({ getValue }) => new Date(getValue()).toLocaleDateString('en-IN') },
     {
@@ -171,11 +171,11 @@ export default function InvoiceRequest() {
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px', marginBottom: '10px' }}>
               <div style={{ background: '#F8FAFC', padding: '8px 12px', borderRadius: '6px', border: '1px solid #E2E8F0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                 <div>
-                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>PO Number</span>
+                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Sales Order Number</span>
                   <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>{inv.po_no}</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>DC Number</span>
+                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Delivery Challan Number</span>
                   <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>{inv.dc_no}</span>
                 </div>
                 <div>

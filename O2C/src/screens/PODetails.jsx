@@ -111,7 +111,7 @@ export default function PODetails() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
 
-    axios.get(`http://localhost:5000/api/pos/${id}`, { headers })
+    axios.get(`/api/pos/${id}`, { headers })
       .then(res => {
         setPO(res.data);
         setItems(res.data.items || []);
@@ -121,7 +121,7 @@ export default function PODetails() {
   }, [id]);
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Loading PO details...</div>;
-  if (!po) return <div style={{ padding: '40px', textAlign: 'center', color: '#EF4444' }}>Purchase Order not found.</div>;
+  if (!po) return <div style={{ padding: '40px', textAlign: 'center', color: '#EF4444' }}>Sales Order not found.</div>;
 
   const subtotal = po.subtotal || items.reduce((s, i) => s + (i.total_taxable || 0), 0);
   const gstTotal = po.gst_total || items.reduce((s, i) => s + (i.total_gst || 0), 0);
@@ -146,7 +146,7 @@ export default function PODetails() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     setActionLoading(true);
-    axios.put(`http://localhost:5000/api/pos/${id}/status`, { status: 'accepted' }, { headers })
+    axios.put(`/api/pos/${id}/status`, { status: 'accepted' }, { headers })
       .then(() => {
         Swal.fire({ icon: 'success', title: 'PO Accepted', text: 'PO Accepted successfully', timer: 2000, showConfirmButton: false });
         navigate('/purchase-orders');
@@ -172,7 +172,7 @@ export default function PODetails() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     setActionLoading(true);
-    axios.put(`http://localhost:5000/api/pos/${id}/status`, { status: 'rejected', remarks: reason }, { headers })
+    axios.put(`/api/pos/${id}/status`, { status: 'rejected', remarks: reason }, { headers })
       .then(() => {
         Swal.fire({ icon: 'success', title: 'PO Rejected', text: 'PO Rejected successfully', timer: 2000, showConfirmButton: false });
         navigate('/purchase-orders');
@@ -291,13 +291,13 @@ export default function PODetails() {
         >
           <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
         </button>
-        <h3 style={{ margin: 0, color: '#111827', fontSize: '1.2rem', fontWeight: 700 }}>PO Details</h3>
+        <h3 style={{ margin: 0, color: '#111827', fontSize: '1.2rem', fontWeight: 700 }}>Sales Order Details</h3>
         {getStatusBadge(po.status)}
       </div>
 
       <div style={{ background: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         <div>
-          <p style={{ margin: '0 0 4px', color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>PO Number:</strong> {po.po_number || po.order_id}</p>
+          <p style={{ margin: '0 0 4px', color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>Sales Order Number:</strong> {po.po_number || po.order_id}</p>
           <p style={{ margin: '0 0 4px', color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>Customer:</strong> {po.customer_name}</p>
           <p style={{ margin: '0 0 4px', color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>Location:</strong> {po.location_name} - {po.location_city}, {po.location_state} {po.location_pincode}</p>
           <p style={{ margin: '0 0 4px', color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>Address:</strong> {po.location_address || 'N/A'}</p>
@@ -305,7 +305,7 @@ export default function PODetails() {
           <p style={{ margin: 0, color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>SPOC:</strong> {po.spoc_name || 'N/A'} {po.spoc_phone ? `(${po.spoc_phone})` : ''}</p>
         </div>
         <div>
-          <p style={{ margin: '0 0 4px', color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>PO Date:</strong> {po.po_date ? new Date(po.po_date).toLocaleDateString('en-IN') : 'N/A'}</p>
+          <p style={{ margin: '0 0 4px', color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>Sales Order Date:</strong> {po.po_date ? new Date(po.po_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <p style={{ margin: '0 0 4px', color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>Start Date:</strong> {po.start_date ? new Date(po.start_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <p style={{ margin: '0 0 4px', color: '#4B5563', fontSize: '0.85rem' }}><strong style={{ color: '#111827' }}>End Date:</strong> {po.end_date ? new Date(po.end_date).toLocaleDateString('en-IN') : 'N/A'}</p>
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>

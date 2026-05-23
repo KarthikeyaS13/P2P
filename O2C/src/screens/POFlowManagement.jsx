@@ -50,7 +50,7 @@ export default function POFlowManagement() {
     const fetchData = async () => {
       try {
         const token = sessionStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/po-flow', {
+        const res = await axios.get('/api/po-flow', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setPos(res.data);
@@ -88,7 +88,7 @@ export default function POFlowManagement() {
     
     try {
       const token = sessionStorage.getItem('token');
-      const res = await axios.get(`http://localhost:5000/api/pos/${po.id}/payments`, {
+      const res = await axios.get(`/api/pos/${po.id}/payments`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSelectedPOPayments(prev => ({ ...prev, payments: res.data }));
@@ -107,7 +107,7 @@ export default function POFlowManagement() {
     
     try {
       const token = sessionStorage.getItem('token');
-      const res = await axios.get(`http://localhost:5000/api/pos/${po.id}/supplied-details`, {
+      const res = await axios.get(`/api/pos/${po.id}/supplied-details`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSelectedPOSupplied(prev => ({ ...prev, items: res.data }));
@@ -128,7 +128,7 @@ export default function POFlowManagement() {
     
     try {
       const token = sessionStorage.getItem('token');
-      const res = await axios.get(`http://localhost:5000/api/pos/${po.id}/pending-details`, {
+      const res = await axios.get(`/api/pos/${po.id}/pending-details`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSelectedPOPending(prev => ({ ...prev, items: res.data }));
@@ -147,7 +147,7 @@ export default function POFlowManagement() {
     
     try {
       const token = sessionStorage.getItem('token');
-      const res = await axios.get(`http://localhost:5000/api/pos/${po.id}/invoices`, {
+      const res = await axios.get(`/api/pos/${po.id}/invoices`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSelectedPOInvoiced(prev => ({ ...prev, invoices: res.data }));
@@ -167,7 +167,7 @@ export default function POFlowManagement() {
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
           </button>
           <div>
-            <h1 className="text-h1 page-header__title" style={{ fontSize: '1.2rem', margin: 0 }}>PO Flow Management</h1>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '1.2rem', margin: 0 }}>Sales Order Flow Management</h1>
             <p className="page-header__subtitle" style={{ fontSize: '0.85rem', margin: 0 }}>Enterprise Financial Lifecycle Tracking</p>
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function POFlowManagement() {
               outline: 'none'
             }}
           >
-            <option value="all">All Purchase Orders</option>
+            <option value="all">All Sales Orders</option>
             <option value="pending_supply">Pending Supply</option>
             <option value="fully_supplied">Fully Supplied</option>
             <option value="pending_invoice">Pending Invoice</option>
@@ -240,11 +240,11 @@ export default function POFlowManagement() {
           <thead>
             <tr>
               <th style={{ paddingLeft: '16px' }}>Customer Name</th>
-              <th>PO Number</th>
-              <th className="text-center">PO Date</th>
+              <th>Sales Order Number</th>
+              <th className="text-center">Sales Order Date</th>
               <th className="text-center">Start Date</th>
               <th className="text-center">End Date</th>
-              <th className="text-right">PO Value</th>
+              <th className="text-right">Sales Order Value</th>
               <th className="text-right">Supplied Value</th>
               <th className="text-right" style={{ background: '#fef2f2' }}>To be supplied value</th>
               <th className="text-right">Invoiced Value</th>
@@ -474,7 +474,7 @@ export default function POFlowManagement() {
                     <thead>
                         <tr>
                             <th>Dispatch Date</th>
-                            <th>DC Number</th>
+                            <th>Delivery Challan Number</th>
                             <th>Manual DC</th>
                             <th>Vehicle No</th>
                             <th>Status</th>
@@ -554,7 +554,7 @@ export default function POFlowManagement() {
                             <th>Package</th>
                             <th>Item Name</th>
                             <th>Description</th>
-                            <th className="text-right">PO Qty</th>
+                            <th className="text-right">Sales Order Qty</th>
                             <th className="text-right">Supplied</th>
                             <th className="text-right">Pending</th>
                             <th className="text-right">Rate</th>
@@ -623,7 +623,7 @@ export default function POFlowManagement() {
                         <tr>
                             <th>Invoice Date</th>
                             <th>Invoice #</th>
-                            <th>DC Number</th>
+                            <th>Delivery Challan Number</th>
                             <th>Status</th>
                             <th className="text-right">Amount</th>
                         </tr>

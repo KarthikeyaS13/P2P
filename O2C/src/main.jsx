@@ -7,6 +7,8 @@ import './style.css'
 import axios from 'axios'
 import { API_BASE_URL } from './config'
 
+axios.defaults.baseURL = API_BASE_URL;
+
 // Configure Axios request interceptor to dynamically rewrite localhost:5000 requests
 axios.interceptors.request.use((config) => {
   if (config.url && config.url.startsWith('http://localhost:5000')) {

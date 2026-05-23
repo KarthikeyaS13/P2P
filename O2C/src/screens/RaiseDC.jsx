@@ -74,9 +74,9 @@ export default function RaiseDC() {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Try fetching as a DC request first
+      // Try fetching as a Delivery Challan request first
       try {
-        const res = await axios.get(`http://localhost:5000/api/dc-requests/${targetId}`, { headers });
+        const res = await axios.get(`/api/dc-requests/${targetId}`, { headers });
         if (res.data) {
           setDetails(res.data);
           return;
@@ -84,7 +84,7 @@ export default function RaiseDC() {
       } catch (e) { }
 
       // Then try as a DC
-      const resDc = await axios.get(`http://localhost:5000/api/dc/${targetId}`, { headers });
+      const resDc = await axios.get(`/api/dc/${targetId}`, { headers });
       setDetails(resDc.data);
     } catch (err) {
       console.error(err);
@@ -101,12 +101,12 @@ export default function RaiseDC() {
       const headers = { Authorization: `Bearer ${token}` };
 
       // 1. Load Pending Requests
-      const reqRes = await axios.get('http://localhost:5000/api/dc-requests', { headers });
+      const reqRes = await axios.get('/api/dc-requests', { headers });
       const filtered = reqRes.data.filter(r => r.status === 'dc_requested');
       setRequests(filtered);
 
       // 2. Load Generated DCs for Tracking
-      const dcRes = await axios.get('http://localhost:5000/api/dc', { headers });
+      const dcRes = await axios.get('/api/dc', { headers });
       setTrackingDCs(dcRes.data);
     } catch (err) {
       console.error(err);
@@ -126,13 +126,13 @@ export default function RaiseDC() {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Try DC Request endpoint first since we are in the "Raise" screen
+      // Try Delivery Challan Request endpoint first since we are in the "Raise" screen
       let res;
       try {
-        res = await axios.get(`http://localhost:5000/api/dc-requests/${targetId}`, { headers });
+        res = await axios.get(`/api/dc-requests/${targetId}`, { headers });
       } catch (e) {
         // Fallback to DC endpoint if not found in requests
-        res = await axios.get(`http://localhost:5000/api/dc/${targetId}`, { headers });
+        res = await axios.get(`/api/dc/${targetId}`, { headers });
       }
 
       if (!res || !res.data) throw new Error('Data not found');
@@ -157,7 +157,7 @@ export default function RaiseDC() {
         setSignatureImage(res.data.signature_data || res.data.signature);
       } else {
         try {
-          const sigRes = await axios.get('http://localhost:5000/api/global-settings/authorized_signature');
+          const sigRes = await axios.get('/api/global-settings/authorized_signature');
           setSignatureImage(sigRes.data.value || null);
         } catch (sigErr) {
           console.error('Failed to load global signature:', sigErr);
@@ -183,15 +183,15 @@ export default function RaiseDC() {
       let docType;
 
       if (row.invoice_id) {
-        const res = await axios.get(`http://localhost:5000/api/invoices/${row.invoice_id}`, { headers });
+        const res = await axios.get(`/api/invoices/${row.invoice_id}`, { headers });
         docData = res.data;
         docType = 'invoice';
       } else {
         try {
-          const res = await axios.get(`http://localhost:5000/api/dc-requests/${row.id}`, { headers });
+          const res = await axios.get(`/api/dc-requests/${row.id}`, { headers });
           docData = res.data;
         } catch (e) {
-          const res = await axios.get(`http://localhost:5000/api/dc/${row.id}`, { headers });
+          const res = await axios.get(`/api/dc/${row.id}`, { headers });
           docData = res.data;
         }
         docType = 'dc';
@@ -302,7 +302,7 @@ export default function RaiseDC() {
         signature: signatureData
       };
 
-      const res = await axios.post(`http://localhost:5000/api/dc-requests/${details.id}/raise`, payload, { headers });
+      const res = await axios.post(`/api/dc-requests/${details.id}/raise`, payload, { headers });
 
       Swal.fire({ icon: 'success', title: 'DC Raised', text: `Delivery Challan ${res.data.dc_number} raised successfully!`, timer: 2000, showConfirmButton: false });
       setShowPreview(false);
@@ -322,7 +322,7 @@ export default function RaiseDC() {
       cell: info => <span style={{ color: '#6B7280', fontSize: '13px' }}>{info.row.index + 1}</span>,
     },
     {
-      header: 'PO NO',
+      header: 'Sales Order No',
       accessorKey: 'po_no',
       cell: info => <span style={{ fontWeight: 700, color: '#111827', fontSize: '13px' }}>{info.getValue()}</span>,
     },
@@ -387,12 +387,12 @@ export default function RaiseDC() {
 
   const trackingColumns = useMemo(() => [
     {
-      header: 'DC NO',
+      header: 'Delivery Challan No',
       accessorKey: 'dc_number',
       cell: info => <span style={{ fontWeight: 700, color: '#111827', fontSize: '13px' }}>{info.getValue()}</span>,
     },
     {
-      header: 'PO NO',
+      header: 'Sales Order No',
       accessorKey: 'po_no',
       cell: info => <span style={{ color: '#4B5563', fontSize: '13px' }}>{info.getValue()}</span>,
     },
@@ -552,7 +552,7 @@ export default function RaiseDC() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <h4 style={{ margin: 0, fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Logistics & Dispatch Information</h4>
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B' }}>Requested DC No:</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748B' }}>Requested Delivery Challan No:</span>
                   <span style={{ fontSize: '10px', fontWeight: 800, color: '#1E40AF' }}>{details.requested_dc_number || 'Auto-Generate'}</span>
                 </div>
               </div>
@@ -764,7 +764,7 @@ export default function RaiseDC() {
                         cursor: details.status === 'dc_requested' ? 'pointer' : 'not-allowed'
                       }}
                     >
-                      {submitting ? 'Raising DC...' : 'Verify & Raise DC'}
+                      {submitting ? 'Raising DC...' : 'Verify & Raise Delivery Challan'}
                     </button>
                   </div>
                 </div>
@@ -837,10 +837,10 @@ export default function RaiseDC() {
                     <div style={{ textAlign: 'right' }}>
                       <h1 style={{ margin: '0 0 10px 0', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', color: '#0F172A' }}>DELIVERY CHALLAN</h1>
                       <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '5px', fontSize: '14px' }}>
-                        <span style={{ fontWeight: 700 }}>DC NO :</span> <span style={{ fontWeight: 800 }}>{customDCNo || details.requested_dc_number || 'AUTO'}</span>
+                        <span style={{ fontWeight: 700 }}>Delivery Challan No :</span> <span style={{ fontWeight: 800 }}>{customDCNo || details.requested_dc_number || 'AUTO'}</span>
                         <span style={{ fontWeight: 700 }}>Date :</span> <span>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                         <span style={{ fontWeight: 700 }}>PO Ref :</span> <span>{details.po_number}</span>
-                        <span style={{ fontWeight: 700 }}>PO Date :</span> <span>{details.po_date ? new Date(details.po_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}</span>
+                        <span style={{ fontWeight: 700 }}>Sales Order Date :</span> <span>{details.po_date ? new Date(details.po_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}</span>
                       </div>
                     </div>
                   </div>
@@ -1171,7 +1171,7 @@ export default function RaiseDC() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: '#E2E8F0', border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden', marginBottom: '40px' }}>
                 <div style={{ background: '#F8FAFC', padding: '16px' }}>
-                  <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Purchase Order</div>
+                  <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Sales Order</div>
                   <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenData.data.po_no}</div>
                   <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenData.data.po_date).toLocaleDateString('en-IN')}</div>
                 </div>
@@ -1256,10 +1256,10 @@ export default function RaiseDC() {
                 <div style={{ textAlign: 'right' }}>
                   <h1 style={{ margin: '0 0 10px 0', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', color: '#0F172A' }}>DELIVERY CHALLAN</h1>
                   <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '5px', fontSize: '14px' }}>
-                    <span style={{ fontWeight: 700 }}>DC NO :</span> <span style={{ fontWeight: 800 }}>{hiddenData.data.dc_number || 'AUTO'}</span>
+                    <span style={{ fontWeight: 700 }}>Delivery Challan No :</span> <span style={{ fontWeight: 800 }}>{hiddenData.data.dc_number || 'AUTO'}</span>
                     <span style={{ fontWeight: 700 }}>Date :</span> <span>{new Date(hiddenData.data.issued_at || Date.now()).toLocaleDateString('en-GB')}</span>
                     <span style={{ fontWeight: 700 }}>PO Ref :</span> <span>{hiddenData.data.po_no || hiddenData.data.po_number}</span>
-                    <span style={{ fontWeight: 700 }}>PO Date :</span> <span>{hiddenData.data.po_date ? new Date(hiddenData.data.po_date).toLocaleDateString('en-GB') : '-'}</span>
+                    <span style={{ fontWeight: 700 }}>Sales Order Date :</span> <span>{hiddenData.data.po_date ? new Date(hiddenData.data.po_date).toLocaleDateString('en-GB') : '-'}</span>
                   </div>
                 </div>
               </div>

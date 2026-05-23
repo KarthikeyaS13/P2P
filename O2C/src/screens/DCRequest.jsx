@@ -42,7 +42,7 @@ export default function DCRequest() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get('http://localhost:5000/api/dc-requests/pos', { headers });
+        const res = await axios.get('/api/dc-requests/pos', { headers });
         setApprovedPOs(res.data);
       } catch (err) {
         console.error(err);
@@ -54,7 +54,7 @@ export default function DCRequest() {
     const fetchMasterAddresses = async () => {
       try {
         const token = sessionStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/master-addresses', {
+        const res = await axios.get('/api/master-addresses', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMasterAddresses(res.data);
@@ -88,7 +88,7 @@ export default function DCRequest() {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         // We need to make sure we have customer_id. Let's update the PO list to include it.
-        const res = await axios.get(`http://localhost:5000/api/next-dc-number/${po.customer_id || po.id}`, { headers });
+        const res = await axios.get(`/api/next-dc-number/${po.customer_id || po.id}`, { headers });
         setAutoDCNumber(res.data.nextDC);
       } catch (err) {
         console.error('Failed to fetch next DC number', err);
@@ -109,7 +109,7 @@ export default function DCRequest() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`http://localhost:5000/api/pos/${poId}`, { headers });
+      const res = await axios.get(`/api/pos/${poId}`, { headers });
       const po = res.data;
       setLocationDetails({
         name: po.location_name
@@ -256,10 +256,10 @@ export default function DCRequest() {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'multipart/form-data'
       };
-      const res = await axios.post('http://localhost:5000/api/dc-requests', formData, { headers });
+      const res = await axios.post('/api/dc-requests', formData, { headers });
 
       const data = res.data;
-      Swal.fire({ icon: 'success', title: 'Success', text: `DC Request ${data.dc_request} submitted successfully!`, timer: 2000, showConfirmButton: false });
+      Swal.fire({ icon: 'success', title: 'Success', text: `Delivery Challan Request ${data.dc_request} submitted successfully!`, timer: 2000, showConfirmButton: false });
       navigate('/dashboard');
 
       // Reset form
@@ -271,7 +271,7 @@ export default function DCRequest() {
 
     } catch (err) {
       console.error('ERROR SUBMITTING DC REQUEST:', err);
-      const msg = err.response?.data?.error || err.message || 'Failed to submit DC Request';
+      const msg = err.response?.data?.error || err.message || 'Failed to submit Delivery Challan Request';
       Swal.fire({ icon: 'error', title: 'Error', text: 'Error: ' + msg });
     } finally {
       setSubmitting(false);
@@ -315,10 +315,10 @@ export default function DCRequest() {
       <div style={{ background: 'white', padding: '12px 16px', borderRadius: '6px', border: '1px solid #E5E7EB', marginBottom: '16px' }} className="animate-fade">
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '12px' }}>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Source Purchase Order</label>
+            <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Source Sales Order <span style={{ color: '#EF4444' }}>*</span></label>
             <select className="form-select" value={selectedPOId} onChange={handlePOChange} style={{ height: '32px', fontSize: '13px', padding: '0 8px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box' }}>
               <option value="">
-                {loadingPOs ? 'Loading approved POs...' : approvedPOs.length === 0 ? 'No approved POs available' : '-- Select a Purchase Order --'}
+                {loadingPOs ? 'Loading approved POs...' : approvedPOs.length === 0 ? 'No approved POs available' : '-- Select a Sales Order --'}
               </option>
               {approvedPOs.map(o => (
                 <option key={o.id} value={o.id}>{o.po} — {o.customer}</option>
@@ -330,7 +330,7 @@ export default function DCRequest() {
             <input className="form-input" type="text" readOnly value={locationDetails.name} placeholder="Select PO to see location" style={{ height: '32px', fontSize: '13px', padding: '0 8px', borderRadius: '4px', border: '1px solid #CBD5E1', background: '#F9FAFB', width: '100%', boxSizing: 'border-box' }} />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Requested Dispatch Date</label>
+            <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Requested Dispatch Date <span style={{ color: '#EF4444' }}>*</span></label>
             <div className="date-picker-container" style={{ position: 'relative', width: '100%' }}>
               <DatePicker
                 selected={dispatchDate ? new Date(dispatchDate) : null}
@@ -376,7 +376,7 @@ export default function DCRequest() {
               </thead>
               <tbody>
                 {!selectedPOId ? (
-                  <tr><td colSpan="12" style={{ padding: '30px', textAlign: 'center', color: '#6B7280', fontSize: '13px' }}>Please select a Purchase Order to view items</td></tr>
+                  <tr><td colSpan="12" style={{ padding: '30px', textAlign: 'center', color: '#6B7280', fontSize: '13px' }}>Please select a Sales Order to view items</td></tr>
                 ) : items.length === 0 ? (
                   <tr><td colSpan="12" style={{ padding: '30px', textAlign: 'center', color: '#6B7280', fontSize: '13px' }}>No supply items found in this PO</td></tr>
                 ) : (
@@ -477,7 +477,7 @@ export default function DCRequest() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Vehicle Number</label>
+              <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Vehicle Number <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 className="form-input"
                 placeholder="e.g. TS 09 EX 1234"
@@ -487,7 +487,7 @@ export default function DCRequest() {
               />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Driver Name</label>
+              <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Driver Name <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 className="form-input"
                 placeholder="Enter driver name"
@@ -497,7 +497,7 @@ export default function DCRequest() {
               />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Driver Phone</label>
+              <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Driver Phone <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 className="form-input"
                 placeholder="10-digit number"
@@ -597,7 +597,7 @@ export default function DCRequest() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: '6px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '94px', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Official DC Number</label>
+                <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Official Delivery Challan Number</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', cursor: 'pointer', color: '#475569' }}>
                     <input type="radio" name="dc_type" checked={dcNumbering.type === 'auto'} onChange={() => setDcNumbering({ ...dcNumbering, type: 'auto' })} /> Auto
