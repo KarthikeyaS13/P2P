@@ -122,6 +122,13 @@ export default function NewNTPO() {
   const [startDate, setStartDate] = useState(draft.startDate || '');
   const [endDate, setEndDate] = useState(draft.endDate || '');
 
+  // Project SPOC details state
+  const [projectSpocName, setProjectSpocName] = useState(draft.projectSpocName || '');
+  const [projectSpocEmail, setProjectSpocEmail] = useState(draft.projectSpocEmail || '');
+  const [projectSpocPhone, setProjectSpocPhone] = useState(draft.projectSpocPhone || '');
+  const [projectUsers, setProjectUsers] = useState([]);
+  const [needSalesInvoiceApproval, setNeedSalesInvoiceApproval] = useState(draft.needSalesInvoiceApproval || 'yes');
+
   // Attachments State
   const [attachments, setAttachments] = useState({
     po_copy: null, // Customer Approval
@@ -264,17 +271,29 @@ export default function NewNTPO() {
         console.error(err);
       }
     };
+    const fetchProjectUsers = async () => {
+      try {
+        const token = sessionStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        const res = await axios.get('/api/project-users', { headers });
+        setProjectUsers(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
     fetchCustomers();
+    fetchProjectUsers();
   }, []);
 
   // Draft Persistence
   useEffect(() => {
     const newDraft = {
       step, selectedCustomer, selectedLocation, hasOriginalPO, linkedPoId,
-      poNumber, isTemporary, poDate, startDate, endDate, attachmentPaths, items, entryMethod
+      poNumber, isTemporary, poDate, startDate, endDate, attachmentPaths, items, entryMethod,
+      projectSpocName, projectSpocEmail, projectSpocPhone, needSalesInvoiceApproval
     };
     sessionStorage.setItem('new_nt_po_draft', JSON.stringify(newDraft));
-  }, [step, selectedCustomer, selectedLocation, hasOriginalPO, linkedPoId, poNumber, isTemporary, poDate, startDate, endDate, attachmentPaths, items, entryMethod]);
+  }, [step, selectedCustomer, selectedLocation, hasOriginalPO, linkedPoId, poNumber, isTemporary, poDate, startDate, endDate, attachmentPaths, items, entryMethod, projectSpocName, projectSpocEmail, projectSpocPhone, needSalesInvoiceApproval]);
 
   useEffect(() => {
     const fetchLocations = async () => {
@@ -351,6 +370,10 @@ export default function NewNTPO() {
       setPODate(po.po_date || new Date().toISOString().split('T')[0]);
       setStartDate(po.start_date || '');
       setEndDate(po.end_date || '');
+      setProjectSpocName(po.project_spoc_name || '');
+      setProjectSpocEmail(po.project_spoc_email || '');
+      setProjectSpocPhone(po.project_spoc_phone || '');
+      setNeedSalesInvoiceApproval(po.need_sales_invoice_approval || 'yes');
 
       // Clean PO number and add sequence
       const nextIdx = (po.nt_count || 0) + 1;
@@ -364,6 +387,9 @@ export default function NewNTPO() {
       setLinkedPoId(null);
       setPONumber('');
       setIsTemporary(false);
+      setProjectSpocName('');
+      setProjectSpocEmail('');
+      setProjectSpocPhone('');
     }
   };
 
@@ -764,6 +790,26 @@ export default function NewNTPO() {
 
   const nextStep = async () => {
     if (step === 3) {
+      if (hasOriginalPO !== null) {
+        if (!projectSpocName.trim() || !projectSpocEmail.trim() || !projectSpocPhone.trim()) {
+          return Swal.fire({ icon: 'warning', title: 'Incomplete Details', text: 'Please fill all Project SPOC details.' });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(projectSpocEmail.trim())) {
+          return Swal.fire({ icon: 'warning', title: 'Invalid Email', text: 'Please enter a valid Project SPOC email address.' });
+        }
+
+        const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+        if (!phoneRegex.test(projectSpocPhone.trim())) {
+          return Swal.fire({ icon: 'warning', title: 'Invalid Contact Number', text: 'Please enter a valid contact number (10-15 digits).' });
+        }
+      }
+      
+      if (!needSalesInvoiceApproval) {
+        return Swal.fire({ icon: 'warning', title: 'Incomplete Details', text: 'Please select whether Sales approval is needed for the invoice.' });
+      }
+
       setLoading(true);
       const paths = await uploadAttachments();
       setLoading(false);
@@ -840,7 +886,11 @@ export default function NewNTPO() {
         subtotal,
         gst_total,
         grand_total,
-        items
+        items,
+        project_spoc_name: projectSpocName ? projectSpocName.trim() : null,
+        project_spoc_email: projectSpocEmail ? projectSpocEmail.trim() : null,
+        project_spoc_phone: projectSpocPhone ? projectSpocPhone.trim() : null,
+        need_sales_invoice_approval: needSalesInvoiceApproval
       };
 
       await axios.post('/api/pos', payload, { headers });
@@ -922,6 +972,27 @@ export default function NewNTPO() {
           box-sizing: border-box !important;
           background: #F8FAFC !important;
           outline: none !important;
+        }
+        .compact-form-input:disabled {
+          background: #E2E8F0 !important;
+          color: #64748B !important;
+          cursor: not-allowed !important;
+        }
+        .compact-form-input-text {
+          height: 36px !important;
+          padding: 0 12px !important;
+          font-size: 13px !important;
+          border-radius: 6px !important;
+          border: 1px solid #CBD5E1 !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+          background: #F8FAFC !important;
+          outline: none !important;
+        }
+        .compact-form-input-text:focus {
+          border-color: #3B82F6 !important;
+          background: white !important;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
         }
       `}</style>
       {renderFileViewer()}
@@ -1033,6 +1104,7 @@ export default function NewNTPO() {
                     dateFormat="dd/MM/yyyy"
                     className="form-input compact-form-input"
                     placeholderText="DD/MM/YYYY"
+                    disabled={hasOriginalPO === true}
                   />
                   <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
                 </div>
@@ -1046,9 +1118,95 @@ export default function NewNTPO() {
                     dateFormat="dd/MM/yyyy"
                     className="form-input compact-form-input"
                     placeholderText="DD/MM/YYYY"
+                    disabled={hasOriginalPO === true}
                   />
                   <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
                 </div>
+              </div>
+            </div>
+
+            {hasOriginalPO !== null && (
+              <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', marginTop: '12px' }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: '13px', color: '#1E293B', fontWeight: 700, borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Project SPOC Details</span>
+                  <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(From Master or Customer Address — Edit under Master or Customer Address)</span>
+                </h4>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Name <span style={{ color: 'red' }}>*</span></label>
+                    <select 
+                      value={projectSpocName || ''} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const user = projectUsers.find(u => u.full_name === val);
+                        setProjectSpocName(val);
+                        setProjectSpocEmail(user ? (user.email || '') : '');
+                        setProjectSpocPhone(user ? (user.phone || '') : '');
+                      }} 
+                      className="compact-form-input-text"
+                      style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px', background: 'white' }}
+                    >
+                      <option value="">Select Project SPOC</option>
+                      {projectUsers.map(user => (
+                        <option key={user.id} value={user.full_name}>{user.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Email ID <span style={{ color: 'red' }}>*</span></label>
+                      <input 
+                        type="email"
+                        value={projectSpocEmail || ''} 
+                        readOnly
+                        placeholder="Project SPOC Email ID" 
+                        className="compact-form-input-text"
+                        style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
+                      <input 
+                        type="text"
+                        value={projectSpocPhone || ''} 
+                        readOnly
+                        placeholder="Project SPOC Contact Number" 
+                        className="compact-form-input-text"
+                        style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', marginTop: '12px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>Attach Invoice with DC? (Select "No" if Sales has to request for Invoice) <span style={{ color: 'red' }}>*</span></span>
+              </div>
+              <div style={{ display: 'flex', gap: '24px', marginTop: '8px', marginBottom: '4px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="needSalesInvoiceApproval"
+                    value="yes"
+                    checked={needSalesInvoiceApproval === 'yes'}
+                    onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Yes
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="needSalesInvoiceApproval"
+                    value="no"
+                    checked={needSalesInvoiceApproval === 'no'}
+                    onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  No
+                </label>
               </div>
             </div>
 
@@ -1380,7 +1538,8 @@ export default function NewNTPO() {
                 <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>Sales Order Number:</strong> {poNumber}</p>
                 <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>Customer:</strong> {customers.find(c => c.id == selectedCustomer)?.name}</p>
                 <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>Location:</strong> {locations.find(l => l.id == selectedLocation)?.label}</p>
-                <p style={{ margin: 0, fontSize: '13px' }}><strong>Dates:</strong> {formatDate(poDate)} (PO) | {formatDate(startDate)} to {formatDate(endDate)}</p>
+                <p style={{ margin: '0 0 6px', fontSize: '13px' }}><strong>Dates:</strong> {formatDate(poDate)} (PO) | {formatDate(startDate)} to {formatDate(endDate)}</p>
+                <p style={{ margin: 0, fontSize: '13px' }}><strong>Attach Invoice with DC?:</strong> {needSalesInvoiceApproval === 'yes' ? 'Yes' : 'No'}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ margin: '0 0 4px', fontSize: '13px' }}><strong>Overall Subtotal:</strong> ₹{getSummaryTotals().taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -1388,6 +1547,20 @@ export default function NewNTPO() {
                 <p style={{ fontSize: '1.25rem', color: '#111827', margin: 0 }}><strong>Grand Total:</strong> ₹{getSummaryTotals().grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
             </div>
+
+            {hasOriginalPO !== null && (
+              <div style={{ background: '#F9FAFB', padding: '12px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', marginBottom: '16px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#1E293B', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Project SPOC Details</span>
+                  <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(From Master or Customer Address — Edit under Master or Customer Address)</span>
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                  <p style={{ margin: 0, fontSize: '13px' }}><strong>Name:</strong> {projectSpocName}</p>
+                  <p style={{ margin: 0, fontSize: '13px' }}><strong>Email ID:</strong> {projectSpocEmail}</p>
+                  <p style={{ margin: 0, fontSize: '13px' }}><strong>Contact Number:</strong> {projectSpocPhone}</p>
+                </div>
+              </div>
+            )}
 
             <SummaryTable data={items} />
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px', justifyContent: 'flex-end' }}>

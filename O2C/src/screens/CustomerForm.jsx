@@ -73,6 +73,9 @@ export default function CustomerForm() {
     if (name === 'contact_phone' || name === 'spoc2_phone' || name === 'pincode') {
       value = value.replace(/\D/g, '').slice(0, (name === 'contact_phone' || name === 'spoc2_phone') ? 10 : 6);
     }
+    if (name === 'cust_code') {
+      value = value.slice(0, 8);
+    }
 
     setForm(prev => ({ ...prev, [name]: value }));
   };
@@ -82,14 +85,44 @@ export default function CustomerForm() {
 
     const errors = [];
     if (!form.cust_code?.trim()) errors.push('Customer ID required');
+    if (form.cust_code && form.cust_code.trim().length > 8) errors.push('Customer ID must not exceed 8 characters');
     if (!form.name?.trim()) errors.push('Customer name required');
     if (!form.gstin?.trim()) errors.push('GSTIN required');
     if (form.gstin?.length !== 15) errors.push('GSTIN must be 15 characters');
-    if (form.pan && form.pan.length !== 10) errors.push('PAN must be 10 characters');
+
+    // PAN validation and matching
+    if (form.pan && form.pan.length !== 10) {
+      errors.push('PAN must be 10 characters');
+    }
+    if (form.gstin && form.gstin.length === 15) {
+      const panFromGstin = form.gstin.substring(2, 12);
+      if (!form.pan) {
+        errors.push('PAN Number is required');
+      } else if (form.pan !== panFromGstin) {
+        errors.push('PAN Number must match the PAN portion (characters 3-12) of the GSTIN');
+      }
+    }
+
     if (form.contact_phone && form.contact_phone.length !== 10) errors.push('Contact number must be 10 digits');
     if (!form.pincode?.trim()) errors.push('Pincode required');
     if (!form.contact_name?.trim()) errors.push('Contact Person Name (SPOC 1) is mandatory');
     if (!form.contact_phone?.trim()) errors.push('Contact Phone (SPOC 1) is mandatory');
+
+    // Uniqueness validation between Primary and Secondary contacts
+    if (form.spoc2_phone) {
+      if (form.spoc2_phone.length !== 10) {
+        errors.push('Secondary Contact Phone must be 10 digits');
+      }
+      if (form.contact_phone === form.spoc2_phone) {
+        errors.push('Primary and Secondary Contact Phone numbers cannot be the same');
+      }
+    }
+    if (form.spoc2_email && form.spoc2_email.trim() && form.contact_email?.trim().toLowerCase() === form.spoc2_email.trim().toLowerCase()) {
+      errors.push('Primary and Secondary Contact Emails cannot be the same');
+    }
+    if (form.spoc2_name && form.spoc2_name.trim() && form.contact_name?.trim().toLowerCase() === form.spoc2_name.trim().toLowerCase()) {
+      errors.push('Primary and Secondary Contact Names cannot be the same');
+    }
 
     if (errors.length > 0) {
       Swal.fire({ icon: 'warning', title: 'Incomplete Form', html: errors.join('<br/>') });
@@ -176,8 +209,8 @@ export default function CustomerForm() {
 
       <form onSubmit={handleSubmit} style={{ background: 'white', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
 
-        {/* Section 1 - Basic Info */}
-        <h3 style={sectionTitleStyle}>Basic Info</h3>
+        {/* Section 1 - Customer Info */}
+        <h3 style={sectionTitleStyle}>Customer Info</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
           <div>
             <label style={labelStyle}>Customer Name (Internal) *</label>
@@ -188,11 +221,11 @@ export default function CustomerForm() {
             <input className="custom-form-input" name="legal_name" value={form.legal_name} onChange={handleChange} placeholder="As per PAN / GST" style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>GSTIN *</label>
+            <label style={labelStyle}>GSTIN *(unique-pan validated)</label>
             <input className="custom-form-input" name="gstin" value={form.gstin} onChange={handleChange} placeholder="27AADCB2230M1Z2" style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Customer ID *</label>
+            <label style={labelStyle}>Customer ID * (User Created, Max length 8 characters.)</label>
             <input className="custom-form-input" name="cust_code" value={form.cust_code} onChange={handleChange} style={inputStyle} placeholder="E.g. CUST001" disabled={isEdit} />
           </div>
           <div>
@@ -220,25 +253,25 @@ export default function CustomerForm() {
             <label style={labelStyle}>City *</label>
             {isCustomCity ? (
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input 
+                <input
                   className="custom-form-input"
-                  name="city" 
-                  value={form.city} 
-                  onChange={handleChange} 
+                  name="city"
+                  value={form.city}
+                  onChange={handleChange}
                   placeholder="Enter city name"
-                  style={{ ...inputStyle, flex: 1 }} 
+                  style={{ ...inputStyle, flex: 1 }}
                 />
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsCustomCity(false)}
-                  style={{ 
-                    padding: '10px 14px', 
-                    background: '#EFF6FF', 
-                    color: '#1D4ED8', 
-                    border: '1px solid #BFDBFE', 
-                    borderRadius: '8px', 
-                    cursor: 'pointer', 
-                    fontSize: '13px', 
+                  style={{
+                    padding: '10px 14px',
+                    background: '#EFF6FF',
+                    color: '#1D4ED8',
+                    border: '1px solid #BFDBFE',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
                     fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
@@ -250,15 +283,15 @@ export default function CustomerForm() {
                 </button>
               </div>
             ) : (
-              <CustomCitySelect 
-                value={form.city} 
+              <CustomCitySelect
+                value={form.city}
                 onChange={(cityName, stateName) => {
                   setForm(prev => ({
                     ...prev,
                     city: cityName,
                     state: stateName || prev.state
                   }));
-                }} 
+                }}
                 onSelectOther={() => {
                   setIsCustomCity(true);
                   setForm(prev => ({ ...prev, city: '' }));
@@ -268,9 +301,9 @@ export default function CustomerForm() {
           </div>
           <div>
             <label style={labelStyle}>State *</label>
-            <CustomStateSelect 
-              value={form.state} 
-              onChange={handleChange} 
+            <CustomStateSelect
+              value={form.state}
+              onChange={handleChange}
             />
           </div>
           <div>
@@ -280,7 +313,7 @@ export default function CustomerForm() {
         </div>
 
         {/* Section 3 - Contact SPOC 1 */}
-        <h3 style={sectionTitleStyle}>Contact SPOC 1</h3>
+        <h3 style={sectionTitleStyle}>Customer Contact Person - Primary *</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
           <div>
             <label style={labelStyle}>Contact Person Name *</label>
@@ -301,7 +334,7 @@ export default function CustomerForm() {
         </div>
 
         {/* Section 4 - Contact SPOC 2 */}
-        <h3 style={sectionTitleStyle}>Contact SPOC 2</h3>
+        <h3 style={sectionTitleStyle}>Customer Contact Person - Secondary</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
           <div>
             <label style={labelStyle}>Contact Person Name</label>

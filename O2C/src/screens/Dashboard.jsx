@@ -35,8 +35,8 @@ export default function Dashboard() {
         res = await axios.get('/api/pos?status=pending', { headers });
         setSummaryData(res.data);
       } else if (type === 'pending_dcs') {
-        res = await axios.get('/api/dc', { headers });
-        setSummaryData(res.data.filter(d => ['draft', 'raised'].includes(d.status)));
+        res = await axios.get('/api/dc-requests?status=dc_requested', { headers });
+        setSummaryData(res.data);
       } else if (type === 'pending_invoice_requests') {
         res = await axios.get('/api/dc', { headers });
         setSummaryData(res.data.filter(d => d.delivery_status === 'delivery_confirmed'));
@@ -95,7 +95,7 @@ export default function Dashboard() {
 
   if (loading) {
     const userRole = user?.role?.toLowerCase();
-    const loadingTitle = userRole === 'admin' ? "Admin Command Center" : "Executive Dashboard";
+    const loadingTitle = userRole === 'admin' ? "Dashboard" : "Executive Dashboard";
     const loadingSubtitle = userRole === 'admin' ? "Configure master tables, customers, and PO flow rules." : "High-level pipeline overview for the current fiscal cycle.";
     return (
       <div className="screen-enter" id="dashboard-container">
@@ -198,7 +198,7 @@ export default function Dashboard() {
       <div className="screen-enter" id="dashboard-container">
         <div className="page-header">
           <div>
-            <h1 className="text-h1 page-header__title">Sales Command Center</h1>
+            <h1 className="text-h1 page-header__title">Sales Dashboard</h1>
             <p className="page-header__subtitle">Welcome back, {user.name}. What would you like to do today?</p>
           </div>
         </div>
@@ -306,12 +306,12 @@ export default function Dashboard() {
       <div className="screen-enter" id="dashboard-container">
         <div className="page-header">
           <div>
-            <h1 className="text-h1 page-header__title">Admin Command Center</h1>
+            <h1 className="text-h1 page-header__title">Dashboard</h1>
             <p className="page-header__subtitle">Configure master tables, customers, and PO flow rules.</p>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginTop: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginTop: '24px' }}>
           <div className="feature-card animate-fade animate-stagger-1" onClick={() => navigate('/customers')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Customers</span>
@@ -327,24 +327,9 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="feature-card animate-fade animate-stagger-2" onClick={() => navigate('/master-address')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
+          <div className="feature-card animate-fade animate-stagger-2" onClick={() => navigate('/po-flow')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Master Address</span>
-              <div className="feature-card__icon" style={{ background: '#ECFDF5', color: '#10B981', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>location_on</span>
-              </div>
-            </div>
-            <div style={{ marginTop: '8px' }}>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>
-                {masterAddressCount}
-              </div>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Dispatch and site addresses</p>
-            </div>
-          </div>
-
-          <div className="feature-card animate-fade animate-stagger-3" onClick={() => navigate('/po-flow')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sales Order Flow Management</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status of Sales Order</span>
               <div className="feature-card__icon" style={{ background: '#FFF7ED', color: '#F97316', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_tree</span>
               </div>
@@ -476,7 +461,7 @@ export default function Dashboard() {
                         <tr><th>Sales Order Number</th><th>Customer</th><th>Status</th><th className="text-right">Total</th></tr>
                       )}
                       {summaryConfig.type === 'pending_dcs' && (
-                        <tr><th>Delivery Challan Number</th><th>Sales Order Number</th><th>Status</th><th>Date</th></tr>
+                        <tr><th>Request Number</th><th>Sales Order Number</th><th>Status</th><th>Date</th></tr>
                       )}
                       {summaryConfig.type === 'pending_invoice_requests' && (
                         <tr><th>Delivery Challan Number</th><th>Customer</th><th>Sales Order Number</th><th>Date</th></tr>
@@ -502,7 +487,7 @@ export default function Dashboard() {
                           )}
                           {summaryConfig.type === 'pending_dcs' && (
                             <>
-                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.dc_number || item.requested_dc_number || '-'}</td>
+                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.dc_request_no || item.requested_dc_number || '-'}</td>
                               <td>{item.po_no || '-'}</td>
                               <td>
                                 <span className={`badge badge--${item.status?.replace('_', '-')}`}>

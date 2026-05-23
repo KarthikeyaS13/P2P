@@ -19,12 +19,12 @@ export default function POFlowManagement() {
       const matchSearch =
         (po.po_number || '').toLowerCase().includes(search.toLowerCase()) ||
         (po.customer_name || '').toLowerCase().includes(search.toLowerCase());
-      
+
       const poValue = Number(po.po_value) || 0;
       const suppliedValue = Number(po.supplied_value) || 0;
       const invoiceAmount = Number(po.invoice_amount) || 0;
       const receivedAmount = Number(po.received_amount) || 0;
-      
+
       const toBeSupplied = Math.max(0, poValue - suppliedValue);
       const toBeInvoiced = Number(po.to_be_invoiced_value) || 0;
       const outstandingAR = Math.max(0, invoiceAmount - receivedAmount);
@@ -82,10 +82,10 @@ export default function POFlowManagement() {
 
   const handleViewPayments = async (po) => {
     if ((Number(po.received_amount) || 0) <= 0) return;
-    
+
     setLoadingDetails(true);
     setSelectedPOPayments({ po_number: po.po_number, customer_name: po.customer_name, payments: [] });
-    
+
     try {
       const token = sessionStorage.getItem('token');
       const res = await axios.get(`/api/pos/${po.id}/payments`, {
@@ -101,10 +101,10 @@ export default function POFlowManagement() {
 
   const handleViewSupplied = async (po) => {
     if ((Number(po.supplied_value) || 0) <= 0) return;
-    
+
     setLoadingDetails(true);
     setSelectedPOSupplied({ po_number: po.po_number, customer_name: po.customer_name, items: [] });
-    
+
     try {
       const token = sessionStorage.getItem('token');
       const res = await axios.get(`/api/pos/${po.id}/supplied-details`, {
@@ -122,10 +122,10 @@ export default function POFlowManagement() {
     const poValue = Number(po.po_value) || 0;
     const suppliedValue = Number(po.supplied_value) || 0;
     if (poValue - suppliedValue <= 0) return;
-    
+
     setLoadingDetails(true);
     setSelectedPOPending({ po_number: po.po_number, customer_name: po.customer_name, items: [] });
-    
+
     try {
       const token = sessionStorage.getItem('token');
       const res = await axios.get(`/api/pos/${po.id}/pending-details`, {
@@ -141,10 +141,10 @@ export default function POFlowManagement() {
 
   const handleViewInvoiced = async (po) => {
     if ((Number(po.invoice_amount) || 0) <= 0) return;
-    
+
     setLoadingDetails(true);
     setSelectedPOInvoiced({ po_number: po.po_number, customer_name: po.customer_name, invoices: [] });
-    
+
     try {
       const token = sessionStorage.getItem('token');
       const res = await axios.get(`/api/pos/${po.id}/invoices`, {
@@ -167,7 +167,7 @@ export default function POFlowManagement() {
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
           </button>
           <div>
-            <h1 className="text-h1 page-header__title" style={{ fontSize: '1.2rem', margin: 0 }}>Sales Order Flow Management</h1>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '1.2rem', margin: 0 }}>Status of Sales Order</h1>
             <p className="page-header__subtitle" style={{ fontSize: '0.85rem', margin: 0 }}>Enterprise Financial Lifecycle Tracking</p>
           </div>
         </div>
@@ -267,11 +267,11 @@ export default function POFlowManagement() {
               const suppliedValue = Number(po.supplied_value) || 0;
               const invoiceAmount = Number(po.invoice_amount) || 0;
               const receivedAmount = Number(po.received_amount) || 0;
-              
+
               const toBeSupplied = Math.max(0, poValue - suppliedValue);
               const toBeInvoiced = Number(po.to_be_invoiced_value) || 0;
               const outstandingAR = Math.max(0, invoiceAmount - receivedAmount);
-              
+
               return (
                 <tr key={po.id} className="hover-row">
                   <td style={{ paddingLeft: '16px' }}>
@@ -296,71 +296,71 @@ export default function POFlowManagement() {
                     <div style={{ fontWeight: 700, fontSize: '14px' }}>{formatCurrency(poValue)}</div>
                   </td>
                   <td className="text-right">
-                    <div 
+                    <div
                       onClick={() => handleViewSupplied(po)}
-                      style={{ 
-                        fontWeight: 500, 
-                        color: suppliedValue > 0 ? '#3b82f6' : '#6b7280', 
+                      style={{
+                        fontWeight: 500,
+                        color: suppliedValue > 0 ? '#3b82f6' : '#6b7280',
                         fontSize: '14px',
                         cursor: suppliedValue > 0 ? 'pointer' : 'default',
                         textDecoration: suppliedValue > 0 ? 'underline dotted' : 'none'
                       }}
                     >
-                        {formatCurrency(suppliedValue)}
+                      {formatCurrency(suppliedValue)}
                     </div>
                   </td>
                   <td className="text-right" style={{ background: '#fef2f230' }}>
-                    <div 
+                    <div
                       onClick={() => handleViewPending(po)}
-                      style={{ 
-                        fontWeight: 600, 
-                        color: toBeSupplied > 0 ? '#ef4444' : '#6b7280', 
+                      style={{
+                        fontWeight: 600,
+                        color: toBeSupplied > 0 ? '#ef4444' : '#6b7280',
                         fontSize: '14px',
                         cursor: toBeSupplied > 0 ? 'pointer' : 'default',
                         textDecoration: toBeSupplied > 0 ? 'underline dotted' : 'none'
                       }}
                     >
-                        {formatCurrency(toBeSupplied)}
+                      {formatCurrency(toBeSupplied)}
                     </div>
                   </td>
                   <td className="text-right">
-                    <div 
+                    <div
                       onClick={() => handleViewInvoiced(po)}
-                      style={{ 
-                        fontWeight: 500, 
-                        color: invoiceAmount > 0 ? '#f59e0b' : '#6b7280', 
+                      style={{
+                        fontWeight: 500,
+                        color: invoiceAmount > 0 ? '#f59e0b' : '#6b7280',
                         fontSize: '14px',
                         cursor: invoiceAmount > 0 ? 'pointer' : 'default',
                         textDecoration: invoiceAmount > 0 ? 'underline dotted' : 'none'
                       }}
                       title={invoiceAmount > 0 ? "Click to view invoice details" : ""}
                     >
-                        {formatCurrency(invoiceAmount)}
+                      {formatCurrency(invoiceAmount)}
                     </div>
                   </td>
                   <td className="text-right" style={{ background: '#fffbeb30' }}>
                     <div style={{ fontWeight: 600, color: toBeInvoiced > 0 ? '#d97706' : '#6b7280', fontSize: '14px' }}>
-                        {formatCurrency(toBeInvoiced)}
+                      {formatCurrency(toBeInvoiced)}
                     </div>
                   </td>
                   <td className="text-right">
-                    <div 
-                        onClick={() => handleViewPayments(po)}
-                        style={{ 
-                            fontWeight: 600, 
-                            color: receivedAmount > 0 ? '#10b981' : '#6b7280', 
-                            fontSize: '14px',
-                            cursor: receivedAmount > 0 ? 'pointer' : 'default',
-                            textDecoration: receivedAmount > 0 ? 'underline dotted' : 'none'
-                        }}
-                        title={receivedAmount > 0 ? "Click to view transaction details" : ""}
+                    <div
+                      onClick={() => handleViewPayments(po)}
+                      style={{
+                        fontWeight: 600,
+                        color: receivedAmount > 0 ? '#10b981' : '#6b7280',
+                        fontSize: '14px',
+                        cursor: receivedAmount > 0 ? 'pointer' : 'default',
+                        textDecoration: receivedAmount > 0 ? 'underline dotted' : 'none'
+                      }}
+                      title={receivedAmount > 0 ? "Click to view transaction details" : ""}
                     >
-                        {formatCurrency(receivedAmount)}
+                      {formatCurrency(receivedAmount)}
                     </div>
                   </td>
                   <td className="text-right" style={{ background: '#f0fdf430', paddingRight: '16px' }}>
                     <div style={{ fontWeight: 700, color: outstandingAR > 0 ? '#ef4444' : '#059669', fontSize: '14px' }}>
-                        {formatCurrency(outstandingAR)}
+                      {formatCurrency(outstandingAR)}
                     </div>
                   </td>
                 </tr>
@@ -383,64 +383,64 @@ export default function POFlowManagement() {
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
-            
+
             <div className="details-body" style={{ padding: '0 16px 16px 16px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
                 <div style={{ textAlign: 'center', padding: '30px' }}>
-                    <div className="animate-pulse">Loading transaction history...</div>
+                  <div className="animate-pulse">Loading transaction history...</div>
                 </div>
               ) : selectedPOPayments.payments.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px', color: 'var(--secondary)' }}>
-                    No payment records found for this PO.
+                  No payment records found for this PO.
                 </div>
               ) : (
                 <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Invoice #</th>
-                            <th>Mode</th>
-                            <th>Transaction Ref / UTR</th>
-                            <th className="text-right">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {selectedPOPayments.payments.map(pay => (
-                            <tr key={pay.id}>
-                                <td>{formatDate(pay.payment_date)}</td>
-                                <td>
-                                    <span style={{ fontWeight: 600, fontSize: '12px' }}>{pay.invoice_number}</span>
-                                </td>
-                                <td>
-                                    <span style={{ 
-                                        fontSize: '11px', 
-                                        background: '#f1f5f9', 
-                                        padding: '2px 8px', 
-                                        borderRadius: '4px',
-                                        textTransform: 'capitalize'
-                                    }}>
-                                        {pay.payment_mode}
-                                    </span>
-                                </td>
-                                <td style={{ fontFamily: 'monospace', fontSize: '12px', color: '#475569' }}>
-                                    {pay.transaction_ref || 'N/A'}
-                                </td>
-                                <td className="text-right" style={{ fontWeight: 700, color: '#059669' }}>
-                                    {formatCurrency(pay.amount)}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Invoice #</th>
+                      <th>Mode</th>
+                      <th>Transaction Ref / UTR</th>
+                      <th className="text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedPOPayments.payments.map(pay => (
+                      <tr key={pay.id}>
+                        <td>{formatDate(pay.payment_date)}</td>
+                        <td>
+                          <span style={{ fontWeight: 600, fontSize: '12px' }}>{pay.invoice_number}</span>
+                        </td>
+                        <td>
+                          <span style={{
+                            fontSize: '11px',
+                            background: '#f1f5f9',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            textTransform: 'capitalize'
+                          }}>
+                            {pay.payment_mode}
+                          </span>
+                        </td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '12px', color: '#475569' }}>
+                          {pay.transaction_ref || 'N/A'}
+                        </td>
+                        <td className="text-right" style={{ fontWeight: 700, color: '#059669' }}>
+                          {formatCurrency(pay.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
               )}
             </div>
             <div className="details-footer" style={{ padding: '10px 16px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Receipts:</span>
-                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#059669' }}>
-                        {formatCurrency(selectedPOPayments.payments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0))}
-                    </span>
-                </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Receipts:</span>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#059669' }}>
+                  {formatCurrency(selectedPOPayments.payments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0))}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -459,66 +459,66 @@ export default function POFlowManagement() {
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
-            
+
             <div className="details-body" style={{ padding: '0 16px 16px 16px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
                 <div style={{ textAlign: 'center', padding: '30px' }}>
-                    <div className="animate-pulse">Loading supply records...</div>
+                  <div className="animate-pulse">Loading supply records...</div>
                 </div>
               ) : selectedPOSupplied.items.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px', color: 'var(--secondary)' }}>
-                    No supply records found.
+                  No supply records found.
                 </div>
               ) : (
                 <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>Dispatch Date</th>
-                            <th>Delivery Challan Number</th>
-                            <th>Manual DC</th>
-                            <th>Vehicle No</th>
-                            <th>Status</th>
-                            <th className="text-right">Qty</th>
-                            <th className="text-right">Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {selectedPOSupplied.items.map((dc, idx) => (
-                            <tr key={idx}>
-                                <td>{formatDate(dc.dispatch_date)}</td>
-                                <td style={{ fontWeight: 700, color: '#0369a1' }}>{dc.dc_number}</td>
-                                <td>{dc.manual_dc_number || '-'}</td>
-                                <td>{dc.vehicle_no || '-'}</td>
-                                <td>
-                                    <span style={{ 
-                                        fontSize: '10px', 
-                                        fontWeight: 700,
-                                        background: dc.status === 'delivered' ? '#dcfce7' : '#fef9c3', 
-                                        color: dc.status === 'delivered' ? '#166534' : '#854d0e',
-                                        padding: '2px 8px', 
-                                        borderRadius: '12px',
-                                        textTransform: 'uppercase'
-                                    }}>
-                                        {dc.delivery_status || dc.status}
-                                    </span>
-                                </td>
-                                <td className="text-right" style={{ fontWeight: 600 }}>{dc.total_qty}</td>
-                                <td className="text-right" style={{ fontWeight: 700, color: '#0369a1' }}>
-                                    {formatCurrency(dc.total_value)}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
+                  <thead>
+                    <tr>
+                      <th>Dispatch Date</th>
+                      <th>Delivery Challan Number</th>
+                      <th>Manual DC</th>
+                      <th>Vehicle No</th>
+                      <th>Status</th>
+                      <th className="text-right">Qty</th>
+                      <th className="text-right">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedPOSupplied.items.map((dc, idx) => (
+                      <tr key={idx}>
+                        <td>{formatDate(dc.dispatch_date)}</td>
+                        <td style={{ fontWeight: 700, color: '#0369a1' }}>{dc.dc_number}</td>
+                        <td>{dc.manual_dc_number || '-'}</td>
+                        <td>{dc.vehicle_no || '-'}</td>
+                        <td>
+                          <span style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            background: dc.status === 'delivered' ? '#dcfce7' : '#fef9c3',
+                            color: dc.status === 'delivered' ? '#166534' : '#854d0e',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            textTransform: 'uppercase'
+                          }}>
+                            {dc.delivery_status || dc.status}
+                          </span>
+                        </td>
+                        <td className="text-right" style={{ fontWeight: 600 }}>{dc.total_qty}</td>
+                        <td className="text-right" style={{ fontWeight: 700, color: '#0369a1' }}>
+                          {formatCurrency(dc.total_value)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
               )}
             </div>
             <div className="details-footer" style={{ padding: '10px 16px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Supplied Value:</span>
-                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#0369a1' }}>
-                        {formatCurrency(selectedPOSupplied.items.reduce((acc, curr) => acc + (Number(curr.total_value) || 0), 0))}
-                    </span>
-                </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Supplied Value:</span>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#0369a1' }}>
+                  {formatCurrency(selectedPOSupplied.items.reduce((acc, curr) => acc + (Number(curr.total_value) || 0), 0))}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -537,58 +537,58 @@ export default function POFlowManagement() {
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
-            
+
             <div className="details-body" style={{ padding: '0 16px 16px 16px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
                 <div style={{ textAlign: 'center', padding: '30px' }}>
-                    <div className="animate-pulse">Analyzing pending items...</div>
+                  <div className="animate-pulse">Analyzing pending items...</div>
                 </div>
               ) : selectedPOPending.items.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px', color: '#059669', fontWeight: 700 }}>
-                    All items have been fully supplied!
+                  All items have been fully supplied!
                 </div>
               ) : (
                 <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>Package</th>
-                            <th>Item Name</th>
-                            <th>Description</th>
-                            <th className="text-right">Sales Order Qty</th>
-                            <th className="text-right">Supplied</th>
-                            <th className="text-right">Pending</th>
-                            <th className="text-right">Rate</th>
-                            <th className="text-right">Pending Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {selectedPOPending.items.map((it, idx) => (
-                            <tr key={idx}>
-                                <td style={{ fontSize: '12px' }}>{it.package_name || '-'}</td>
-                                <td style={{ fontWeight: 600 }}>{it.item_name}</td>
-                                <td style={{ fontSize: '11px', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={it.description}>
-                                    {it.description}
-                                </td>
-                                <td className="text-right">{it.supply_qty}</td>
-                                <td className="text-right" style={{ color: '#059669' }}>{it.qty_delivered}</td>
-                                <td className="text-right" style={{ fontWeight: 700, color: '#be123c' }}>{it.pending_qty}</td>
-                                <td className="text-right" style={{ fontSize: '12px' }}>{formatCurrency(it.rate)}</td>
-                                <td className="text-right" style={{ fontWeight: 700, color: '#be123c' }}>
-                                    {formatCurrency(it.pending_value)}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
+                  <thead>
+                    <tr>
+                      <th>Package</th>
+                      <th>Item Name</th>
+                      <th>Description</th>
+                      <th className="text-right">Sales Order Qty</th>
+                      <th className="text-right">Supplied</th>
+                      <th className="text-right">Pending</th>
+                      <th className="text-right">Rate</th>
+                      <th className="text-right">Pending Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedPOPending.items.map((it, idx) => (
+                      <tr key={idx}>
+                        <td style={{ fontSize: '12px' }}>{it.package_name || '-'}</td>
+                        <td style={{ fontWeight: 600 }}>{it.item_name}</td>
+                        <td style={{ fontSize: '11px', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={it.description}>
+                          {it.description}
+                        </td>
+                        <td className="text-right">{it.supply_qty}</td>
+                        <td className="text-right" style={{ color: '#059669' }}>{it.qty_delivered}</td>
+                        <td className="text-right" style={{ fontWeight: 700, color: '#be123c' }}>{it.pending_qty}</td>
+                        <td className="text-right" style={{ fontSize: '12px' }}>{formatCurrency(it.rate)}</td>
+                        <td className="text-right" style={{ fontWeight: 700, color: '#be123c' }}>
+                          {formatCurrency(it.pending_value)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
               )}
             </div>
             <div className="details-footer" style={{ padding: '10px 16px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Pending Value:</span>
-                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#be123c' }}>
-                        {formatCurrency(selectedPOPending.items.reduce((acc, curr) => acc + (Number(curr.pending_value) || 0), 0))}
-                    </span>
-                </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Pending Value:</span>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#be123c' }}>
+                  {formatCurrency(selectedPOPending.items.reduce((acc, curr) => acc + (Number(curr.pending_value) || 0), 0))}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -607,62 +607,62 @@ export default function POFlowManagement() {
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
-            
+
             <div className="details-body" style={{ padding: '0 16px 16px 16px', maxHeight: '70vh', overflowY: 'auto' }}>
               {loadingDetails ? (
                 <div style={{ textAlign: 'center', padding: '30px' }}>
-                    <div className="animate-pulse">Loading invoice history...</div>
+                  <div className="animate-pulse">Loading invoice history...</div>
                 </div>
               ) : selectedPOInvoiced.invoices.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px', color: 'var(--secondary)' }}>
-                    No invoice records found for this PO.
+                  No invoice records found for this PO.
                 </div>
               ) : (
                 <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>Invoice Date</th>
-                            <th>Invoice #</th>
-                            <th>Delivery Challan Number</th>
-                            <th>Status</th>
-                            <th className="text-right">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {selectedPOInvoiced.invoices.map(inv => (
-                            <tr key={inv.id}>
-                                <td>{formatDate(inv.invoice_date)}</td>
-                                <td style={{ fontWeight: 700, color: '#d97706' }}>{inv.invoice_number}</td>
-                                <td>{inv.dc_number || '-'}</td>
-                                <td>
-                                    <span style={{ 
-                                        fontSize: '10px', 
-                                        fontWeight: 700,
-                                        background: inv.status === 'paid' ? '#dcfce7' : inv.status === 'partially_paid' ? '#fef9c3' : '#fee2e2', 
-                                        color: inv.status === 'paid' ? '#166534' : inv.status === 'partially_paid' ? '#854d0e' : '#991b1b',
-                                        padding: '2px 8px', 
-                                        borderRadius: '12px',
-                                        textTransform: 'uppercase'
-                                    }}>
-                                        {inv.status}
-                                    </span>
-                                </td>
-                                <td className="text-right" style={{ fontWeight: 700, color: '#d97706' }}>
-                                    {formatCurrency(inv.grand_total)}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
+                  <thead>
+                    <tr>
+                      <th>Invoice Date</th>
+                      <th>Invoice #</th>
+                      <th>Delivery Challan Number</th>
+                      <th>Status</th>
+                      <th className="text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedPOInvoiced.invoices.map(inv => (
+                      <tr key={inv.id}>
+                        <td>{formatDate(inv.invoice_date)}</td>
+                        <td style={{ fontWeight: 700, color: '#d97706' }}>{inv.invoice_number}</td>
+                        <td>{inv.dc_number || '-'}</td>
+                        <td>
+                          <span style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            background: inv.status === 'paid' ? '#dcfce7' : inv.status === 'partially_paid' ? '#fef9c3' : '#fee2e2',
+                            color: inv.status === 'paid' ? '#166534' : inv.status === 'partially_paid' ? '#854d0e' : '#991b1b',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            textTransform: 'uppercase'
+                          }}>
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td className="text-right" style={{ fontWeight: 700, color: '#d97706' }}>
+                          {formatCurrency(inv.grand_total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
               )}
             </div>
             <div className="details-footer" style={{ padding: '10px 16px', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Invoiced:</span>
-                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#d97706' }}>
-                        {formatCurrency(selectedPOInvoiced.invoices.reduce((acc, curr) => acc + (Number(curr.grand_total) || 0), 0))}
-                    </span>
-                </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '12px', color: 'var(--secondary)', marginRight: '12px' }}>Total Invoiced:</span>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#d97706' }}>
+                  {formatCurrency(selectedPOInvoiced.invoices.reduce((acc, curr) => acc + (Number(curr.grand_total) || 0), 0))}
+                </span>
+              </div>
             </div>
           </div>
         </div>

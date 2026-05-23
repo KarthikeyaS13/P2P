@@ -33,6 +33,13 @@ export default function EditPO() {
   const [items, setItems] = useState([]);
   const [newVersionLabel, setNewVersionLabel] = useState('');
 
+  // Project SPOC details state
+  const [projectSpocName, setProjectSpocName] = useState('');
+  const [projectSpocEmail, setProjectSpocEmail] = useState('');
+  const [projectSpocPhone, setProjectSpocPhone] = useState('');
+  const [needSalesInvoiceApproval, setNeedSalesInvoiceApproval] = useState('yes');
+  const [projectUsers, setProjectUsers] = useState([]);
+
   // Preview State
   const [previewPath, setPreviewPath] = useState(null);
   const [previewExcelData, setPreviewExcelData] = useState(null);
@@ -163,12 +170,14 @@ export default function EditPO() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const [cRes, pRes] = await Promise.all([
+        const [cRes, pRes, uRes] = await Promise.all([
           axios.get('/api/customers', { headers }),
-          axios.get('/api/pos', { headers })
+          axios.get('/api/pos', { headers }),
+          axios.get('/api/project-users', { headers })
         ]);
         setCustomers(Array.isArray(cRes.data) ? cRes.data : []);
         setAllPOs(Array.isArray(pRes.data) ? pRes.data : []);
+        setProjectUsers(Array.isArray(uRes.data) ? uRes.data : []);
       } catch (err) {
         console.error(err);
       }
@@ -182,6 +191,9 @@ export default function EditPO() {
     setSelectedLocation('');
     setSelectedPO(null);
     setPODetails(null);
+    setProjectSpocName('');
+    setProjectSpocEmail('');
+    setProjectSpocPhone('');
     setLocations([]);
     if (val) {
       try {
@@ -198,6 +210,9 @@ export default function EditPO() {
     if (!poId) {
       setSelectedPO(null);
       setPODetails(null);
+      setProjectSpocName('');
+      setProjectSpocEmail('');
+      setProjectSpocPhone('');
       return;
     }
 
@@ -209,6 +224,10 @@ export default function EditPO() {
       const data = res.data;
 
       setPODetails(data);
+      setProjectSpocName(data.project_spoc_name || '');
+      setProjectSpocEmail(data.project_spoc_email || '');
+      setProjectSpocPhone(data.project_spoc_phone || '');
+      setNeedSalesInvoiceApproval(data.need_sales_invoice_approval || 'yes');
       setItems(data.items.map(it => calculateRow({
         ...it,
         edit_supply_qty: it.edit_supply_qty,
@@ -267,8 +286,33 @@ export default function EditPO() {
     setItems(items.filter((_, i) => i !== idx));
   };
 
-  const nextStep = () => setStep(s => s + 1);
-  const prevStep = () => setStep(s => s - 1);
+  const nextStep = () => {
+    if (step === 1) {
+      if (!selectedPO) return;
+      if (!projectSpocName.trim() || !projectSpocEmail.trim() || !projectSpocPhone.trim()) {
+        return Swal.fire({ icon: 'warning', title: 'Incomplete Details', text: 'Please fill all Project SPOC details.' });
+      }
+
+      if (!needSalesInvoiceApproval) {
+        return Swal.fire({ icon: 'warning', title: 'Incomplete Details', text: 'Please select whether Sales approval is needed for the invoice.' });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(projectSpocEmail.trim())) {
+        return Swal.fire({ icon: 'warning', title: 'Invalid Email', text: 'Please enter a valid Project SPOC email address.' });
+      }
+
+      const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+      if (!phoneRegex.test(projectSpocPhone.trim())) {
+        return Swal.fire({ icon: 'warning', title: 'Invalid Contact Number', text: 'Please enter a valid contact number (10-15 digits).' });
+      }
+    }
+    setStep(s => s + 1);
+  };
+  const prevStep = () => {
+    if (step === 1) navigate('/dashboard');
+    else setStep(s => s - 1);
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -281,7 +325,12 @@ export default function EditPO() {
       const grand_total = items.reduce((acc, it) => acc + (it.rev_total_invoice || 0), 0);
 
       const payload = {
+        project_spoc_name: projectSpocName.trim(),
+        project_spoc_email: projectSpocEmail.trim(),
+        project_spoc_phone: projectSpocPhone.trim(),
+        need_sales_invoice_approval: needSalesInvoiceApproval,
         items: items.map(it => ({
+          id: it.id,
           ref_no: it.ref_no,
           package_name: it.package_name,
           heading: it.heading,
@@ -454,6 +503,10 @@ export default function EditPO() {
 
         {step === 1 && (
           <div>
+            <button onClick={prevStep} className="btn-back" style={{ marginBottom: '12px', height: '28px', padding: '0 12px', border: '1px solid #E2E8F0', borderRadius: '6px', background: 'white', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, fontSize: '12px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
+              Back
+            </button>
             <h3 style={{ marginBottom: '16px', color: '#1F2937', fontSize: '1rem', fontWeight: 700 }}>1. Select PO to Edit</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '20px' }}>
               <div>
@@ -522,6 +575,82 @@ export default function EditPO() {
                     );
                   })}
                 </div>
+
+                <div style={{ fontSize: '10px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '16px', borderTop: '1px solid #E5E7EB', paddingTop: '16px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Project SPOC Details</span>
+                  <span style={{ fontSize: '9px', color: '#64748B', fontWeight: 400, textTransform: 'none', letterSpacing: 'normal' }}>(From Master or Customer Address — Edit under Master or Customer Address)</span>
+                </div>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Name <span style={{ color: 'red' }}>*</span></label>
+                    <select 
+                      value={projectSpocName || ''} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const user = projectUsers.find(u => u.full_name === val);
+                        setProjectSpocName(val);
+                        setProjectSpocEmail(user ? (user.email || '') : '');
+                        setProjectSpocPhone(user ? (user.phone || '') : '');
+                      }} 
+                      style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px', background: 'white', boxSizing: 'border-box' }}
+                    >
+                      <option value="">Select Project SPOC</option>
+                      {projectUsers.map(user => (
+                        <option key={user.id} value={user.full_name}>{user.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Email ID <span style={{ color: 'red' }}>*</span></label>
+                      <input 
+                        type="email" 
+                        value={projectSpocEmail || ''} 
+                        readOnly
+                        placeholder="Project SPOC Email ID" 
+                        style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px', background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
+                      <input 
+                        value={projectSpocPhone || ''} 
+                        readOnly
+                        placeholder="Project SPOC Contact Number" 
+                        style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px', background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginTop: '12px', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Attach Invoice with DC? (Select "No" if Sales has to request for Invoice) <span style={{ color: 'red' }}>*</span></span>
+                </div>
+                <div style={{ display: 'flex', gap: '24px', marginTop: '6px', marginBottom: '6px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name="needSalesInvoiceApproval" 
+                      value="yes" 
+                      checked={needSalesInvoiceApproval === 'yes'} 
+                      onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    Yes
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name="needSalesInvoiceApproval" 
+                      value="no" 
+                      checked={needSalesInvoiceApproval === 'no'} 
+                      onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    No
+                  </label>
+                </div>
+
               </div>
             )}
 

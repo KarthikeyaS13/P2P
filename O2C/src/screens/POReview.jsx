@@ -172,7 +172,14 @@ export default function POReview() {
       const matchSearch =
         (p.po_number || '').toLowerCase().includes(search.toLowerCase()) ||
         (p.customer_name || '').toLowerCase().includes(search.toLowerCase());
-      const matchStatus = filterStatus === 'all' || p.status === filterStatus;
+      let matchStatus = false;
+      if (filterStatus === 'all') {
+        matchStatus = true;
+      } else if (filterStatus === 'pending') {
+        matchStatus = p.status === 'pending' || p.status === 'nt_created';
+      } else {
+        matchStatus = p.status === filterStatus;
+      }
       return matchSearch && matchStatus;
     });
   }, [pendingPOs, search, filterStatus]);

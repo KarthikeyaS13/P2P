@@ -24,10 +24,10 @@ export default function POManagement() {
   }, []);
 
   const filtered = pos.filter(p => {
-    const matchSearch = 
+    const matchSearch =
       (p.po_number || '').toLowerCase().includes(search.toLowerCase()) ||
       (p.customer_name || '').toLowerCase().includes(search.toLowerCase());
-    const matchStatus = 
+    const matchStatus =
       filterStatus === 'all' || p.status === filterStatus;
     return matchSearch && matchStatus;
   });
@@ -49,7 +49,7 @@ export default function POManagement() {
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button 
+          <button
             onClick={() => navigate('/dashboard')}
             className="btn-ghost btn-back"
             style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -61,15 +61,15 @@ export default function POManagement() {
       </div>
 
       <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '20px', gap: '15px' }}>
-        <input 
-          type="text" 
-          placeholder="Search PO, customer..." 
+        <input
+          type="text"
+          placeholder="Search PO, customer..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="form-input"
           style={{ width: '100%' }}
         />
-        <select 
+        <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
           className="form-input"
@@ -80,7 +80,7 @@ export default function POManagement() {
           <option value="nt_created">NT Created</option>
           <option value="accepted">Accepted</option>
           <option value="rejected">Rejected</option>
-          <option value="dc_raised">DC Raised</option>
+          <option value="dc_raised">DC Request Raised</option>
           <option value="invoice_raised">Invoice Raised</option>
         </select>
       </div>
@@ -121,7 +121,7 @@ export default function POManagement() {
                   <td style={{ padding: '12px 16px' }}>{getStatusBadge(p.status)}</td>
                   <td style={{ padding: '12px 16px', color: '#4B5563' }}>{p.is_nt_po ? 'NT Sales Order' : 'Regular'}</td>
                   <td style={{ padding: '12px 16px' }}>
-                    <button 
+                    <button
                       onClick={() => navigate(`/pos/${p.id}`)}
                       style={{ padding: '6px 12px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
                     >

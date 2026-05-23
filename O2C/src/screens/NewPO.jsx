@@ -94,7 +94,11 @@ export default function NewPO() {
     startDate: '',
     endDate: '',
     contactName: '',
-    contactPhone: ''
+    contactPhone: '',
+    projectSpocName: '',
+    projectSpocEmail: '',
+    projectSpocPhone: '',
+    needSalesInvoiceApproval: 'yes'
   });
 
   // Attachments State
@@ -114,6 +118,7 @@ export default function NewPO() {
   const [items, setItems] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [projectUsers, setProjectUsers] = useState([]);
   const [manualEntryMode, setManualEntryMode] = useState(false);
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteRows, setPasteRows] = useState(Array(10).fill({}).map(() => ({
@@ -136,7 +141,18 @@ export default function NewPO() {
         console.error('Failed to fetch customers', err);
       }
     };
+    const fetchProjectUsers = async () => {
+      try {
+        const token = sessionStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        const res = await axios.get('/api/project-users', { headers });
+        setProjectUsers(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error('Failed to fetch project users', err);
+      }
+    };
     fetchCustomers();
+    fetchProjectUsers();
   }, []);
 
   // Draft Persistence
@@ -199,6 +215,14 @@ export default function NewPO() {
         locationId: value,
         contactName: loc ? (loc.contact_name || '') : '',
         contactPhone: loc ? (loc.contact_phone || '') : ''
+      }));
+    } else if (name === 'projectSpocName') {
+      const user = projectUsers.find(u => u.full_name === value);
+      setBasicDetails(prev => ({
+        ...prev,
+        projectSpocName: value,
+        projectSpocEmail: user ? (user.email || '') : '',
+        projectSpocPhone: user ? (user.phone || '') : ''
       }));
     } else {
       setBasicDetails(prev => ({ ...prev, [name]: value }));
@@ -436,7 +460,7 @@ export default function NewPO() {
         ref_no: r['Ref No'] || r['ref_no'] || r['REF NO'] || '',
         package_name: r.Package || r['Package Name'] || r['PACKAGE'] || r['PACKAGE NAME'] || '',
         heading: r.Heading || r.HEADING || '',
-        sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || r['SUB HEADING'] || '',
+        sub_heading: r['Sub Heading (Optional)'] || r['Sub Heading'] || r['SUB HEADING'] || '',
         item_name: r['Item Name'] || r.Item || r['ITEM NAME'] || r['ITEM'] || '',
         description: r['Item Description'] || r.Description || r['ITEM DESCRIPTION'] || r['DESCRIPTION'] || '',
         uom: r.UOM || r.uom || '',
@@ -711,6 +735,24 @@ export default function NewPO() {
         return Swal.fire({ icon: 'warning', title: 'Incomplete Details', text: 'Please fill all basic details including SPOC contact' });
       }
 
+      if (!basicDetails.projectSpocName.trim() || !basicDetails.projectSpocEmail.trim() || !basicDetails.projectSpocPhone.trim()) {
+        return Swal.fire({ icon: 'warning', title: 'Incomplete Details', text: 'Please fill all Project SPOC details.' });
+      }
+
+      if (!basicDetails.needSalesInvoiceApproval) {
+        return Swal.fire({ icon: 'warning', title: 'Incomplete Details', text: 'Please select whether Sales approval is needed for the invoice.' });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(basicDetails.projectSpocEmail.trim())) {
+        return Swal.fire({ icon: 'warning', title: 'Invalid Email', text: 'Please enter a valid Project SPOC email address.' });
+      }
+
+      const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+      if (!phoneRegex.test(basicDetails.projectSpocPhone.trim())) {
+        return Swal.fire({ icon: 'warning', title: 'Invalid Contact Number', text: 'Please enter a valid contact number (10-15 digits).' });
+      }
+
       setLoading(true);
       const paths = await uploadAttachments();
       if (!paths) { setLoading(false); return; }
@@ -743,18 +785,18 @@ export default function NewPO() {
             return calculateRow({
               line_number: i + 1,
               ref_no: r['Ref No'] || r['ref_no'] || r['REF NO'] || '',
-              package_name: r.Package || r['Package Name'] || r['PACKAGE'] || r['PACKAGE NAME'] || '',
-              heading: r.Heading || r.HEADING || '',
-              sub_heading: r['Sub Heading (if Any)'] || r['Sub Heading'] || r['SUB HEADING'] || '',
-              item_name: r['Item Name'] || r.Item || r['ITEM NAME'] || r['ITEM'] || '',
-              description: r['Item Description'] || r.Description || r['ITEM DESCRIPTION'] || r['DESCRIPTION'] || '',
-              uom: r.UOM || r.uom || '',
-              supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY'] || r['SUPPLY QTY']),
-              supply_rate: cleanNum(r['Supply Rate'] || r['SUPPLY RATE']),
-              supply_gst_rate: cleanNum(r['Supply GST'] || r['SUPPLY GST'] || r['Supply GST%']) || 0,
-              service_qty: cleanNum(r['Service Qty'] || r['Service QTY'] || r['SERVICE QTY']),
-              service_rate: cleanNum(r['Service Rate'] || r['SERVICE RATE']),
-              service_gst_rate: cleanNum(r['Service GST'] || r['SERVICE GST'] || r['Service GST%']) || 0
+              package_name: r.Package || r['Package Name (*)'] || r['PACKAGE (*)'] || r['PACKAGE NAME (*)'] || '',
+              heading: r.Heading || r.HEADING['(*)'] || '',
+              sub_heading: r['Sub Heading (Optional)'] || r['Sub Heading'] || r['SUB HEADING'] || '',
+              item_name: r['Item Name (*)'] || r.Item || r['ITEM NAME'] || r['ITEM'] || '',
+              description: r['Item Description (Optional)'] || r.Description || r['ITEM DESCRIPTION'] || r['DESCRIPTION'] || '',
+              uom: r.UOM || r.uom['(*)'] || '',
+              supply_qty: cleanNum(r['Supply Qty (*)'] || r['Supply QTY'] || r['SUPPLY QTY']),
+              supply_rate: cleanNum(r['Supply Rate (*)'] || r['SUPPLY RATE']),
+              supply_gst_rate: cleanNum(r['Supply GST (*)'] || r['SUPPLY GST'] || r['Supply GST%']) || 0,
+              service_qty: cleanNum(r['Service Qty (*)'] || r['Service QTY'] || r['SERVICE QTY']),
+              service_rate: cleanNum(r['Service Rate (*)'] || r['SERVICE RATE']),
+              service_gst_rate: cleanNum(r['Service GST (*)'] || r['SERVICE GST'] || r['Service GST%']) || 0
             });
           });
 
@@ -845,7 +887,11 @@ export default function NewPO() {
         subtotal,
         gst_total,
         grand_total,
-        items
+        items,
+        project_spoc_name: basicDetails.projectSpocName.trim(),
+        project_spoc_email: basicDetails.projectSpocEmail.trim(),
+        project_spoc_phone: basicDetails.projectSpocPhone.trim(),
+        need_sales_invoice_approval: basicDetails.needSalesInvoiceApproval
       };
 
       await axios.post('/api/pos', payload, { headers });
@@ -1006,7 +1052,7 @@ export default function NewPO() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Sales Order Number</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Sales Order Number(User Input - Enter the PO/WO Number by the Customer)</label>
                   <input
                     name="poNumber"
                     value={basicDetails.poNumber}
@@ -1016,7 +1062,10 @@ export default function NewPO() {
                   />
                   {poError && <p style={{ color: '#EF4444', fontSize: '0.7rem', marginTop: '4px', fontWeight: 600 }}>{poError}</p>}
                 </div>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginTop: '6px', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px' }}>Customer SPOC</div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginTop: '6px', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Customer SPOC</span>
+                  <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(Primary SPOC from Location — Edit under Customer/Location Master)</span>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Name <span style={{ color: 'red' }}>*</span></label>
@@ -1027,6 +1076,67 @@ export default function NewPO() {
                     <input name="contactPhone" value={basicDetails.contactPhone} onChange={handleBasicChange} placeholder="Primary Phone" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
                   </div>
                 </div>
+
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginTop: '12px', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Project SPOC</span>
+                  <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(From Master or Customer Address — Edit under Master or Customer Address)</span>
+                </div>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Name <span style={{ color: 'red' }}>*</span></label>
+                    <select
+                      name="projectSpocName"
+                      value={basicDetails.projectSpocName || ''}
+                      onChange={handleBasicChange}
+                      className="compact-form-input-text"
+                      style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px', background: 'white' }}
+                    >
+                      <option value="">Select Project SPOC</option>
+                      {projectUsers.map(user => (
+                        <option key={user.id} value={user.full_name}>{user.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Email ID <span style={{ color: 'red' }}>*</span></label>
+                      <input name="projectSpocEmail" type="email" value={basicDetails.projectSpocEmail} onChange={handleBasicChange} placeholder="Project SPOC Email ID" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
+                      <input name="projectSpocPhone" value={basicDetails.projectSpocPhone} onChange={handleBasicChange} placeholder="Project SPOC Contact Number" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginTop: '12px', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Attach Invoice with DC? (Select "No" if Sales has to request for Invoice) <span style={{ color: 'red' }}>*</span></span>
+                </div>
+                <div style={{ display: 'flex', gap: '24px', marginTop: '6px', marginBottom: '6px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="needSalesInvoiceApproval"
+                      value="yes"
+                      checked={basicDetails.needSalesInvoiceApproval === 'yes'}
+                      onChange={(e) => setBasicDetails(prev => ({ ...prev, needSalesInvoiceApproval: e.target.value }))}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    Yes
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="needSalesInvoiceApproval"
+                      value="no"
+                      checked={basicDetails.needSalesInvoiceApproval === 'no'}
+                      onChange={(e) => setBasicDetails(prev => ({ ...prev, needSalesInvoiceApproval: e.target.value }))}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    No
+                  </label>
+                </div>
+
                 <div style={{ display: 'grid', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Sales Order Date</label>

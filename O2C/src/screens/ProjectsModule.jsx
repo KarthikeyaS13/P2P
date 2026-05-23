@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { useAuth } from '../context/AuthContext';
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,6 +11,7 @@ import {
 } from '@tanstack/react-table';
 
 export default function ProjectsModule() {
+  const { user } = useAuth();
   const [view, setView] = useState('list');
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,8 +73,8 @@ export default function ProjectsModule() {
       });
       setItemStates(initialItems);
 
-      setReceivedBy('');
-      setPhone('');
+      setReceivedBy(user?.full_name || '');
+      setPhone(user?.phone || '');
       setDesignation('');
       setSiteRemarks('');
     } catch (err) {
@@ -84,8 +86,8 @@ export default function ProjectsModule() {
   };
 
   const handleConfirmDelivery = async () => {
-    if (!receivedBy || !phone || !designation) {
-      Swal.fire({ icon: 'warning', title: 'Missing Info', text: 'Receiver name, phone and designation are mandatory.' });
+    if (!receivedBy || !phone) {
+      Swal.fire({ icon: 'warning', title: 'Missing Info', text: 'Receiver name and phone are mandatory.' });
       return;
     }
 
@@ -323,23 +325,26 @@ export default function ProjectsModule() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontSize: '13px', color: '#4B5563', marginBottom: '2px', display: 'block' }}>Received By *</label>
-                    <input className="form-input" value={receivedBy} onChange={e => setReceivedBy(e.target.value)} placeholder="Full Name" style={{ height: '28px', fontSize: '11px', padding: '0 6px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box' }} />
+                    <input
+                      className="form-input"
+                      value={receivedBy}
+                      readOnly
+                      placeholder="Full Name"
+                      style={{ height: '28px', fontSize: '11px', padding: '0 6px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box', background: '#F3F4F6', color: '#6B7280', cursor: 'not-allowed' }}
+                    />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontSize: '13px', color: '#4B5563', marginBottom: '2px', display: 'block' }}>Receiver Phone *</label>
                     <input
                       className="form-input"
                       value={phone}
-                      onChange={e => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                        setPhone(val);
-                      }}
+                      readOnly
                       placeholder="10-digit Mobile No"
-                      style={{ height: '28px', fontSize: '11px', padding: '0 6px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box' }}
+                      style={{ height: '28px', fontSize: '11px', padding: '0 6px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box', background: '#F3F4F6', color: '#6B7280', cursor: 'not-allowed' }}
                     />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '13px', color: '#4B5563', marginBottom: '2px', display: 'block' }}>Designation *</label>
+                    <label className="form-label" style={{ fontSize: '13px', color: '#4B5563', marginBottom: '2px', display: 'block' }}>Designation</label>
                     <input className="form-input" value={designation} onChange={e => setDesignation(e.target.value)} placeholder="e.g. Site Engineer" style={{ height: '28px', fontSize: '11px', padding: '0 6px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box' }} />
                   </div>
                 </div>

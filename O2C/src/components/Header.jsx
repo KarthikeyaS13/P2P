@@ -72,7 +72,7 @@ export default function Header() {
   return (
     <header className="app-header">
       <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-        <span className="app-header__brand">O2C Command Center</span>
+        <span className="app-header__brand">Order To Cash</span>
       </div>
       <div className="app-header__actions">
         <div className="search-container" ref={searchRef} style={{ position: 'relative' }}>

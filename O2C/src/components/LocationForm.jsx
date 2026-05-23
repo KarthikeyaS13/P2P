@@ -208,9 +208,9 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>
             <h3 style={{ color: '#1F2937', margin: 0 }}>Address</h3>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600, color: '#2563EB' }}>
-              <input 
-                type="checkbox" 
-                checked={form.is_corporate_address} 
+              <input
+                type="checkbox"
+                checked={form.is_corporate_address}
                 onChange={handleAddressToggle}
                 style={{ width: '16px', height: '16px' }}
               />
@@ -220,60 +220,60 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
           <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '32px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 1 *</label>
-              <input 
-                name="address_line1" 
-                value={form.address_line1} 
-                onChange={handleChange} 
-                required 
+              <input
+                name="address_line1"
+                value={form.address_line1}
+                onChange={handleChange}
+                required
                 disabled={form.is_corporate_address}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
               />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 2</label>
-              <input 
-                name="address_line2" 
-                value={form.address_line2} 
-                onChange={handleChange} 
+              <input
+                name="address_line2"
+                value={form.address_line2}
+                onChange={handleChange}
                 disabled={form.is_corporate_address}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
               />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 3</label>
-              <input 
-                name="address_line3" 
-                value={form.address_line3} 
-                onChange={handleChange} 
+              <input
+                name="address_line3"
+                value={form.address_line3}
+                onChange={handleChange}
                 disabled={form.is_corporate_address}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
               />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>City *</label>
               {isCustomCity ? (
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <input 
-                    name="city" 
-                    value={form.city} 
-                    onChange={handleChange} 
+                  <input
+                    name="city"
+                    value={form.city}
+                    onChange={handleChange}
                     placeholder="Enter city name"
-                    required 
+                    required
                     disabled={form.is_corporate_address}
-                    style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+                    style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setIsCustomCity(false)}
                     disabled={form.is_corporate_address}
-                    style={{ 
-                      padding: '10px 14px', 
-                      background: '#EFF6FF', 
-                      color: '#1D4ED8', 
-                      border: '1px solid #BFDBFE', 
-                      borderRadius: '8px', 
-                      cursor: form.is_corporate_address ? 'not-allowed' : 'pointer', 
-                      fontSize: '13px', 
+                    style={{
+                      padding: '10px 14px',
+                      background: '#EFF6FF',
+                      color: '#1D4ED8',
+                      border: '1px solid #BFDBFE',
+                      borderRadius: '8px',
+                      cursor: form.is_corporate_address ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
                       fontWeight: 600,
                       display: 'flex',
                       alignItems: 'center',
@@ -285,15 +285,15 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
                   </button>
                 </div>
               ) : (
-                <CustomCitySelect 
-                  value={form.city} 
+                <CustomCitySelect
+                  value={form.city}
                   onChange={(cityName, stateName) => {
                     setForm(prev => ({
                       ...prev,
                       city: cityName,
                       state: stateName || prev.state
                     }));
-                  }} 
+                  }}
                   onSelectOther={() => {
                     setIsCustomCity(true);
                     setForm(prev => ({ ...prev, city: '' }));
@@ -304,21 +304,21 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>State *</label>
-              <CustomStateSelect 
-                value={form.state} 
-                onChange={handleChange} 
+              <CustomStateSelect
+                value={form.state}
+                onChange={handleChange}
                 disabled={form.is_corporate_address}
               />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Pincode *</label>
-              <input 
-                name="pincode" 
-                value={form.pincode} 
-                onChange={handleChange} 
-                required 
+              <input
+                name="pincode"
+                value={form.pincode}
+                onChange={handleChange}
+                required
                 disabled={form.is_corporate_address}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }} 
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
               />
             </div>
 
@@ -326,7 +326,7 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>
-            <h3 style={{ color: '#1F2937', margin: 0 }}>Site Contacts</h3>
+            <h3 style={{ color: '#1F2937', margin: 0 }}>Customer Site Contact(mandatory)</h3>
             {!showSpoc2 && (
               <button
                 type="button"

@@ -14,12 +14,11 @@ export default function Sidebar() {
     routes.push({ path: '/dashboard', label: 'Dashboard', icon: 'dashboard' });
   }
 
-
   if (role === 'admin') {
     routes = routes.concat([
       { path: '/customers', label: 'Customers', icon: 'group' },
-      { path: '/master-address', label: 'Master Address', icon: 'location_on' },
-      { path: '/po-flow', label: 'Sales Order Flow Management', icon: 'account_tree' },
+      { path: '/project-users', label: 'Project User Management', icon: 'manage_accounts' },
+      { path: '/po-flow', label: 'Status of Sales Order', icon: 'account_tree' },
     ]);
   } else if (role === 'sales') {
     routes = routes.concat([
@@ -58,7 +57,25 @@ export default function Sidebar() {
   return (
     <nav className="sidebar">
       <div className="sidebar__brand">
-        <div className="header__user" style={{ marginTop: '0', marginBottom: '16px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }} data-tooltip={user ? `${user.full_name} (${user.role})` : 'User Profile'}>
+        <div
+          className="header__user"
+          onClick={() => { if (role === 'admin') navigate('/master-address'); }}
+          style={{
+            marginTop: '0',
+            marginBottom: '16px',
+            textAlign: 'left',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            cursor: role === 'admin' ? 'pointer' : 'default',
+            padding: '6px 8px',
+            borderRadius: '8px',
+            transition: 'background 0.2s'
+          }}
+          onMouseEnter={(e) => { if (role === 'admin') e.currentTarget.style.background = '#F3F4F6'; }}
+          onMouseLeave={(e) => { if (role === 'admin') e.currentTarget.style.background = 'transparent'; }}
+          data-tooltip={user && role === 'admin' ? 'View My Profile' : (user ? `${user.full_name} (${user.role})` : 'User Profile')}
+        >
           <div className="avatar-initials avatar-initials--primary">
             {user ? user.full_name?.charAt(0).toUpperCase() : 'U'}
           </div>

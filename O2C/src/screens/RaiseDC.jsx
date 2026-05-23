@@ -37,6 +37,8 @@ export default function RaiseDC() {
   const [hiddenData, setHiddenData] = useState(null); // { type: 'dc'|'invoice', data: any }
   const [isDownloadingSilent, setIsDownloadingSilent] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [projectUsers, setProjectUsers] = useState([]);
+  const [selectedProjectSpocEmail, setSelectedProjectSpocEmail] = useState('');
 
 
   useEffect(() => {
@@ -108,6 +110,14 @@ export default function RaiseDC() {
       // 2. Load Generated DCs for Tracking
       const dcRes = await axios.get('/api/dc', { headers });
       setTrackingDCs(dcRes.data);
+
+      // 3. Load Project Users
+      try {
+        const puRes = await axios.get('/api/project-users', { headers });
+        setProjectUsers(Array.isArray(puRes.data) ? puRes.data : []);
+      } catch (errProject) {
+        console.error('Failed to fetch project users', errProject);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -137,6 +147,7 @@ export default function RaiseDC() {
 
       if (!res || !res.data) throw new Error('Data not found');
       setDetails(res.data);
+      setSelectedProjectSpocEmail(res.data.email_to_project || res.data.project_spoc_email || '');
 
       // Initialize HSNs
       const hsns = {};
@@ -227,6 +238,43 @@ export default function RaiseDC() {
 
   const handleRaiseDC = () => {
     if (!details) return;
+
+    // Validate HSN codes are provided when need_sales_invoice_approval is 'no'
+    if (details?.need_sales_invoice_approval === 'no') {
+      const missingHSN = details.items.some(it => {
+        const val = itemHSNs[it.line_item_id || it.id];
+        return !val || !val.trim();
+      });
+      if (missingHSN) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'HSN Entry Required',
+          text: 'Since auto-invoice generation is enabled for this PO, HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
+        });
+        return;
+      }
+    }
+
+    // Validate HSN pattern: 4digits-2digits-2digits (e.g. 1234-56-78)
+    const invalidHSNPattern = details.items.some(it => {
+      const val = itemHSNs[it.line_item_id || it.id] || '';
+      const isMandatory = details?.need_sales_invoice_approval === 'no';
+      if (isMandatory) {
+        return !/^\d{4}-\d{2}-\d{2}$/.test(val);
+      } else {
+        return val.trim() !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(val);
+      }
+    });
+
+    if (invalidHSNPattern) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid HSN Format',
+        text: 'All HSN entries must follow the 4digits-2digits-2digits pattern (e.g., 1234-56-78).'
+      });
+      return;
+    }
+
     setShowPreview(true);
   };
 
@@ -287,6 +335,42 @@ export default function RaiseDC() {
       return;
     }
 
+    // Validate HSN codes are provided when need_sales_invoice_approval is 'no'
+    if (details?.need_sales_invoice_approval === 'no') {
+      const missingHSN = details.items.some(it => {
+        const val = itemHSNs[it.line_item_id || it.id];
+        return !val || !val.trim();
+      });
+      if (missingHSN) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'HSN Entry Required',
+          text: 'Since auto-invoice generation is enabled for this PO, HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
+        });
+        return;
+      }
+    }
+
+    // Validate HSN pattern: 4digits-2digits-2digits (e.g. 1234-56-78)
+    const invalidHSNPattern = details.items.some(it => {
+      const val = itemHSNs[it.line_item_id || it.id] || '';
+      const isMandatory = details?.need_sales_invoice_approval === 'no';
+      if (isMandatory) {
+        return !/^\d{4}-\d{2}-\d{2}$/.test(val);
+      } else {
+        return val.trim() !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(val);
+      }
+    });
+
+    if (invalidHSNPattern) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid HSN Format',
+        text: 'All HSN entries must follow the 4digits-2digits-2digits pattern (e.g., 1234-56-78).'
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const token = sessionStorage.getItem('token');
@@ -299,12 +383,13 @@ export default function RaiseDC() {
         dispatchFrom: (dispatchFrom.line1 || dispatchFrom.line2 || dispatchFrom.pin) ? dispatchFrom : null,
         dispatchTo: dispatchTo.enabled ? dispatchTo : null,
         itemHSNs,
-        signature: signatureData
+        signature: signatureData,
+        email_to_project: selectedProjectSpocEmail
       };
 
       const res = await axios.post(`/api/dc-requests/${details.id}/raise`, payload, { headers });
 
-      Swal.fire({ icon: 'success', title: 'DC Raised', text: `Delivery Challan ${res.data.dc_number} raised successfully!`, timer: 2000, showConfirmButton: false });
+      Swal.fire({ icon: 'success', title: 'DC Request Raised', text: `Delivery Challan ${res.data.dc_number} raised successfully!`, timer: 2000, showConfirmButton: false });
       setShowPreview(false);
       navigate('/raise-dc');
       fetchData();
@@ -459,7 +544,14 @@ export default function RaiseDC() {
   });
 
   const handleHSNChange = (id, val) => {
-    setItemHSNs(prev => ({ ...prev, [id]: val }));
+    const numeric = val.replace(/\D/g, '').slice(0, 8);
+    let formatted = numeric;
+    if (numeric.length > 6) {
+      formatted = `${numeric.slice(0, 4)}-${numeric.slice(4, 6)}-${numeric.slice(6)}`;
+    } else if (numeric.length > 4) {
+      formatted = `${numeric.slice(0, 4)}-${numeric.slice(4)}`;
+    }
+    setItemHSNs(prev => ({ ...prev, [id]: formatted }));
   };
 
   if (view === 'detail') {
@@ -671,6 +763,40 @@ export default function RaiseDC() {
                     </div>
                   )}
                 </div>
+                <div className="card" style={{ padding: '16px', background: 'white', border: '1px solid #E5E7EB' }}>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', color: '#475569' }}>
+                    Email to Proxy
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
+                      Select Project Manager / Project SPOC
+                    </label>
+                    <select
+                      className="input-field"
+                      value={selectedProjectSpocEmail}
+                      onChange={e => setSelectedProjectSpocEmail(e.target.value)}
+                      style={{ width: '100%', height: '38px' }}
+                    >
+                      <option value="">-- Select Project Manager --</option>
+                      {projectUsers.map(user => (
+                        <option key={user.id} value={user.email}>
+                          {user.full_name} ({user.email})
+                        </option>
+                      ))}
+                      {selectedProjectSpocEmail && !projectUsers.some(u => u.email === selectedProjectSpocEmail) && (
+                        <option value={selectedProjectSpocEmail}>
+                          {details?.project_spoc_name || 'Current Manager'} ({selectedProjectSpocEmail})
+                        </option>
+                      )}
+                    </select>
+                    <div style={{ marginTop: '8px', padding: '10px', background: '#F8FAFC', borderRadius: '4px', border: '1px solid #E2E8F0', fontSize: '11px', color: '#64748B' }}>
+                      <div style={{ fontWeight: 700, color: '#475569' }}>Active Proxy Email:</div>
+                      <div style={{ fontFamily: 'monospace', fontSize: '12px', marginTop: '2px' }}>
+                        {selectedProjectSpocEmail || 'None selected (No notification will be sent)'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -691,38 +817,52 @@ export default function RaiseDC() {
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>SL NO</th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>REFERENCE FROM PO</th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>PACKAGE</th>
-                          <th style={{ padding: '10px 12px', fontSize: '12px', background: '#b8cbf4ff' }}>HSN (ENTRY)</th>
+                          <th style={{ padding: '10px 12px', fontSize: '12px', background: '#b8cbf4ff', color: details?.need_sales_invoice_approval === 'no' ? '#D32F2F' : 'inherit' }}>
+                            {details?.need_sales_invoice_approval === 'no' ? 'HSN (ENTRY) *' : 'HSN (ENTRY)'}
+                          </th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>DESCRIPTION <span style={{ fontSize: '8px', color: '#4B5563' }}>(click to view description)</span></th>
                           <th style={{ padding: '10px 12px', fontSize: '12px', textAlign: 'right' }}>QTY (STORES REQ)</th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>UOM</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {details.items.map((it, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                            <td style={{ padding: '10px 12px', color: '#9CA3AF', fontSize: '13px' }}>{idx + 1}</td>
-                            <td style={{ padding: '10px 12px', fontWeight: 600, fontSize: '13px' }}>{it.ref_no || '-'}</td>
-                            <td style={{ padding: '10px 12px', fontSize: '13px' }}>{it.package_name || '-'}</td>
-                            <td style={{ padding: '6px 12px' }}>
-                              <input
-                                type="text"
-                                className="input-field"
-                                placeholder="Optional HSN"
-                                value={itemHSNs[it.line_item_id] || ''}
-                                onChange={e => handleHSNChange(it.line_item_id, e.target.value)}
-                                style={{ height: '26px', fontSize: '8px', width: '100px' }}
-                              />
-                            </td>
-                            <td
-                              style={{ padding: '10px 12px', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1F2937', cursor: 'pointer', fontSize: '13px' }}
-                              onClick={() => Swal.fire({ title: 'Item Description', text: it.description, icon: 'info' })}
-                            >
-                              {it.description}
-                            </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#2563EB', fontSize: '13px' }}>{it.qty}</td>
-                            <td style={{ padding: '10px 12px', fontSize: '13px' }}>{it.uom}</td>
-                          </tr>
-                        ))}
+                        {details.items.map((it, idx) => {
+                          const isHsnMandatory = details?.need_sales_invoice_approval === 'no';
+                          const hsnValue = itemHSNs[it.line_item_id] || '';
+                          const isMissingHsn = isHsnMandatory && !hsnValue.trim();
+                          return (
+                            <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                              <td style={{ padding: '10px 12px', color: '#9CA3AF', fontSize: '13px' }}>{idx + 1}</td>
+                              <td style={{ padding: '10px 12px', fontWeight: 600, fontSize: '13px' }}>{it.ref_no || '-'}</td>
+                              <td style={{ padding: '10px 12px', fontSize: '13px' }}>{it.package_name || '-'}</td>
+                              <td style={{ padding: '6px 12px' }}>
+                                <input
+                                  type="text"
+                                  className="input-field"
+                                  maxLength={10}
+                                  placeholder={isHsnMandatory ? "XXXX-XX-XX *" : "XXXX-XX-XX"}
+                                  value={hsnValue}
+                                  onChange={e => handleHSNChange(it.line_item_id, e.target.value)}
+                                  style={{
+                                    height: '26px',
+                                    fontSize: '9px',
+                                    width: '100px',
+                                    border: isMissingHsn ? '1px solid #EF4444' : undefined,
+                                    background: isMissingHsn ? '#FEF2F2' : undefined
+                                  }}
+                                />
+                              </td>
+                              <td
+                                style={{ padding: '10px 12px', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1F2937', cursor: 'pointer', fontSize: '13px' }}
+                                onClick={() => Swal.fire({ title: 'Item Description', text: it.description, icon: 'info' })}
+                              >
+                                {it.description}
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#2563EB', fontSize: '13px' }}>{it.qty}</td>
+                              <td style={{ padding: '10px 12px', fontSize: '13px' }}>{it.uom}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                       <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #E5E7EB' }}>
                         <tr>
@@ -836,11 +976,11 @@ export default function RaiseDC() {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <h1 style={{ margin: '0 0 10px 0', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', color: '#0F172A' }}>DELIVERY CHALLAN</h1>
-                      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '5px', fontSize: '14px' }}>
-                        <span style={{ fontWeight: 700 }}>Delivery Challan No :</span> <span style={{ fontWeight: 800 }}>{customDCNo || details.requested_dc_number || 'AUTO'}</span>
-                        <span style={{ fontWeight: 700 }}>Date :</span> <span>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                        <span style={{ fontWeight: 700 }}>PO Ref :</span> <span>{details.po_number}</span>
-                        <span style={{ fontWeight: 700 }}>Sales Order Date :</span> <span>{details.po_date ? new Date(details.po_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '5px', fontSize: '14px' }}>
+                        <span style={{ fontWeight: 700 }}>Delivery Challan No:</span> <span style={{ fontWeight: 800 }}>{customDCNo || details.requested_dc_number || 'AUTO'}</span>
+                        <span style={{ fontWeight: 700 }}>Date:</span> <span>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                        <span style={{ fontWeight: 700 }}>PO Ref:</span> <span>{details.po_number}</span>
+                        <span style={{ fontWeight: 700 }}>Sales Order Date:</span> <span>{details.po_date ? new Date(details.po_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}</span>
                       </div>
                     </div>
                   </div>
@@ -1255,11 +1395,11 @@ export default function RaiseDC() {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <h1 style={{ margin: '0 0 10px 0', fontSize: '24px', fontWeight: 900, letterSpacing: '2px', color: '#0F172A' }}>DELIVERY CHALLAN</h1>
-                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '5px', fontSize: '14px' }}>
-                    <span style={{ fontWeight: 700 }}>Delivery Challan No :</span> <span style={{ fontWeight: 800 }}>{hiddenData.data.dc_number || 'AUTO'}</span>
-                    <span style={{ fontWeight: 700 }}>Date :</span> <span>{new Date(hiddenData.data.issued_at || Date.now()).toLocaleDateString('en-GB')}</span>
-                    <span style={{ fontWeight: 700 }}>PO Ref :</span> <span>{hiddenData.data.po_no || hiddenData.data.po_number}</span>
-                    <span style={{ fontWeight: 700 }}>Sales Order Date :</span> <span>{hiddenData.data.po_date ? new Date(hiddenData.data.po_date).toLocaleDateString('en-GB') : '-'}</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '5px', fontSize: '14px' }}>
+                    <span style={{ fontWeight: 700 }}>Delivery Challan No:</span> <span style={{ fontWeight: 800 }}>{hiddenData.data.dc_number || 'AUTO'}</span>
+                    <span style={{ fontWeight: 700 }}>Date:</span> <span>{new Date(hiddenData.data.issued_at || Date.now()).toLocaleDateString('en-GB')}</span>
+                    <span style={{ fontWeight: 700 }}>PO Ref:</span> <span>{hiddenData.data.po_no || hiddenData.data.po_number}</span>
+                    <span style={{ fontWeight: 700 }}>Sales Order Date:</span> <span>{hiddenData.data.po_date ? new Date(hiddenData.data.po_date).toLocaleDateString('en-GB') : '-'}</span>
                   </div>
                 </div>
               </div>
