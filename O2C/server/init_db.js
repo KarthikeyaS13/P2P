@@ -32,13 +32,14 @@ const assignRole = db.prepare('INSERT OR IGNORE INTO user_roles (user_id, role_i
 
 const usersData = [
   { user: 'admin', name: 'System Admin', email: 'admin@o2c.local', role: 'admin' },
-  { user: 'sales', name: 'John Sales', email: 'john@o2c.local', role: 'sales' },
-  { user: 'accounts1', name: 'Jane Finance', email: 'jane@o2c.local', role: 'accounts' },
-  { user: 'stores1', name: 'Bob Logistics', email: 'bob@o2c.local', role: 'stores' },
+  { user: 'sales', name: 'John Sales', email: 'sales@o2c.local', role: 'sales' },
+  { user: 'accounts', name: 'Accounts Department', email: 'accounts@o2c.local', role: 'accounts' },
+  { user: 'stores', name: 'Stores Department', email: 'stores@o2c.local', role: 'stores' },
+  { user: 'projects', name: 'Projects Department', email: 'projects@o2c.local', role: 'projects' },
 ];
 
 usersData.forEach(u => {
-  const result = insertUser.run(u.user, u.name, u.email, 'hashed_password_mock');
+  const result = insertUser.run(u.user, u.name, u.email, 'qwe123');
   if (result.changes > 0) {
     const roleId = getRole.get(u.role).id;
     assignRole.run(result.lastInsertRowid, roleId);
