@@ -2863,6 +2863,14 @@ app.post('/api/dc-requests', authenticate, upload.single('proof'), (req, res) =>
       return res.status(400).json({ error: 'Missing required fields: po_id, location_id, or items' });
     }
 
+    if (!dispatch_from_line1 || !dispatch_from_line1.trim()) {
+      return res.status(400).json({ error: 'Dispatch source address Line 1 is mandatory.' });
+    }
+
+    if (!dispatch_from_pin || dispatch_from_pin.trim().length !== 6 || /\D/.test(dispatch_from_pin.trim())) {
+      return res.status(400).json({ error: 'Valid 6-digit numeric Pincode is mandatory.' });
+    }
+
     const lastDCR = db.prepare('SELECT dc_request_no FROM dc_requests ORDER BY id DESC LIMIT 1').get();
     let nextNum = 1;
     if (lastDCR && lastDCR.dc_request_no && lastDCR.dc_request_no.startsWith('DCR/')) {

@@ -228,6 +228,24 @@ export default function DCRequest() {
       return;
     }
 
+    if (!sourceAddress.line1?.trim()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Dispatch Source Address Required',
+        text: 'Please enter the Dispatch Source Address Line 1 before submitting the request.'
+      });
+      return;
+    }
+
+    if (!sourceAddress.pin?.trim() || sourceAddress.pin.trim().length !== 6) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Pincode',
+        text: 'Please enter a valid 6-digit Pincode before submitting the request.'
+      });
+      return;
+    }
+
     setSubmitting(true);
     const formData = new FormData();
     formData.append('po_id', selectedPOId);
@@ -625,7 +643,7 @@ export default function DCRequest() {
 
             <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: '6px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Dispatch Source</label>
+                <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>Dispatch Source <span style={{ color: '#EF4444' }}>*</span></label>
                 <select
                   className="form-select"
                   value={dispatchSource}
@@ -642,7 +660,7 @@ export default function DCRequest() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                 <input
                   className="form-input"
-                  placeholder="Addr Line 1"
+                  placeholder="Addr Line 1 *"
                   style={{ fontSize: '11px', height: '24px', padding: '0 6px', border: '1px solid #CBD5E1', borderRadius: '4px', background: dispatchSource !== 'manual' ? '#F1F5F9' : 'white', boxSizing: 'border-box', width: '100%' }}
                   value={sourceAddress.line1}
                   onChange={e => setSourceAddress({ ...sourceAddress, line1: e.target.value })}
@@ -658,10 +676,13 @@ export default function DCRequest() {
                 />
                 <input
                   className="form-input"
-                  placeholder="Pincode"
+                  placeholder="Pincode *"
                   style={{ fontSize: '11px', height: '24px', padding: '0 6px', border: '1px solid #CBD5E1', borderRadius: '4px', background: dispatchSource !== 'manual' ? '#F1F5F9' : 'white', boxSizing: 'border-box', width: '100%' }}
                   value={sourceAddress.pin}
-                  onChange={e => setSourceAddress({ ...sourceAddress, pin: e.target.value })}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setSourceAddress({ ...sourceAddress, pin: val });
+                  }}
                   readOnly={dispatchSource !== 'manual'}
                 />
                 <input
@@ -692,6 +713,22 @@ export default function DCRequest() {
                   icon: 'warning',
                   title: 'Logistics Details Required',
                   text: 'Please enter Vehicle Number, Driver Name, and Driver Phone before reviewing the request.'
+                });
+                return;
+              }
+              if (!sourceAddress.line1?.trim()) {
+                Swal.fire({
+                  icon: 'warning',
+                  title: 'Dispatch Source Address Required',
+                  text: 'Please enter the Dispatch Source Address Line 1 before reviewing the request.'
+                });
+                return;
+              }
+              if (!sourceAddress.pin?.trim() || sourceAddress.pin.trim().length !== 6) {
+                Swal.fire({
+                  icon: 'warning',
+                  title: 'Invalid Pincode',
+                  text: 'Please enter a valid 6-digit Pincode before reviewing the request.'
                 });
                 return;
               }
