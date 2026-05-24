@@ -185,6 +185,17 @@ try {
 } catch (e) {
   // Column already exists, safe to ignore
 }
+// Database Column Healing: Ensure customer_location_id exists
+try {
+  db.prepare(`
+    ALTER TABLE delivery_challans
+    ADD COLUMN customer_location_id INTEGER
+  `).run();
+
+  console.log("Database Healed: Added customer_location_id column.");
+} catch (e) {
+  // Column already exists
+}
 
 // Ensure all invoices have internal_document_uuid
 try {
