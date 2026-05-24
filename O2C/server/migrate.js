@@ -130,10 +130,10 @@ const getRole   = db.prepare('SELECT id FROM roles WHERE name = ?');
 const assignRole = db.prepare('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)');
 
 const newUsers = [
-  { user: 'stores1',     name: 'Bob Stores',      email: 'stores@o2c.local',     role: 'stores' },
-  { user: 'accounts1',   name: 'Jane Accounts',   email: 'accounts@o2c.local',   role: 'accounts' },
-  { user: 'mgmt1',       name: 'Tom Management',  email: 'mgmt@o2c.local',       role: 'management' },
-  { user: 'audit1',      name: 'Audit User',      email: 'audit@o2c.local',      role: 'auditor' },
+  { user: 'stores',      name: 'Stores Department',   email: 'stores@o2c.local',     role: 'stores' },
+  { user: 'accounts',    name: 'Accounts Department', email: 'accounts@o2c.local',   role: 'accounts' },
+  { user: 'mgmt1',       name: 'Tom Management',      email: 'mgmt@o2c.local',       role: 'management' },
+  { user: 'audit1',      name: 'Audit User',          email: 'audit@o2c.local',      role: 'auditor' },
 ];
 
 // Ensure roles exist

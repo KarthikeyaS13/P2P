@@ -69,13 +69,10 @@ try {
     
     const usersData = [
       { username: 'admin', full_name: 'System Admin', email: 'admin@o2c.local', phone: null, role: 'admin' },
-      { username: 'sales', full_name: 'John Sales', email: 'john@o2c.local', phone: null, role: 'sales' },
+      { username: 'sales', full_name: 'John Sales', email: 'sales@o2c.local', phone: null, role: 'sales' },
       { username: 'accounts', full_name: 'Accounts Department', email: 'accounts@o2c.local', phone: null, role: 'accounts' },
-      { username: 'accounts1', full_name: 'Jane Finance', email: 'jane@o2c.local', phone: null, role: 'accounts' },
       { username: 'stores', full_name: 'Stores Department', email: 'stores@o2c.local', phone: null, role: 'stores' },
-      { username: 'stores1', full_name: 'Bob Logistics', email: 'bob@o2c.local', phone: null, role: 'stores' },
-      { username: 'projects', full_name: 'Projects Team', email: 'projects1@yopmail.com', phone: '9876543210', role: 'projects' },
-      { username: 'projects2', full_name: 'Projects Team 2', email: 'projects2@yopmail.com', phone: '8765432109', role: 'projects' },
+      { username: 'projects', full_name: 'Projects Department', email: 'projects@o2c.local', phone: null, role: 'projects' },
       { username: 'mgmt1', full_name: 'Tom Management', email: 'tom@o2c.local', phone: null, role: 'management' },
       { username: 'audit1', full_name: 'Audit User', email: 'audit@o2c.local', phone: null, role: 'auditor' },
       { username: 'emailkarthikeya', full_name: 'Karthikeya S', email: 'karthikeya@o2c.local', phone: null, role: 'admin' }
