@@ -255,6 +255,7 @@ CREATE TABLE IF NOT EXISTS delivery_challans (
   transporter_name TEXT,
   remarks TEXT,
   status TEXT DEFAULT 'raised',
+  email_to_project TEXT,
   created_by INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   manual_dc_number TEXT,
