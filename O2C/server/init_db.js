@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
+const bcrypt = require('bcryptjs');
 
 const dbPath = path.join(__dirname, 'database.sqlite');
 
@@ -29,6 +30,7 @@ roles.forEach(role => insertRole.run(role));
 // 2. Users
 const insertUser = db.prepare('INSERT OR IGNORE INTO users (username, full_name, email, password_hash) VALUES (?, ?, ?, ?)');
 const assignRole = db.prepare('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)');
+const hashedPassword = bcrypt.hashSync('qwe123', 10);
 
 const usersData = [
   { user: 'admin', name: 'System Admin', email: 'admin@o2c.local', role: 'admin' },
@@ -39,7 +41,7 @@ const usersData = [
 ];
 
 usersData.forEach(u => {
-  const result = insertUser.run(u.user, u.name, u.email, 'qwe123');
+  const result = insertUser.run(u.user, u.name, u.email, hashedPassword);
   if (result.changes > 0) {
     const roleId = getRole.get(u.role).id;
     assignRole.run(result.lastInsertRowid, roleId);
