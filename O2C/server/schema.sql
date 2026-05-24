@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS po_version_history (
 -- Section 3: Delivery Challan Tables
 CREATE TABLE IF NOT EXISTS dc_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  request_number TEXT UNIQUE,
+  dc_request_no TEXT UNIQUE,
   po_id INTEGER,
   delivery_location_id INTEGER,
   requested_dispatch_date DATE,

@@ -178,6 +178,14 @@ migrations.forEach(sql => {
   } catch (e) { }
 });
 
+// Database Column Healing: Ensure dc_request_no column exists in dc_requests
+try {
+  db.prepare("ALTER TABLE dc_requests ADD COLUMN dc_request_no TEXT").run();
+  console.log("Database Healed: Added missing dc_request_no column to dc_requests.");
+} catch (e) {
+  // Column already exists, safe to ignore
+}
+
 // Ensure all invoices have internal_document_uuid
 try {
   const unsetInvs = db.prepare("SELECT id FROM invoices WHERE internal_document_uuid IS NULL OR internal_document_uuid = ''").all();
