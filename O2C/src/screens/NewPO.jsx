@@ -421,10 +421,10 @@ export default function NewPO() {
       uom: r.uom,
       supply_qty: cleanNum(r.supply_qty),
       supply_rate: cleanNum(r.supply_rate),
-      supply_gst_rate: cleanNum(r.supply_gst_rate) || 0,
+      supply_gst_rate: cleanGst(r.supply_gst_rate) || 0,
       service_qty: cleanNum(r.service_qty),
       service_rate: cleanNum(r.service_rate),
-      service_gst_rate: cleanNum(r.service_gst_rate) || 0
+      service_gst_rate: cleanGst(r.service_gst_rate) || 0
     }));
 
     setItems(prev => [...prev, ...newItems]);
@@ -499,10 +499,10 @@ export default function NewPO() {
             uom: r[`col${6 + offset}`] || '',
             supply_qty: cleanNum(r[`col${7 + offset}`]),
             supply_rate: cleanNum(r[`col${8 + offset}`]),
-            supply_gst_rate: cleanNum(r[`col${9 + offset}`]) || 0,
+            supply_gst_rate: cleanGst(r[`col${9 + offset}`]) || 0,
             service_qty: cleanNum(r[`col${10 + offset}`]),
             service_rate: cleanNum(r[`col${11 + offset}`]),
-            service_gst_rate: cleanNum(r[`col${12 + offset}`]) || 0
+            service_gst_rate: cleanGst(r[`col${12 + offset}`]) || 0
           };
         } else {
           data = {
@@ -515,10 +515,10 @@ export default function NewPO() {
             uom: r.UOM || r.uom || '',
             supply_qty: cleanNum(r['Supply Qty'] || r['Supply QTY'] || r['SUPPLY QTY']),
             supply_rate: cleanNum(r['Supply Rate'] || r['SUPPLY RATE']),
-            supply_gst_rate: cleanNum(r['Supply GST'] || r['SUPPLY GST'] || r['Supply GST%']) || 0,
+            supply_gst_rate: cleanGst(r['Supply GST'] || r['SUPPLY GST'] || r['Supply GST%']) || 0,
             service_qty: cleanNum(r['Service Qty'] || r['Service QTY'] || r['SERVICE QTY']),
             service_rate: cleanNum(r['Service Rate'] || r['SERVICE RATE']),
-            service_gst_rate: cleanNum(r['Service GST'] || r['SERVICE GST'] || r['Service GST%']) || 0
+            service_gst_rate: cleanGst(r['Service GST'] || r['SERVICE GST'] || r['Service GST%']) || 0
           };
         }
         return calculateRow({
@@ -614,13 +614,38 @@ export default function NewPO() {
     });
   };
 
+  const cleanNum = (val) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    return parseFloat(String(val).replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0;
+  };
+
+  const cleanGst = (val) => {
+    if (typeof val === 'number') {
+      if (val > 0 && val <= 1) {
+        return val * 100;
+      }
+      return val;
+    }
+    if (!val) return 0;
+    let cleaned = String(val).replace(/,/g, '').trim();
+    if (cleaned.endsWith('%')) {
+      return parseFloat(cleaned.replace('%', '')) || 0;
+    }
+    let parsed = parseFloat(cleaned.replace(/[^\d.-]/g, '')) || 0;
+    if (parsed > 0 && parsed <= 1) {
+      return parsed * 100;
+    }
+    return parsed;
+  };
+
   const calculateRow = (row) => {
     let s_qty = parseFloat(row.supply_qty) || 0;
     let s_rate = parseFloat(row.supply_rate) || 0;
-    let s_gst_pct = parseFloat(row.supply_gst_rate) || 0;
+    let s_gst_pct = cleanGst(row.supply_gst_rate);
     let sv_qty = parseFloat(row.service_qty) || 0;
     let sv_rate = parseFloat(row.service_rate) || 0;
-    let sv_gst_pct = parseFloat(row.service_gst_rate) || 0;
+    let sv_gst_pct = cleanGst(row.service_gst_rate);
 
     // GST validation logic: If either Qty or Rate is 0, GST is NA (0)
     if (s_qty === 0 || s_rate === 0) {
@@ -660,12 +685,6 @@ export default function NewPO() {
       total_gst,
       total_invoice
     };
-  };
-
-  const cleanNum = (val) => {
-    if (typeof val === 'number') return val;
-    if (!val) return 0;
-    return parseFloat(String(val).replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0;
   };
 
   const handleManualEntry = () => {
@@ -783,10 +802,10 @@ export default function NewPO() {
                 uom: r[`col${6 + offset}`] || '',
                 supply_qty: cleanNum(r[`col${7 + offset}`]),
                 supply_rate: cleanNum(r[`col${8 + offset}`]),
-                supply_gst_rate: cleanNum(r[`col${9 + offset}`]) || 0,
+                supply_gst_rate: cleanGst(r[`col${9 + offset}`]) || 0,
                 service_qty: cleanNum(r[`col${10 + offset}`]),
                 service_rate: cleanNum(r[`col${11 + offset}`]),
-                service_gst_rate: cleanNum(r[`col${12 + offset}`]) || 0
+                service_gst_rate: cleanGst(r[`col${12 + offset}`]) || 0
               });
             }
             return calculateRow({
@@ -800,10 +819,10 @@ export default function NewPO() {
               uom: r.UOM || r.uom['(*)'] || '',
               supply_qty: cleanNum(r['Supply Qty (*)'] || r['Supply QTY'] || r['SUPPLY QTY']),
               supply_rate: cleanNum(r['Supply Rate (*)'] || r['SUPPLY RATE']),
-              supply_gst_rate: cleanNum(r['Supply GST (*)'] || r['SUPPLY GST'] || r['Supply GST%']) || 0,
+              supply_gst_rate: cleanGst(r['Supply GST (*)'] || r['SUPPLY GST'] || r['Supply GST%']) || 0,
               service_qty: cleanNum(r['Service Qty (*)'] || r['Service QTY'] || r['SERVICE QTY']),
               service_rate: cleanNum(r['Service Rate (*)'] || r['SERVICE RATE']),
-              service_gst_rate: cleanNum(r['Service GST (*)'] || r['SERVICE GST'] || r['Service GST%']) || 0
+              service_gst_rate: cleanGst(r['Service GST (*)'] || r['SERVICE GST'] || r['Service GST%']) || 0
             });
           });
 
@@ -847,8 +866,8 @@ export default function NewPO() {
         }
 
         if (supplyActive) {
-          if (s_qty === 0 || s_rate === 0) {
-            return Swal.fire({ icon: 'error', title: 'Supply Incomplete', text: `Both Qty and Rate must be non-zero for Supply in "${heading}".` });
+          if (s_rate === 0) {
+            return Swal.fire({ icon: 'error', title: 'Supply Incomplete', text: `Rate must be non-zero for Supply in "${heading}".` });
           }
           if (it.supply_gst_rate === '' || it.supply_gst_rate === null || it.supply_gst_rate === undefined) {
             return Swal.fire({ icon: 'error', title: 'GST Mandatory', text: `Please select Supply GST for "${heading}".` });
@@ -856,10 +875,11 @@ export default function NewPO() {
         }
 
         if (serviceActive) {
-          if (sv_qty > 0) {
-            if (it.service_gst_rate === '' || it.service_gst_rate === null || it.service_gst_rate === undefined) {
-              return Swal.fire({ icon: 'error', title: 'GST Mandatory', text: `Please select Service GST for "${heading}".` });
-            }
+          if (sv_rate === 0) {
+            return Swal.fire({ icon: 'error', title: 'Service Incomplete', text: `Rate must be non-zero for Service in "${heading}".` });
+          }
+          if (it.service_gst_rate === '' || it.service_gst_rate === null || it.service_gst_rate === undefined) {
+            return Swal.fire({ icon: 'error', title: 'GST Mandatory', text: `Please select Service GST for "${heading}".` });
           }
         }
       }
