@@ -1043,7 +1043,7 @@ export default function RaiseDC() {
                         <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>Reference from PO</th>
                         <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>Package</th>
                         <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>HSN</th>
-                        <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>Description</th>
+                        <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left', borderRight: '1px solid #000' }}>Item Name</th>
                         <th style={{ padding: '8px', fontSize: '13px', textAlign: 'right', borderRight: '1px solid #000' }}>Qty</th>
                         <th style={{ padding: '8px', fontSize: '13px', textAlign: 'left' }}>UoM</th>
                       </tr>
@@ -1055,7 +1055,7 @@ export default function RaiseDC() {
                           <td style={{ padding: '8px', fontSize: '13px', borderRight: '1px solid #000' }}>{it.ref_no}</td>
                           <td style={{ padding: '8px', fontSize: '13px', borderRight: '1px solid #000' }}>{it.package_name}</td>
                           <td style={{ padding: '8px', fontSize: '13px', borderRight: '1px solid #000' }}>{itemHSNs[it.line_item_id] || '-'}</td>
-                          <td style={{ padding: '8px', fontSize: '12px', borderRight: '1px solid #000', maxWidth: '300px' }}>{it.description}</td>
+                          <td style={{ padding: '8px', fontSize: '12px', borderRight: '1px solid #000', maxWidth: '300px', fontWeight: 600 }}>{it.item_name}</td>
                           <td style={{ padding: '8px', fontSize: '13px', textAlign: 'right', borderRight: '1px solid #000', fontWeight: 700 }}>{it.qty}</td>
                           <td style={{ padding: '8px', fontSize: '13px' }}>{it.uom}</td>
                         </tr>
@@ -1440,7 +1440,7 @@ export default function RaiseDC() {
                     <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Reference from PO</th>
                     <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Package</th>
                     <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>HSN</th>
-                    <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Description</th>
+                    <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left', borderRight: '1px solid #000' }}>Item Name</th>
                     <th style={{ padding: '8px', fontSize: '11px', textAlign: 'right', borderRight: '1px solid #000' }}>Qty</th>
                     <th style={{ padding: '8px', fontSize: '11px', textAlign: 'left' }}>UoM</th>
                   </tr>
@@ -1452,7 +1452,7 @@ export default function RaiseDC() {
                       <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{it.ref_no || it.po_ref}</td>
                       <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{it.package_name}</td>
                       <td style={{ padding: '8px', fontSize: '11px', borderRight: '1px solid #000' }}>{it.hsn || '-'}</td>
-                      <td style={{ padding: '8px', fontSize: '10px', borderRight: '1px solid #000', maxWidth: '300px' }}>{it.description}</td>
+                      <td style={{ padding: '8px', fontSize: '10px', borderRight: '1px solid #000', maxWidth: '300px', fontWeight: 600 }}>{it.item_name}</td>
                       <td style={{ padding: '8px', fontSize: '11px', textAlign: 'right', borderRight: '1px solid #000', fontWeight: 700 }}>{it.qty}</td>
                       <td style={{ padding: '8px', fontSize: '11px' }}>{it.uom}</td>
                     </tr>
