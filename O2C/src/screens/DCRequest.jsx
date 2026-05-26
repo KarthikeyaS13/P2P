@@ -493,7 +493,7 @@ export default function DCRequest() {
             Logistics & DC Configuration
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Vehicle Number <span style={{ color: '#EF4444' }}>*</span></label>
               <input
@@ -524,6 +524,16 @@ export default function DCRequest() {
                   const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                   setLogistics({ ...logistics, driver_phone: val });
                 }}
+                style={{ height: '32px', fontSize: '13px', padding: '0 8px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Transporter Name <span style={{ color: '#94A3B8', fontWeight: 500 }}>(Optional)</span></label>
+              <input
+                className="form-input"
+                placeholder="e.g. DHL, Blue Dart"
+                value={transporter}
+                onChange={e => setTransporter(e.target.value)}
                 style={{ height: '32px', fontSize: '13px', padding: '0 8px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box' }}
               />
             </div>
@@ -876,7 +886,7 @@ export default function DCRequest() {
               <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                   <h4 style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#64748B', marginBottom: '8px' }}>Logistics Details</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                     <div>
                       <div style={{ fontSize: '9px', color: '#94A3B8' }}>Vehicle Number</div>
                       <div style={{ fontSize: '12px', fontWeight: 700 }}>{logistics.vehicle_no}</div>
@@ -884,6 +894,10 @@ export default function DCRequest() {
                     <div>
                       <div style={{ fontSize: '9px', color: '#94A3B8' }}>Driver Contact</div>
                       <div style={{ fontSize: '12px', fontWeight: 700 }}>{logistics.driver_name} ({logistics.driver_phone})</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '9px', color: '#94A3B8' }}>Transporter</div>
+                      <div style={{ fontSize: '12px', fontWeight: 700 }}>{transporter || 'N/A'}</div>
                     </div>
                   </div>
                 </div>

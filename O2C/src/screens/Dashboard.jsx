@@ -203,52 +203,63 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginTop: '24px' }}>
-          <div className="feature-card animate-fade animate-stagger-1" onClick={() => navigate('/new-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>New Sales Order</span>
-              <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#EEF2FF', color: '#4F46E5' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_shopping_cart</span>
-              </div>
-            </div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Create and upload a new standard Sales Order.</p>
-          </div>
-
-          <div className="feature-card animate-fade animate-stagger-2" onClick={() => navigate('/new-nt-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>New NT Sales Order</span>
-              <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#F5F3FF', color: '#8B5CF6' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>post_add</span>
-              </div>
-            </div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Initiate a Non-Tendered/Internal Sales Order.</p>
-          </div>
-
-          <div className="feature-card animate-fade animate-stagger-3" onClick={() => navigate('/invoice-request')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>Request Invoice</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {data?.stats?.pending_invoice_requests > 0 && (
-                  <span className="badge badge--warn" style={{ fontSize: '10px', padding: '2px 6px', margin: 0, position: 'static' }}>
-                    {data.stats.pending_invoice_requests} Pending
-                  </span>
-                )}
-                <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#FEF3C7', color: '#D97706' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>receipt_long</span>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginTop: '24px' }}>
+          {/* Column 1: Sales Order Operations (Vertical Column) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="feature-card animate-fade animate-stagger-1" onClick={() => navigate('/new-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>New Sales Order</span>
+                <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#EEF2FF', color: '#4F46E5' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_shopping_cart</span>
                 </div>
               </div>
+              <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: '#6B7280', lineHeight: '1.4' }}>Create and upload a new standard Sales Order.</p>
             </div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Request financial invoice generation for delivered items.</p>
+
+            <div className="feature-card animate-fade animate-stagger-2" onClick={() => navigate('/new-nt-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>New NT Sales Order</span>
+                <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#F5F3FF', color: '#8B5CF6' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>post_add</span>
+                </div>
+              </div>
+              <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: '#6B7280', lineHeight: '1.4' }}>Initiate a Non-Tendered/Internal Sales Order.</p>
+            </div>
+
+            <div className="feature-card animate-fade animate-stagger-3" onClick={() => navigate('/edit-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>Edit Sales Order</span>
+                <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#ECFDF5', color: '#10B981' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit_document</span>
+                </div>
+              </div>
+              <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: '#6B7280', lineHeight: '1.4' }}>Modify existing Sales Order details.</p>
+            </div>
           </div>
 
-          <div className="feature-card animate-fade animate-stagger-4" onClick={() => navigate('/edit-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>Edit Sales Order</span>
-              <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#ECFDF5', color: '#10B981' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit_document</span>
+          {/* Column 2: Invoicing & Financials */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="feature-card animate-fade animate-stagger-4" onClick={() => navigate('/invoice-request')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>Request Invoice</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {data?.stats?.pending_invoice_requests > 0 && (
+                    <span className="badge badge--warn" style={{ fontSize: '10px', padding: '2px 6px', margin: 0, position: 'static' }}>
+                      {data.stats.pending_invoice_requests} Pending
+                    </span>
+                  )}
+                  <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#FEF3C7', color: '#D97706' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>receipt_long</span>
+                  </div>
+                </div>
               </div>
+              <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: '#6B7280', lineHeight: '1.4' }}>Request financial invoice generation for delivered items.</p>
             </div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Modify existing Sales Order details.</p>
+          </div>
+
+          {/* Column 3: Reserved for Future Expansion / Extra Cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Any future dashboard cards can be dropped directly into this 3rd column */}
           </div>
         </div>
       </div>

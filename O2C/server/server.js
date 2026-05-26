@@ -222,37 +222,64 @@ function generateInvoiceHash(invoice) {
 }
 
 function autoGenerateInvoiceForDC(dcId, po, createdByUserId, username) {
-  // 1. Generate official INV number (the exact same robust next number logic)
-  const allInvs = db.prepare("SELECT invoice_number FROM invoices WHERE invoice_number LIKE 'INV/%'").all();
-  let maxNum = 0;
-  allInvs.forEach(inv => {
-    const parts = inv.invoice_number.split('/');
-    const numPart = parts[parts.length - 1];
-    const n = parseInt(numPart);
-    if (!isNaN(n) && n > maxNum) maxNum = n;
-  });
+  // 0. Avoid duplicate invoice generation (idempotency check)
+  const existing = db.prepare('SELECT id FROM invoices WHERE dc_id = ? LIMIT 1').get(dcId);
+  if (existing) {
+    console.log(`Invoice already exists for DC ID ${dcId}, skipping auto-generation.`);
+    return;
+  }
 
-  let nextNum = maxNum + 1;
-  let invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
+  const isAutoApproved = po.need_sales_invoice_approval === 'yes';
 
-  while (db.prepare("SELECT id FROM invoices WHERE invoice_number = ?").get(invoice_number)) {
-    nextNum++;
+  let invoice_number;
+  let initialStatus;
+
+  if (isAutoApproved) {
+    // 1. Generate official INV number (the exact same robust next number logic)
+    const allInvs = db.prepare("SELECT invoice_number FROM invoices WHERE invoice_number LIKE 'INV/%'").all();
+    let maxNum = 0;
+    allInvs.forEach(inv => {
+      const parts = inv.invoice_number.split('/');
+      const numPart = parts[parts.length - 1];
+      const n = parseInt(numPart);
+      if (!isNaN(n) && n > maxNum) maxNum = n;
+    });
+
+    let nextNum = maxNum + 1;
     invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
+
+    while (db.prepare("SELECT id FROM invoices WHERE invoice_number = ?").get(invoice_number)) {
+      nextNum++;
+      invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
+    }
+    initialStatus = 'raised';
+  } else {
+    // Generate REQ number (Pending Approval)
+    let nextNum = Math.floor(1000 + Math.random() * 9000);
+    invoice_number = `REQ/2026/${String(nextNum)}`;
+    while (db.prepare("SELECT id FROM invoices WHERE invoice_number = ?").get(invoice_number)) {
+      nextNum = Math.floor(1000 + Math.random() * 9000);
+      invoice_number = `REQ/2026/${String(nextNum)}`;
+    }
+    initialStatus = 'requested';
   }
 
   // 2. Fetch global signature to stamp on the approved invoice
   let globalSig = null;
-  try {
-    const sigRow = db.prepare("SELECT value FROM global_settings WHERE key = 'authorized_signature'").get();
-    if (sigRow) globalSig = sigRow.value;
-  } catch (e) { }
+  if (isAutoApproved) {
+    try {
+      const sigRow = db.prepare("SELECT value FROM global_settings WHERE key = 'authorized_signature'").get();
+      if (sigRow) globalSig = sigRow.value;
+    } catch (e) { }
+  }
 
   // 3. Fetch customer and location details to populate billing and shipping addresses
-  const customer = db.prepare('SELECT name, legal_name, gstin, address_line1, address_line2, city, pincode FROM customers WHERE id = ?').get(po.customer_id);
-  const location = db.prepare('SELECT label, address_line1, address_line2, city, pincode FROM customer_locations WHERE id = ?').get(po.location_id);
+  const customer = db.prepare('SELECT name, legal_name, gstin, address_line1, address_line2, city, pincode, state FROM customers WHERE id = ?').get(po.customer_id);
+  const location = db.prepare('SELECT label, address_line1, address_line2, city, pincode, state FROM customer_locations WHERE id = ?').get(po.location_id);
 
   const billingAddress = customer ? `${customer.legal_name || customer.name}\n${customer.address_line1 || ''}\n${customer.address_line2 || ''}\n${customer.city || ''} - ${customer.pincode || ''}\nGSTIN: ${customer.gstin || ''}` : '';
   const shippingAddress = location ? `${location.label || ''}\n${location.address_line1 || ''}\n${location.address_line2 || ''}\n${location.city || ''} - ${location.pincode || ''}` : '';
+  const placeOfSupply = location?.state || customer?.state || 'Hyderabad';
 
   // 4. Calculate invoice items, subtotal, gst_total, grand_total
   const dcItems = db.prepare('SELECT * FROM dc_line_items WHERE dc_id = ?').all(dcId);
@@ -302,9 +329,9 @@ function autoGenerateInvoiceForDC(dcId, po, createdByUserId, username) {
     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
     invoice_number, po.id, dcId, po.customer_id,
-    'raised', new Date().toISOString().split('T')[0], null, 'Auto-generated upon DC dispatch.',
+    initialStatus, new Date().toISOString().split('T')[0], null, isAutoApproved ? 'Auto-generated upon DC dispatch.' : 'Auto-generated request upon DC dispatch.',
     subtotal, gst_total, grand_total,
-    'Hyderabad', 'Net 30 Days', billingAddress, shippingAddress,
+    placeOfSupply, 'Net 30 Days', billingAddress, shippingAddress,
     createdByUserId, docUuid, globalSig
   );
 
@@ -345,37 +372,39 @@ function autoGenerateInvoiceForDC(dcId, po, createdByUserId, username) {
     WHERE id = ?
   `).run(dcId);
 
-  // 7. Stamp integrity signature on the invoice
-  const invoiceFull = {
-    id: invoiceId,
-    invoice_number,
-    po_no: po.po_number,
-    subtotal,
-    gst_total,
-    grand_total,
-    items: itemsToInsert,
-    signed_by: username,
-    signed_at: new Date().toISOString()
-  };
+  if (isAutoApproved) {
+    // 7. Stamp integrity signature on the invoice
+    const invoiceFull = {
+      id: invoiceId,
+      invoice_number,
+      po_no: po.po_number,
+      subtotal,
+      gst_total,
+      grand_total,
+      items: itemsToInsert,
+      signed_by: username,
+      signed_at: new Date().toISOString()
+    };
 
-  const hash = generateInvoiceHash(invoiceFull);
-  db.prepare("UPDATE invoices SET signature_hash = ?, signed_at = ?, signed_by = ?, integrity_status = 'verified' WHERE id = ?")
-    .run(hash, invoiceFull.signed_at, invoiceFull.signed_by, invoiceId);
+    const hash = generateInvoiceHash(invoiceFull);
+    db.prepare("UPDATE invoices SET signature_hash = ?, signed_at = ?, signed_by = ?, integrity_status = 'verified' WHERE id = ?")
+      .run(hash, invoiceFull.signed_at, invoiceFull.signed_by, invoiceId);
 
-  // 8. Insert into Accounts Receivable (AR) database
-  db.prepare(`
-    INSERT INTO ar_entries (
-      invoice_id, po_id, customer_id,
-      amount_due, amount_received,
-      balance, status
-    ) VALUES (?,?,?,?,?,?,?)
-  `).run(
-    invoiceId, po.id, po.customer_id,
-    grand_total, 0, grand_total, 'pending'
-  );
+    // 8. Insert into Accounts Receivable (AR) database
+    db.prepare(`
+      INSERT INTO ar_entries (
+        invoice_id, po_id, customer_id,
+        amount_due, amount_received,
+        balance, status
+      ) VALUES (?,?,?,?,?,?,?)
+    `).run(
+      invoiceId, po.id, po.customer_id,
+      grand_total, 0, grand_total, 'pending'
+    );
+  }
 
   // Audit Log for Invoice Generation
-  auditLog(username, 'CREATE', 'Invoice', invoiceId, null, { invoice_number, grand_total });
+  auditLog(username, isAutoApproved ? 'CREATE' : 'REQUEST', 'Invoice', invoiceId, null, { invoice_number, grand_total });
 }
 
 app.get('/api/public/verify-document/:hash', (req, res) => {
@@ -1712,7 +1741,7 @@ app.post('/api/pos', authenticate, (req, res) => {
 
           const isNt = safeIsNtPo ? 'Non-Tender (NT)' : 'Tender';
           const subject = `🚀 New PO Notification: ${finalPONumber} - ${customerName}`;
-          
+
           const htmlContent = `
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
               <!-- Header -->
@@ -1844,14 +1873,14 @@ app.put('/api/pos/:id/status', authenticate, (req, res) => {
 
 app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']), (req, res) => {
   const { status, items, project_spoc_name, project_spoc_email, project_spoc_phone, need_sales_invoice_approval } = req.body;
-  
+
   const phoneRegex = /^[0-9]{10}$/;
   if (project_spoc_phone !== undefined && project_spoc_phone !== null) {
     if (!phoneRegex.test(project_spoc_phone.trim())) {
       return res.status(400).json({ error: 'Project SPOC Contact Number must be exactly 10 digits.' });
     }
   }
-  
+
   try {
     db.exec('BEGIN');
     const oldPO = db.prepare("SELECT * FROM purchase_orders WHERE id = ?").get(req.params.id);
@@ -2013,7 +2042,7 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
 
           const isNt = updatedPO.is_nt_po ? 'Non-Tender (NT)' : 'Tender';
           const subject = `🔄 PO Updated Notification: ${updatedPO.po_number} - ${customerName}`;
-          
+
           const htmlContent = `
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
               <!-- Header -->
@@ -2771,9 +2800,7 @@ app.post('/api/dc', authenticate, (req, res) => {
       "UPDATE purchase_orders SET status='dc_raised' WHERE id=?"
     ).run(po_id);
 
-    if (po.need_sales_invoice_approval === 'no') {
-      autoGenerateInvoiceForDC(dcId, po, req.user.id, req.user.username);
-    }
+    autoGenerateInvoiceForDC(dcId, po, req.user.id, req.user.username);
 
     db.exec('COMMIT');
 
@@ -2829,7 +2856,7 @@ app.post('/api/dc', authenticate, (req, res) => {
           const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
 
           const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | PO ${po.po_number}`;
-          const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
+          const isAutoInvoice = po.need_sales_invoice_approval === 'yes' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
 
           const htmlContent = `
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
@@ -3347,13 +3374,11 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
     const items = db.prepare('SELECT * FROM dc_request_items WHERE dc_request_id = ?').all(requestId);
     if (items.length === 0) return res.status(400).json({ error: 'No items in this request' });
 
-    // Enforce HSN validation if auto-invoice generation is enabled (i.e. need_sales_invoice_approval === 'no')
-    if (po.need_sales_invoice_approval === 'no') {
-      for (const item of items) {
-        const hsn = itemHSNs?.[item.line_item_id];
-        if (!hsn || !hsn.trim()) {
-          return res.status(400).json({ error: 'HSN code is mandatory for all items when sales invoice approval is disabled.' });
-        }
+    // Enforce HSN validation for all items as we automatically generate invoice (raised or request)
+    for (const item of items) {
+      const hsn = itemHSNs?.[item.line_item_id];
+      if (!hsn || !hsn.trim()) {
+        return res.status(400).json({ error: 'HSN code is mandatory for all items.' });
       }
     }
 
@@ -3443,9 +3468,7 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
     db.prepare("UPDATE dc_requests SET status = 'dispatched' WHERE id = ?").run(requestId);
     db.prepare("UPDATE purchase_orders SET status = 'dc_raised' WHERE id = ?").run(po.id);
 
-    if (po.need_sales_invoice_approval === 'no') {
-      autoGenerateInvoiceForDC(dcId, po, req.user.id, req.user.username);
-    }
+    autoGenerateInvoiceForDC(dcId, po, req.user.id, req.user.username);
 
     db.exec('COMMIT');
     auditLog(req.user.username, 'CREATE', 'DeliveryChallan', dcId, null, { dc_number, po_id: po.id });
@@ -3503,7 +3526,7 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
           const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
 
           const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | PO ${po.po_number}`;
-          const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
+          const isAutoInvoice = po.need_sales_invoice_approval === 'yes' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
 
           const htmlContent = `
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">

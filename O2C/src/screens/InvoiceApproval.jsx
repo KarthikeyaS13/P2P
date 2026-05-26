@@ -694,7 +694,7 @@ export default function InvoiceApproval() {
                       <tr>
                         <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '10px', textTransform: 'uppercase', fontWeight: '800', color: '#475569', border: '1px solid #E2E8F0' }}>Package</th>
                         <th style={{ textAlign: 'center', padding: '6px 10px', fontSize: '10px', textTransform: 'uppercase', fontWeight: '800', color: '#475569', border: '1px solid #E2E8F0' }}>HSN</th>
-                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '10px', textTransform: 'uppercase', fontWeight: '800', color: '#475569', border: '1px solid #E2E8F0' }}>Particulars</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '10px', textTransform: 'uppercase', fontWeight: '800', color: '#475569', border: '1px solid #E2E8F0' }}>Item Name</th>
                         <th data-html2canvas-ignore="true" style={{ textAlign: 'left', padding: '6px 10px', fontSize: '10px', textTransform: 'uppercase', fontWeight: '800', color: '#475569', border: '1px solid #E2E8F0' }}>Description <span style={{ fontSize: '8px', color: '#4B5563' }}>(click to view description)</span></th>
                         <th style={{ textAlign: 'right', padding: '6px 10px', fontSize: '10px', fontWeight: '800', color: '#475569', border: '1px solid #E2E8F0' }}>Qty</th>
                         <th style={{ textAlign: 'right', padding: '6px 10px', fontSize: '10px', fontWeight: '800', color: '#475569', border: '1px solid #E2E8F0' }}>Rate</th>
@@ -760,7 +760,7 @@ export default function InvoiceApproval() {
                         </table>
                       </div>
                     )}
-                    
+
                     <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#475569', lineHeight: '1.4' }}>
                       <strong>Inv Value in Words:</strong> {numberToIndianWords(inv.grand_total)}
                     </div>
@@ -1148,7 +1148,7 @@ export default function InvoiceApproval() {
                   <tr>
                     <th style={{ textAlign: 'left', padding: '10px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', border: '1px solid #E2E8F0' }}>Package</th>
                     <th style={{ textAlign: 'center', padding: '10px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', border: '1px solid #E2E8F0' }}>HSN</th>
-                    <th style={{ textAlign: 'left', padding: '10px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', border: '1px solid #E2E8F0' }}>Particulars</th>
+                    <th style={{ textAlign: 'left', padding: '10px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', border: '1px solid #E2E8F0' }}>Item Name</th>
                     <th style={{ textAlign: 'right', padding: '10px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #E2E8F0' }}>Qty</th>
                     <th style={{ textAlign: 'right', padding: '10px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #E2E8F0' }}>Rate</th>
                     <th style={{ textAlign: 'right', padding: '10px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #E2E8F0' }}>GST %</th>
@@ -1201,7 +1201,7 @@ export default function InvoiceApproval() {
                     </table>
                   </div>
                 )}
-                
+
                 <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#475569', lineHeight: '1.4' }}>
                   <strong>Inv Value in Words:</strong> {numberToIndianWords(hiddenInvoice.grand_total)}
                 </div>

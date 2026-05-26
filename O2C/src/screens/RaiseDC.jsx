@@ -239,31 +239,24 @@ export default function RaiseDC() {
   const handleRaiseDC = () => {
     if (!details) return;
 
-    // Validate HSN codes are provided when need_sales_invoice_approval is 'no'
-    if (details?.need_sales_invoice_approval === 'no') {
-      const missingHSN = details.items.some(it => {
-        const val = itemHSNs[it.line_item_id || it.id];
-        return !val || !val.trim();
+    // Validate HSN codes are provided (always mandatory as invoice is auto-generated)
+    const missingHSN = details.items.some(it => {
+      const val = itemHSNs[it.line_item_id || it.id];
+      return !val || !val.trim();
+    });
+    if (missingHSN) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'HSN Entry Required',
+        text: 'HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
       });
-      if (missingHSN) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'HSN Entry Required',
-          text: 'Since auto-invoice generation is enabled for this PO, HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
-        });
-        return;
-      }
+      return;
     }
 
     // Validate HSN pattern: 4digits-2digits-2digits (e.g. 1234-56-78)
     const invalidHSNPattern = details.items.some(it => {
       const val = itemHSNs[it.line_item_id || it.id] || '';
-      const isMandatory = details?.need_sales_invoice_approval === 'no';
-      if (isMandatory) {
-        return !/^\d{4}-\d{2}-\d{2}$/.test(val);
-      } else {
-        return val.trim() !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(val);
-      }
+      return !/^\d{4}-\d{2}-\d{2}$/.test(val);
     });
 
     if (invalidHSNPattern) {
@@ -335,31 +328,24 @@ export default function RaiseDC() {
       return;
     }
 
-    // Validate HSN codes are provided when need_sales_invoice_approval is 'no'
-    if (details?.need_sales_invoice_approval === 'no') {
-      const missingHSN = details.items.some(it => {
-        const val = itemHSNs[it.line_item_id || it.id];
-        return !val || !val.trim();
+    // Validate HSN codes are provided (always mandatory as invoice is auto-generated)
+    const missingHSN = details.items.some(it => {
+      const val = itemHSNs[it.line_item_id || it.id];
+      return !val || !val.trim();
+    });
+    if (missingHSN) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'HSN Entry Required',
+        text: 'HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
       });
-      if (missingHSN) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'HSN Entry Required',
-          text: 'Since auto-invoice generation is enabled for this PO, HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
-        });
-        return;
-      }
+      return;
     }
 
     // Validate HSN pattern: 4digits-2digits-2digits (e.g. 1234-56-78)
     const invalidHSNPattern = details.items.some(it => {
       const val = itemHSNs[it.line_item_id || it.id] || '';
-      const isMandatory = details?.need_sales_invoice_approval === 'no';
-      if (isMandatory) {
-        return !/^\d{4}-\d{2}-\d{2}$/.test(val);
-      } else {
-        return val.trim() !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(val);
-      }
+      return !/^\d{4}-\d{2}-\d{2}$/.test(val);
     });
 
     if (invalidHSNPattern) {
@@ -648,7 +634,7 @@ export default function RaiseDC() {
                   <span style={{ fontSize: '10px', fontWeight: 800, color: '#1E40AF' }}>{details.requested_dc_number || 'Auto-Generate'}</span>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 2fr', gap: '12px' }}>
                 <div className="info-block">
                   <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Vehicle No</label>
                   <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.vehicle_no || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
@@ -660,6 +646,10 @@ export default function RaiseDC() {
                 <div className="info-block">
                   <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Driver Phone</label>
                   <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.driver_phone || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
+                </div>
+                <div className="info-block">
+                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Transporter</label>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.transporter || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
                 </div>
                 <div className="info-block">
                   <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Despatch From Address</label>
@@ -817,8 +807,8 @@ export default function RaiseDC() {
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>SL NO</th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>REFERENCE FROM PO</th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>PACKAGE</th>
-                          <th style={{ padding: '10px 12px', fontSize: '12px', background: '#b8cbf4ff', color: details?.need_sales_invoice_approval === 'no' ? '#D32F2F' : 'inherit' }}>
-                            {details?.need_sales_invoice_approval === 'no' ? 'HSN (ENTRY) *' : 'HSN (ENTRY)'}
+                          <th style={{ padding: '10px 12px', fontSize: '12px', background: '#b8cbf4ff', color: '#D32F2F' }}>
+                            HSN (ENTRY) *
                           </th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>DESCRIPTION <span style={{ fontSize: '8px', color: '#4B5563' }}>(click to view description)</span></th>
                           <th style={{ padding: '10px 12px', fontSize: '12px', textAlign: 'right' }}>QTY (STORES REQ)</th>
@@ -827,7 +817,7 @@ export default function RaiseDC() {
                       </thead>
                       <tbody>
                         {details.items.map((it, idx) => {
-                          const isHsnMandatory = details?.need_sales_invoice_approval === 'no';
+                          const isHsnMandatory = true;
                           const hsnValue = itemHSNs[it.line_item_id] || '';
                           const isMissingHsn = isHsnMandatory && !hsnValue.trim();
                           return (
@@ -840,7 +830,7 @@ export default function RaiseDC() {
                                   type="text"
                                   className="input-field"
                                   maxLength={10}
-                                  placeholder={isHsnMandatory ? "XXXX-XX-XX *" : "XXXX-XX-XX"}
+                                  placeholder="XXXX-XX-XX *"
                                   value={hsnValue}
                                   onChange={e => handleHSNChange(it.line_item_id, e.target.value)}
                                   style={{
