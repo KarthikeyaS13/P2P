@@ -64,9 +64,9 @@ try {
     const insertUser = db.prepare('INSERT INTO users (username, full_name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)');
     const assignRole = db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)');
     const getRole = db.prepare('SELECT id FROM roles WHERE name = ?');
-    
+
     const hash = bcrypt.hashSync('qwe123', 10);
-    
+
     const usersData = [
       { username: 'admin', full_name: 'System Admin', email: 'admin@o2c.local', phone: null, role: 'admin' },
       { username: 'sales', full_name: 'John Sales', email: 'sales@o2c.local', phone: null, role: 'sales' },
@@ -77,30 +77,20 @@ try {
       { username: 'audit1', full_name: 'Audit User', email: 'audit@o2c.local', phone: null, role: 'auditor' },
       { username: 'emailkarthikeya', full_name: 'Karthikeya S', email: 'karthikeya@o2c.local', phone: null, role: 'admin' }
     ];
-    
+
     usersData.forEach(u => {
       const result = insertUser.run(u.username, u.full_name, u.email, u.phone, hash);
       const roleId = getRole.get(u.role).id;
       assignRole.run(result.lastInsertRowid, roleId);
     });
-
-    console.log('Seeding default customers...');
-    const insertCustomer = db.prepare('INSERT INTO customers (cust_code, name, gstin, email, gst_status) VALUES (?, ?, ?, ?, ?)');
-    const insertLocation = db.prepare('INSERT INTO customer_locations (customer_id, label, address_line1, city, state, is_primary) VALUES (?, ?, ?, ?, ?, ?)');
-    
-    const custRes1 = insertCustomer.run('CUST-10001', 'Global Logistics Inc.', '27AADCB2230M1Z2', 'billing@globallogistics.com', 'verified');
-    insertLocation.run(custRes1.lastInsertRowid, 'HQ Mumbai', 'BKC Complex', 'Mumbai', 'Maharashtra', 1);
-    
-    const custRes2 = insertCustomer.run('CUST-10002', 'TechSphere Solutions', '29BBBCB1120K1Z5', 'accounts@techsphere.com', 'verified');
-    insertLocation.run(custRes2.lastInsertRowid, 'Bangalore Office', 'Whitefield', 'Bangalore', 'Karnataka', 1);
   })();
 
   console.log('Re-enabling foreign keys...');
   db.pragma('foreign_keys = ON');
-  
+
   console.log('Running VACUUM...');
   db.prepare('VACUUM').run();
-  
+
   console.log('Database cleared successfully');
   console.log('Default data seeded successfully');
 

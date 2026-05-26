@@ -48,19 +48,7 @@ usersData.forEach(u => {
   }
 });
 
-// 3. Customers
-const insertCustomer = db.prepare('INSERT OR IGNORE INTO customers (cust_code, name, gstin, email, gst_status) VALUES (?, ?, ?, ?, ?)');
-const insertLocation = db.prepare('INSERT OR IGNORE INTO customer_locations (customer_id, label, address_line1, city, state, is_primary) VALUES (?, ?, ?, ?, ?, ?)');
 
-const custRes1 = insertCustomer.run('CUST-10001', 'Global Logistics Inc.', '27AADCB2230M1Z2', 'billing@globallogistics.com', 'verified');
-if (custRes1.changes > 0) {
-  insertLocation.run(custRes1.lastInsertRowid, 'HQ Mumbai', 'BKC Complex', 'Mumbai', 'Maharashtra', 1);
-}
-
-const custRes2 = insertCustomer.run('CUST-10002', 'TechSphere Solutions', '29BBBCB1120K1Z5', 'accounts@techsphere.com', 'verified');
-if (custRes2.changes > 0) {
-  insertLocation.run(custRes2.lastInsertRowid, 'Bangalore Office', 'Whitefield', 'Bangalore', 'Karnataka', 1);
-}
 
 console.log('Database initialized successfully.');
 db.close();

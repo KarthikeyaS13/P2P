@@ -198,6 +198,8 @@ export default function NewNTPO() {
   })));
   const [poError, setPoError] = useState('');
 
+  const isProjectPhoneInvalid = projectSpocName ? (!projectSpocPhone || !/^[0-9]{10}$/.test(projectSpocPhone.trim())) : false;
+
   // Items State
   const [entryMethod, setEntryMethod] = useState(draft.entryMethod || null);
   const [items, setItems] = useState(draft.items || []);
@@ -800,9 +802,9 @@ export default function NewNTPO() {
           return Swal.fire({ icon: 'warning', title: 'Invalid Email', text: 'Please enter a valid Project SPOC email address.' });
         }
 
-        const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+        const phoneRegex = /^[0-9]{10}$/;
         if (!phoneRegex.test(projectSpocPhone.trim())) {
-          return Swal.fire({ icon: 'warning', title: 'Invalid Contact Number', text: 'Please enter a valid contact number (10-15 digits).' });
+          return Swal.fire({ icon: 'warning', title: 'Invalid Project SPOC Phone', text: 'Project SPOC Contact Number must be exactly 10 digits. Please update it in Project User Master.' });
         }
       }
       
@@ -861,6 +863,9 @@ export default function NewNTPO() {
   };
 
   const handleSubmit = async () => {
+    if (isProjectPhoneInvalid) {
+      return Swal.fire({ icon: 'warning', title: 'Invalid Project SPOC Phone', text: 'Project SPOC Contact Number must be exactly 10 digits.' });
+    }
     setSubmitting(true);
     try {
       const token = sessionStorage.getItem('token');
@@ -1165,15 +1170,25 @@ export default function NewNTPO() {
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: isProjectPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
                       <input 
                         type="text"
                         value={projectSpocPhone || ''} 
                         readOnly
                         placeholder="Project SPOC Contact Number" 
                         className="compact-form-input-text"
-                        style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }}
+                        style={{ 
+                          background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0', 
+                          color: isProjectPhoneInvalid ? '#DC2626' : '#64748B', 
+                          border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1', 
+                          cursor: 'not-allowed' 
+                        }} 
                       />
+                      {isProjectPhoneInvalid && (
+                        <p style={{ color: '#EF4444', fontSize: '11px', marginTop: '4px', fontWeight: 500 }}>
+                          Must be exactly 10 digits. Update under Project User Master.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -117,17 +117,25 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
       return Swal.fire({ icon: 'error', title: 'Invalid GSTIN', text: '15-character GSTIN is required when using a different GST for this location' });
     }
 
-    if (form.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email)) {
-      return Swal.fire({ icon: 'error', title: 'Invalid Email', text: 'Invalid SPOC 1 Email' });
+    if (!form.contact_name || !form.contact_name.trim()) {
+      return Swal.fire({ icon: 'error', title: 'Required', text: 'Contact Person Name (SPOC 1) is required' });
     }
-    if (form.contact_phone && form.contact_phone.length !== 10) return Swal.fire({ icon: 'error', title: 'Invalid Phone', text: 'Contact phone must be 10 digits' });
+    if (!form.contact_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email)) {
+      return Swal.fire({ icon: 'error', title: 'Invalid Email', text: 'Valid SPOC 1 Email is required' });
+    }
+    if (!form.contact_phone || form.contact_phone.length !== 10) {
+      return Swal.fire({ icon: 'error', title: 'Invalid Phone', text: 'Contact phone must be exactly 10 digits' });
+    }
 
     if (showSpoc2) {
-      if (form.spoc2_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.spoc2_email)) {
-        return Swal.fire({ icon: 'error', title: 'Invalid Email', text: 'Invalid SPOC 2 Email' });
+      if (!form.spoc2_name || !form.spoc2_name.trim()) {
+        return Swal.fire({ icon: 'error', title: 'Required', text: 'Second SPOC Name is required when enabled' });
       }
-      if (form.spoc2_phone && form.spoc2_phone.length !== 10) {
-        return Swal.fire({ icon: 'error', title: 'Invalid Phone', text: 'SPOC 2 Phone must be 10 digits' });
+      if (!form.spoc2_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.spoc2_email)) {
+        return Swal.fire({ icon: 'error', title: 'Invalid Email', text: 'Valid Second SPOC Email is required when enabled' });
+      }
+      if (!form.spoc2_phone || form.spoc2_phone.length !== 10) {
+        return Swal.fire({ icon: 'error', title: 'Invalid Phone', text: 'Second SPOC Phone must be exactly 10 digits' });
       }
     }
 

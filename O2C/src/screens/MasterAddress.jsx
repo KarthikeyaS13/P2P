@@ -213,6 +213,9 @@ export default function MasterAddress() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.pincode || form.pincode.length !== 6) {
+      return Swal.fire({ icon: 'error', title: 'Invalid Pincode', text: 'Valid 6-digit Pincode is required' });
+    }
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
@@ -377,7 +380,7 @@ export default function MasterAddress() {
                   </div>
                   <div className="form-group">
                     <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '2px', fontWeight: 600 }}>Pincode *</label>
-                    <input className="form-input" style={{ padding: '4px 8px', height: '28px', fontSize: '0.8rem', boxSizing: 'border-box' }} value={form.pincode} onChange={e => setForm({ ...form, pincode: e.target.value })} required placeholder="6-digit pincode" />
+                    <input className="form-input" style={{ padding: '4px 8px', height: '28px', fontSize: '0.8rem', boxSizing: 'border-box' }} value={form.pincode} onChange={e => setForm({ ...form, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} required placeholder="6-digit pincode" />
                   </div>
                   <div className="form-group" style={{ gridColumn: 'span 2' }}>
                     <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '2px', fontWeight: 600 }}>Address Line 1 *</label>

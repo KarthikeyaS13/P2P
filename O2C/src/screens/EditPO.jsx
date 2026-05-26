@@ -40,6 +40,8 @@ export default function EditPO() {
   const [needSalesInvoiceApproval, setNeedSalesInvoiceApproval] = useState('yes');
   const [projectUsers, setProjectUsers] = useState([]);
 
+  const isProjectPhoneInvalid = projectSpocName ? (!projectSpocPhone || !/^[0-9]{10}$/.test(projectSpocPhone.trim())) : false;
+
   // Preview State
   const [previewPath, setPreviewPath] = useState(null);
   const [previewExcelData, setPreviewExcelData] = useState(null);
@@ -302,9 +304,9 @@ export default function EditPO() {
         return Swal.fire({ icon: 'warning', title: 'Invalid Email', text: 'Please enter a valid Project SPOC email address.' });
       }
 
-      const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+      const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(projectSpocPhone.trim())) {
-        return Swal.fire({ icon: 'warning', title: 'Invalid Contact Number', text: 'Please enter a valid contact number (10-15 digits).' });
+        return Swal.fire({ icon: 'warning', title: 'Invalid Project SPOC Phone', text: 'Project SPOC Contact Number must be exactly 10 digits. Please update it in Project User Master.' });
       }
     }
     setStep(s => s + 1);
@@ -315,6 +317,9 @@ export default function EditPO() {
   };
 
   const handleSubmit = async () => {
+    if (isProjectPhoneInvalid) {
+      return Swal.fire({ icon: 'warning', title: 'Invalid Project SPOC Phone', text: 'Project SPOC Contact Number must be exactly 10 digits.' });
+    }
     setSubmitting(true);
     try {
       const token = sessionStorage.getItem('token');
@@ -612,13 +617,29 @@ export default function EditPO() {
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: isProjectPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
                       <input 
                         value={projectSpocPhone || ''} 
                         readOnly
                         placeholder="Project SPOC Contact Number" 
-                        style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px', background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed', boxSizing: 'border-box' }}
+                        style={{ 
+                          width: '100%', 
+                          height: '30px', 
+                          padding: '0 10px', 
+                          borderRadius: '6px', 
+                          border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #D1D5DB', 
+                          fontSize: '12px', 
+                          background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0', 
+                          color: isProjectPhoneInvalid ? '#DC2626' : '#64748B', 
+                          cursor: 'not-allowed', 
+                          boxSizing: 'border-box' 
+                        }} 
                       />
+                      {isProjectPhoneInvalid && (
+                        <p style={{ color: '#EF4444', fontSize: '11px', marginTop: '4px', fontWeight: 500 }}>
+                          Must be exactly 10 digits. Update under Project User Master.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -655,7 +676,23 @@ export default function EditPO() {
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-              <button onClick={nextStep} disabled={!selectedPO} style={{ padding: '8px 20px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '12px', cursor: !selectedPO ? 'not-allowed' : 'pointer', opacity: !selectedPO ? 0.5 : 1, transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.1)' }}>
+              <button 
+                onClick={nextStep} 
+                disabled={!selectedPO || isProjectPhoneInvalid} 
+                style={{ 
+                  padding: '8px 20px', 
+                  background: (!selectedPO || isProjectPhoneInvalid) ? '#9CA3AF' : '#2563EB', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '6px', 
+                  fontWeight: 700, 
+                  fontSize: '12px', 
+                  cursor: (!selectedPO || isProjectPhoneInvalid) ? 'not-allowed' : 'pointer', 
+                  opacity: (!selectedPO || isProjectPhoneInvalid) ? 0.5 : 1, 
+                  transition: 'all 0.2s', 
+                  boxShadow: '0 2px 4px rgba(37, 99, 235, 0.1)' 
+                }}
+              >
                 Proceed to Edit Items →
               </button>
             </div>
@@ -692,31 +729,31 @@ export default function EditPO() {
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px' }}>UOM</th>
 
                     {/* Original Headers (Blue) */}
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px' }}>Orig S.Qty</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px' }}>Orig S.Rate</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px' }}>Orig S.GST</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px' }}>Orig Sv.Qty</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px' }}>Orig Sv.Rate</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px' }}>Orig Sv.GST</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original Supply Qty</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '120px' }}>Original Supply Rate</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original Supply GST</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original Service Qty</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '120px' }}>Original Service Rate</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original Service GST</th>
 
                     {/* Edit Headers (Yellow) */}
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px' }}>New S.Qty</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px' }}>New S.Rate</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px' }}>New S.GST</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px' }}>New Sv.Qty</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px' }}>New Sv.Rate</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px' }}>New Sv.GST</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New Supply Qty</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '120px' }}>New Supply Rate</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New Supply GST</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New Service Qty</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '120px' }}>New Service Rate</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New Service GST</th>
 
                     {/* Revised Headers (Cyan) */}
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px' }}>Rev Tax S.</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px' }}>Rev GST S.</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px' }}>Rev Total S.</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px' }}>Rev Tax Sv.</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px' }}>Rev GST Sv.</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px' }}>Rev Total Sv.</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 800, height: '36px' }}>G.Taxable</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 800, height: '36px' }}>G.GST</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 900, height: '36px' }}>G.Total</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '130px' }}>Revised Taxable Supply</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '120px' }}>Revised GST Supply</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '120px' }}>Revised Total Supply</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '130px' }}>Revised Taxable Service</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '120px' }}>Revised GST Service</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '120px' }}>Revised Total Service</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>Grand Taxable</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>Grand GST</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 900, height: '36px', minWidth: '110px' }}>Grand Total</th>
 
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F87171', color: 'white', fontSize: '11px', fontWeight: 800, height: '36px', width: '50px' }}>Actions</th>
                   </tr>
@@ -989,22 +1026,22 @@ function SummaryTable({ data }) {
 
 function ReviewDetailTable({ data }) {
   const columns = React.useMemo(() => [
-    { header: '#', accessorFn: (_, i) => i + 1, size: 40 },
+    { header: 'Sl No', accessorFn: (_, i) => i + 1, size: 40 },
     { header: 'Ref No', accessorKey: 'ref_no' },
     { header: 'Package', accessorKey: 'package_name' },
     { header: 'Heading', accessorKey: 'heading' },
     { header: 'Sub Heading', accessorKey: 'sub_heading' },
     { header: 'Item Name', accessorKey: 'item_name', cell: info => info.getValue() === 'Item' ? '' : info.getValue() },
     { header: 'UOM', accessorKey: 'uom' },
-    { header: 'S.Qty', accessorKey: 'rev_supply_qty' },
-    { header: 'S.Rate', accessorKey: 'rev_supply_rate', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-    { header: 'S.GST%', accessorKey: 'rev_supply_gst_rate', cell: info => `${info.getValue()}%` },
-    { header: 'Sv.Qty', accessorKey: 'rev_service_qty' },
-    { header: 'Sv.Rate', accessorKey: 'rev_service_rate', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-    { header: 'Sv.GST%', accessorKey: 'rev_service_gst_rate', cell: info => `${info.getValue()}%` },
-    { header: 'Taxable', accessorKey: 'rev_total_taxable', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-    { header: 'GST', accessorKey: 'rev_total_gst', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-    { header: 'Invoice', accessorKey: 'rev_total_invoice', cell: info => <span style={{ fontWeight: 700 }}>₹{info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> },
+    { header: 'Supply Qty', accessorKey: 'rev_supply_qty' },
+    { header: 'Supply Rate', accessorKey: 'rev_supply_rate', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+    { header: 'Supply GST %', accessorKey: 'rev_supply_gst_rate', cell: info => `${info.getValue()}%` },
+    { header: 'Service Qty', accessorKey: 'rev_service_qty' },
+    { header: 'Service Rate', accessorKey: 'rev_service_rate', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+    { header: 'Service GST %', accessorKey: 'rev_service_gst_rate', cell: info => `${info.getValue()}%` },
+    { header: 'Taxable Total', accessorKey: 'rev_total_taxable', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+    { header: 'Total GST', accessorKey: 'rev_total_gst', cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+    { header: 'Grand Total', accessorKey: 'rev_total_invoice', cell: info => <span style={{ fontWeight: 700 }}>₹{info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> },
   ], []);
 
   const table = useReactTable({

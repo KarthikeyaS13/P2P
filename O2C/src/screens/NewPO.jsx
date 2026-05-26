@@ -130,6 +130,9 @@ export default function NewPO() {
   // Modal for Viewing File
   const [viewFileUrl, setViewFileUrl] = useState('');
 
+  const isCustomerPhoneInvalid = basicDetails.locationId ? (!basicDetails.contactPhone || !/^[0-9]{10}$/.test(basicDetails.contactPhone.trim())) : false;
+  const isProjectPhoneInvalid = basicDetails.projectSpocName ? (!basicDetails.projectSpocPhone || !/^[0-9]{10}$/.test(basicDetails.projectSpocPhone.trim())) : false;
+
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
@@ -748,9 +751,13 @@ export default function NewPO() {
         return Swal.fire({ icon: 'warning', title: 'Invalid Email', text: 'Please enter a valid Project SPOC email address.' });
       }
 
-      const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(basicDetails.contactPhone.trim())) {
+        return Swal.fire({ icon: 'warning', title: 'Invalid Customer Phone', text: 'Customer SPOC phone must be exactly 10 digits. Please update it in Customer/Location Master.' });
+      }
+
       if (!phoneRegex.test(basicDetails.projectSpocPhone.trim())) {
-        return Swal.fire({ icon: 'warning', title: 'Invalid Contact Number', text: 'Please enter a valid contact number (10-15 digits).' });
+        return Swal.fire({ icon: 'warning', title: 'Invalid Project SPOC Phone', text: 'Project SPOC Contact Number must be exactly 10 digits. Please update it in Project User Master.' });
       }
 
       setLoading(true);
@@ -868,6 +875,14 @@ export default function NewPO() {
 
       if (!basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber) {
         return Swal.fire({ icon: 'warning', title: 'Missing Details', text: 'Please fill in all basic details (Customer, Location, Sales Order Number)' });
+      }
+
+      if (isCustomerPhoneInvalid) {
+        return Swal.fire({ icon: 'warning', title: 'Invalid Customer Phone', text: 'Customer SPOC phone must be exactly 10 digits.' });
+      }
+
+      if (isProjectPhoneInvalid) {
+        return Swal.fire({ icon: 'warning', title: 'Invalid Project SPOC Phone', text: 'Project SPOC Contact Number must be exactly 10 digits.' });
       }
 
       const subtotal = items.reduce((acc, it) => acc + it.total_taxable, 0);
@@ -1072,8 +1087,26 @@ export default function NewPO() {
                     <input name="contactName" value={basicDetails.contactName} onChange={handleBasicChange} placeholder="Primary Contact Name" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Phone <span style={{ color: 'red' }}>*</span></label>
-                    <input name="contactPhone" value={basicDetails.contactPhone} onChange={handleBasicChange} placeholder="Primary Phone" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: isCustomerPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Phone <span style={{ color: 'red' }}>*</span></label>
+                    <input 
+                      name="contactPhone" 
+                      value={basicDetails.contactPhone} 
+                      onChange={handleBasicChange} 
+                      placeholder="Primary Phone" 
+                      className="compact-form-input-text" 
+                      readOnly 
+                      style={{ 
+                        background: isCustomerPhoneInvalid ? '#FEF2F2' : '#E2E8F0', 
+                        color: isCustomerPhoneInvalid ? '#DC2626' : '#64748B', 
+                        border: isCustomerPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1', 
+                        cursor: 'not-allowed' 
+                      }} 
+                    />
+                    {isCustomerPhoneInvalid && (
+                      <p style={{ color: '#EF4444', fontSize: '11px', marginTop: '4px', fontWeight: 500 }}>
+                        Must be exactly 10 digits. Update under Customer/Location Master.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1103,8 +1136,26 @@ export default function NewPO() {
                       <input name="projectSpocEmail" type="email" value={basicDetails.projectSpocEmail} onChange={handleBasicChange} placeholder="Project SPOC Email ID" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
-                      <input name="projectSpocPhone" value={basicDetails.projectSpocPhone} onChange={handleBasicChange} placeholder="Project SPOC Contact Number" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: isProjectPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
+                      <input 
+                        name="projectSpocPhone" 
+                        value={basicDetails.projectSpocPhone} 
+                        onChange={handleBasicChange} 
+                        placeholder="Project SPOC Contact Number" 
+                        className="compact-form-input-text" 
+                        readOnly 
+                        style={{ 
+                          background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0', 
+                          color: isProjectPhoneInvalid ? '#DC2626' : '#64748B', 
+                          border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1', 
+                          cursor: 'not-allowed' 
+                      }} 
+                      />
+                      {isProjectPhoneInvalid && (
+                        <p style={{ color: '#EF4444', fontSize: '11px', marginTop: '4px', fontWeight: 500 }}>
+                          Must be exactly 10 digits. Update under Project User Master.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1236,17 +1287,42 @@ export default function NewPO() {
             <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #E5E7EB', paddingTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={nextStep}
-                disabled={loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber || !basicDetails.contactName || !basicDetails.contactPhone}
+                disabled={
+                  loading || 
+                  !basicDetails.customerId || 
+                  !basicDetails.locationId || 
+                  !basicDetails.poNumber || 
+                  !basicDetails.contactName || 
+                  !basicDetails.contactPhone ||
+                  isCustomerPhoneInvalid ||
+                  isProjectPhoneInvalid
+                }
                 style={{
                   height: '36px',
                   padding: '0 24px',
-                  background: (loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber || !basicDetails.contactName || !basicDetails.contactPhone) ? '#9CA3AF' : '#3B82F6',
+                  background: (
+                    loading || 
+                    !basicDetails.customerId || 
+                    !basicDetails.locationId || 
+                    !basicDetails.poNumber || 
+                    !basicDetails.contactName || 
+                    !basicDetails.contactPhone ||
+                    isCustomerPhoneInvalid ||
+                    isProjectPhoneInvalid
+                  ) ? '#9CA3AF' : '#3B82F6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
                   fontWeight: 600,
                   fontSize: '13px',
-                  cursor: (loading || !basicDetails.customerId || !basicDetails.locationId || !basicDetails.poNumber) ? 'not-allowed' : 'pointer'
+                  cursor: (
+                    loading || 
+                    !basicDetails.customerId || 
+                    !basicDetails.locationId || 
+                    !basicDetails.poNumber ||
+                    isCustomerPhoneInvalid ||
+                    isProjectPhoneInvalid
+                  ) ? 'not-allowed' : 'pointer'
                 }}
               >
                 {loading ? 'Uploading...' : 'Review'}

@@ -9,6 +9,8 @@ const bcrypt = require('bcrypt');
 const xlsx = require('xlsx');
 const crypto = require('crypto');
 
+// Gmail SMTP service successfully integrated.
+const { sendEmail } = require('./services/emailService');
 const { generateInvoicePDFBuffer } = require('./services/pdfGenerator');
 const { signInvoicePDF } = require('./services/pdfSigner');
 const { verifyInvoicePDF, extractWatermarkMetadata } = require('./services/pdfVerifier');
@@ -1349,6 +1351,14 @@ app.post('/api/locations', requireRole(['admin']), (req, res) => {
     if (!label) return res.status(400).json({ error: 'label required' });
     if (!pincode) return res.status(400).json({ error: 'pincode required' });
 
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!contact_phone || !phoneRegex.test(contact_phone.trim())) {
+      return res.status(400).json({ error: 'Contact phone is required and must be exactly 10 digits.' });
+    }
+    if (spoc2_phone && !phoneRegex.test(spoc2_phone.trim())) {
+      return res.status(400).json({ error: 'Secondary SPOC phone must be exactly 10 digits.' });
+    }
+
     const result = db.prepare(`
       INSERT INTO customer_locations (
         customer_id, label, address_line1, address_line2,
@@ -1382,6 +1392,14 @@ app.put('/api/locations/:id', requireRole(['admin']), (req, res) => {
 
     if (!label) return res.status(400).json({ error: 'label required' });
     if (!pincode) return res.status(400).json({ error: 'pincode required' });
+
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!contact_phone || !phoneRegex.test(contact_phone.trim())) {
+      return res.status(400).json({ error: 'Contact phone is required and must be exactly 10 digits.' });
+    }
+    if (spoc2_phone && !phoneRegex.test(spoc2_phone.trim())) {
+      return res.status(400).json({ error: 'Secondary SPOC phone must be exactly 10 digits.' });
+    }
 
     db.prepare(`
       UPDATE customer_locations SET
@@ -1549,6 +1567,18 @@ app.post('/api/pos', authenticate, (req, res) => {
       need_sales_invoice_approval
     } = req.body;
 
+    const phoneRegex = /^[0-9]{10}$/;
+    if (project_spoc_phone && !phoneRegex.test(project_spoc_phone.trim())) {
+      return res.status(400).json({ error: 'Project SPOC Contact Number must be exactly 10 digits.' });
+    }
+
+    if (location_id) {
+      const loc = db.prepare('SELECT contact_phone FROM customer_locations WHERE id = ?').get(location_id);
+      if (loc && loc.contact_phone && !phoneRegex.test(loc.contact_phone.trim())) {
+        return res.status(400).json({ error: 'Customer SPOC phone must be exactly 10 digits. Please update it in Customer/Location Master.' });
+      }
+    }
+
     const safeLinkedPoId = linked_po_id && linked_po_id !== '' ? parseInt(linked_po_id) : null;
     const safeIsNtPo = is_nt_po ? 1 : 0;
     const safeIsTemp = is_temporary ? 1 : 0;
@@ -1653,6 +1683,138 @@ app.post('/api/pos', authenticate, (req, res) => {
     });
 
     db.exec('COMMIT');
+
+    // Trigger asynchronous email alert to Project SPOC
+    if (finalSpocEmail && finalSpocEmail.trim()) {
+      (async () => {
+        try {
+          const customer = db.prepare('SELECT name FROM customers WHERE id = ?').get(customer_id);
+          const customerName = customer ? customer.name : 'N/A';
+
+          // Format items table rows
+          let itemsHtml = '';
+          (items || []).forEach((it, idx) => {
+            const qty = parseFloat(it.supply_qty) || 0;
+            const rate = parseFloat(it.supply_rate) || 0;
+            const total = parseFloat(it.total_invoice) || 0;
+            itemsHtml += `
+              <tr style="border-bottom: 1px solid #E2E8F0;">
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${idx + 1}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${it.item_name || 'Item'}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${it.uom || ''}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">${qty}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">₹${rate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">${it.supply_gst_rate || 0}%</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0; font-weight: 600;">₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            `;
+          });
+
+          const isNt = safeIsNtPo ? 'Non-Tender (NT)' : 'Tender';
+          const subject = `🚀 New PO Notification: ${finalPONumber} - ${customerName}`;
+          
+          const htmlContent = `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+              <!-- Header -->
+              <div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
+                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">New Purchase Order Created</h1>
+                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Enterprise O2C Workflow Alert</p>
+              </div>
+
+              <!-- Main Greeting -->
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${finalSpocName || 'Project SPOC'}</strong>,</p>
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">A new <strong>${isNt}</strong> Sales Order has been successfully created in the Enterprise O2C Portal. Please review the details below:</p>
+
+              <!-- Order Summary Card -->
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Order Summary</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>PO/WO Number:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;"><strong>${finalPONumber}</strong></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Customer:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${customerName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Order Type:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;"><span style="background-color: ${safeIsNtPo ? '#FEF3C7' : '#DBEAFE'}; color: ${safeIsNtPo ? '#92400E' : '#1E40AF'}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${isNt}</span></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Sales Order Date:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${po_date || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Internal Order ID:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; font-family: monospace; font-size: 12px;">${order_id}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Financial Summary Card -->
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">💰 Financial Summary</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Subtotal:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>GST Total:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(gst_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr style="border-top: 1px dashed #CBD5E1; font-size: 15px;">
+                    <td style="padding: 8px 0 0 0; color: #1E293B;"><strong>Grand Total:</strong></td>
+                    <td style="padding: 8px 0 0 0; color: #10B981; text-align: right; font-weight: 700;">₹${(grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Line Items Table -->
+              <div style="margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Line Items</h3>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0;">
+                  <thead>
+                    <tr style="background-color: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">#</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Item Name</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">UOM</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Qty</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Rate</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">GST %</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemsHtml}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Footer Contact Info -->
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748B; margin-top: 24px;">
+                <p style="margin: 0 0 4px 0;"><strong>Project SPOC Contact Information:</strong></p>
+                <p style="margin: 0;">Name: ${finalSpocName} | Email: ${finalSpocEmail} | Phone: ${finalSpocPhone}</p>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
+              <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
+            </div>
+          `;
+
+          await sendEmail({
+            to: finalSpocEmail,
+            subject,
+            html: htmlContent
+          });
+          console.log(`✉️ Automated PO creation notification sent to Project SPOC at: ${finalSpocEmail}`);
+        } catch (mailErr) {
+          console.error('❌ Failed to send automated PO creation email alert:', mailErr);
+        }
+      })();
+    }
+
     res.json({ success: true, order_id, po_id: poId });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
@@ -1682,6 +1844,14 @@ app.put('/api/pos/:id/status', authenticate, (req, res) => {
 
 app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']), (req, res) => {
   const { status, items, project_spoc_name, project_spoc_email, project_spoc_phone, need_sales_invoice_approval } = req.body;
+  
+  const phoneRegex = /^[0-9]{10}$/;
+  if (project_spoc_phone !== undefined && project_spoc_phone !== null) {
+    if (!phoneRegex.test(project_spoc_phone.trim())) {
+      return res.status(400).json({ error: 'Project SPOC Contact Number must be exactly 10 digits.' });
+    }
+  }
+  
   try {
     db.exec('BEGIN');
     const oldPO = db.prepare("SELECT * FROM purchase_orders WHERE id = ?").get(req.params.id);
@@ -1812,6 +1982,140 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
     }
     db.exec('COMMIT');
     auditLog(req.user.username, 'UPDATE', 'PurchaseOrder', req.params.id, oldPO, req.body);
+
+    // Trigger asynchronous email alert to Project SPOC when PO is updated
+    (async () => {
+      try {
+        const updatedPO = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);
+        if (updatedPO && updatedPO.project_spoc_email && updatedPO.project_spoc_email.trim()) {
+          const customer = db.prepare('SELECT name FROM customers WHERE id = ?').get(updatedPO.customer_id);
+          const customerName = customer ? customer.name : 'N/A';
+          const updatedItems = db.prepare('SELECT * FROM po_line_items WHERE po_id = ?').all(req.params.id);
+
+          // Format items table rows
+          let itemsHtml = '';
+          (updatedItems || []).forEach((it, idx) => {
+            const qty = parseFloat(it.supply_qty) || 0;
+            const rate = parseFloat(it.supply_rate) || 0;
+            const total = parseFloat(it.total_invoice) || 0;
+            itemsHtml += `
+              <tr style="border-bottom: 1px solid #E2E8F0;">
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${idx + 1}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${it.item_name || 'Item'}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${it.uom || ''}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">${qty}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">₹${rate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">${it.supply_gst_rate || 0}%</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0; font-weight: 600;">₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            `;
+          });
+
+          const isNt = updatedPO.is_nt_po ? 'Non-Tender (NT)' : 'Tender';
+          const subject = `🔄 PO Updated Notification: ${updatedPO.po_number} - ${customerName}`;
+          
+          const htmlContent = `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+              <!-- Header -->
+              <div style="background: linear-gradient(135deg, #0F766E 0%, #14B8A6 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
+                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Purchase Order Updated</h1>
+                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Enterprise O2C Workflow Alert</p>
+              </div>
+
+              <!-- Main Greeting -->
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${updatedPO.project_spoc_name || 'Project SPOC'}</strong>,</p>
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We would like to inform you that your <strong>${isNt}</strong> Purchase Order has been successfully updated in the Enterprise O2C Portal. Please review the updated details below:</p>
+
+              <!-- Order Summary Card -->
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Order Summary</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>PO/WO Number:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;"><strong>${updatedPO.po_number}</strong></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Customer:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${customerName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Order Type:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;"><span style="background-color: ${updatedPO.is_nt_po ? '#FEF3C7' : '#DBEAFE'}; color: ${updatedPO.is_nt_po ? '#92400E' : '#1E40AF'}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${isNt}</span></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Sales Order Date:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${updatedPO.po_date || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Internal Order ID:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; font-family: monospace; font-size: 12px;">${updatedPO.order_id}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Financial Summary Card -->
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">💰 Financial Summary</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Subtotal:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(updatedPO.subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>GST Total:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(updatedPO.gst_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr style="border-top: 1px dashed #CBD5E1; font-size: 15px;">
+                    <td style="padding: 8px 0 0 0; color: #1E293B;"><strong>Grand Total:</strong></td>
+                    <td style="padding: 8px 0 0 0; color: #0D9488; text-align: right; font-weight: 700;">₹${(updatedPO.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Line Items Table -->
+              <div style="margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Line Items</h3>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0;">
+                  <thead>
+                    <tr style="background-color: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">#</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Item Name</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">UOM</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Qty</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Rate</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">GST %</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemsHtml}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Footer Contact Info -->
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748B; margin-top: 24px;">
+                <p style="margin: 0 0 4px 0;"><strong>Project SPOC Contact Information:</strong></p>
+                <p style="margin: 0;">Name: ${updatedPO.project_spoc_name || 'N/A'} | Email: ${updatedPO.project_spoc_email} | Phone: ${updatedPO.project_spoc_phone || 'N/A'}</p>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
+              <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
+            </div>
+          `;
+
+          await sendEmail({
+            to: updatedPO.project_spoc_email,
+            subject,
+            html: htmlContent
+          });
+          console.log(`✉️ Automated PO updated notification sent to Project SPOC at: ${updatedPO.project_spoc_email}`);
+        }
+      } catch (mailErr) {
+        console.error('❌ Failed to send automated PO updated email alert:', mailErr);
+      }
+    })();
+
     res.json({ success: true });
   } catch (err) { db.exec('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
@@ -2085,7 +2389,13 @@ app.get('/api/invoices/:id', authenticate, (req, res) => {
 
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
-    const items = db.prepare(`SELECT * FROM invoice_items WHERE invoice_id = ?`).all(req.params.id);
+    const items = db.prepare(`
+      SELECT ii.*, COALESCE(dcli.hsn, '') as hsn
+      FROM invoice_items ii
+      LEFT JOIN dc_line_items dcli ON ii.dc_line_item_id = dcli.id
+      LEFT JOIN po_line_items poli ON ii.po_line_item_id = poli.id
+      WHERE ii.invoice_id = ?
+    `).all(req.params.id);
     const payments = db.prepare(`SELECT * FROM ar_payments WHERE invoice_id = ? ORDER BY created_at DESC`).all(req.params.id);
 
     let is_tampered = false;
@@ -2395,13 +2705,31 @@ app.post('/api/dc', authenticate, (req, res) => {
   try {
     const {
       po_id, customer_id, location_id,
-      dc_date, vehicle_number, driver_name, notes, items
+      dc_date, vehicle_number, driver_name, notes, items, email_to_project
     } = req.body;
 
     const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(po_id);
     if (!po) return res.status(404).json({ error: 'PO not found' });
 
     db.exec('BEGIN');
+
+    if (email_to_project) {
+      const uObj = db.prepare(`
+        SELECT u.full_name, u.email, u.phone 
+        FROM users u
+        JOIN user_roles ur ON u.id = ur.user_id
+        JOIN roles r ON ur.role_id = r.id
+        WHERE r.name = 'projects' AND (u.email = ? OR u.username = ?)
+      `).get(email_to_project, email_to_project);
+
+      if (uObj) {
+        db.prepare(`
+          UPDATE purchase_orders 
+          SET project_spoc_name = ?, project_spoc_email = ?, project_spoc_phone = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(uObj.full_name, uObj.email, uObj.phone, po.id);
+      }
+    }
 
     const dc_number = 'DC-' + Date.now();
 
@@ -2410,13 +2738,13 @@ app.post('/api/dc', authenticate, (req, res) => {
         dc_number, po_id, customer_id, location_id,
         status, dc_date, vehicle_number,
         driver_name, notes, created_by,
-        delivery_status
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        delivery_status, email_to_project
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       dc_number, po_id, customer_id, location_id,
       'issued', dc_date, vehicle_number || '',
       driver_name || '', notes || '', req.user.id,
-      'awaiting_confirmation'
+      'awaiting_confirmation', email_to_project || null
     );
 
     const dcId = dcResult.lastInsertRowid;
@@ -2448,6 +2776,157 @@ app.post('/api/dc', authenticate, (req, res) => {
     }
 
     db.exec('COMMIT');
+
+    // Trigger asynchronous email alert to Project SPOC / Selected Email Proxy
+    let recipientEmail = null;
+    let recipientName = 'Project SPOC';
+    if (email_to_project) {
+      const uObj = db.prepare('SELECT full_name, email FROM users WHERE email = ? OR username = ?').get(email_to_project, email_to_project);
+      if (uObj && uObj.email) {
+        recipientEmail = uObj.email;
+        recipientName = uObj.full_name;
+      } else if (email_to_project.includes('@')) {
+        recipientEmail = email_to_project;
+      }
+    }
+    if (!recipientEmail && po.project_spoc_email) {
+      recipientEmail = po.project_spoc_email;
+      recipientName = po.project_spoc_name || 'Project SPOC';
+    }
+
+    if (recipientEmail && recipientEmail.trim()) {
+      (async () => {
+        try {
+          // Format items table rows
+          let itemsHtml = '';
+          (items || []).forEach((it, idx) => {
+            const itemName = it.item_name || 'Item';
+            const qty = parseFloat(it.quantity_dispatched) || 0;
+            const uom = it.uom || '';
+            let hsn = '';
+            if (it.po_line_item_id) {
+              const poLineItem = db.prepare('SELECT hsn FROM po_line_items WHERE id = ?').get(it.po_line_item_id);
+              if (poLineItem) hsn = poLineItem.hsn || '';
+            }
+            itemsHtml += `
+              <tr style="border-bottom: 1px solid #E2E8F0;">
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${idx + 1}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${itemName}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${hsn}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${uom}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #1E3A8A;">${qty}</td>
+              </tr>
+            `;
+          });
+
+          const vehicleNo = vehicle_number || 'N/A';
+          const driverNameVal = driver_name || 'N/A';
+          const driverPhoneVal = po.project_spoc_phone || 'N/A'; // fallback if no driver phone in this schema
+          const transporterName = 'N/A';
+          const remarks = notes || 'N/A';
+
+          const location = db.prepare('SELECT label, address_line1, address_line2, city, pincode FROM customer_locations WHERE id = ?').get(location_id || po.location_id);
+          const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
+
+          const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | PO ${po.po_number}`;
+          const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
+
+          const htmlContent = `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+              <!-- Header -->
+              <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
+                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Delivery Challan Dispatched</h1>
+                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Material Transit Tracking Notification</p>
+              </div>
+
+              <!-- Main Greeting -->
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${recipientName}</strong>,</p>
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We are pleased to inform you that the shipment containing items under Purchase Order <strong>${po.po_number}</strong> has been dispatched. Below are the transit details and the item dispatch summary:</p>
+
+              <!-- Logistics and Dispatch Summary Card -->
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">🚚 Logistics & Dispatch Information</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Delivery Challan No:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;"><strong>${dc_number}</strong></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>PO/WO Number:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${po.po_number}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Vehicle No:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; font-weight: 600;">${vehicleNo}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Driver Name:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${driverNameVal}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Driver Phone:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${driverPhoneVal}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Transporter Name:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${transporterName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Destination Site Address:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; font-size: 12px; font-weight: 600;">${destinationAddress}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Auto-Invoice Generated:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${isAutoInvoice}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Logistics Remarks:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; font-style: italic;">${remarks}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Line Items Dispatched Table -->
+              <div style="margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Dispatch Material Summary</h3>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0;">
+                  <thead>
+                    <tr style="background-color: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">#</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Item Name</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">HSN Code</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">UOM</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Qty Dispatched</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemsHtml}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Next Steps Card -->
+              <div style="background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 14px; color: #065F46; font-size: 13px; line-height: 1.5; margin-top: 24px;">
+                <strong>💡 Next Step for Site Operations:</strong><br/>
+                Once the vehicle arrives at the destination site, please inspect the material and acknowledge/confirm receipt on the portal to close the delivery cycle.
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
+              <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
+            </div>
+          `;
+
+          await sendEmail({
+            to: recipientEmail,
+            subject,
+            html: htmlContent
+          });
+          console.log(`✉️ Automated DC dispatch email sent to: ${recipientEmail}`);
+        } catch (mailErr) {
+          console.error('❌ Failed to send automated DC email alert:', mailErr);
+        }
+      })();
+    }
 
     res.json({ success: true, dc_number, dc_id: dcId });
   } catch (err) {
@@ -2970,6 +3449,163 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
 
     db.exec('COMMIT');
     auditLog(req.user.username, 'CREATE', 'DeliveryChallan', dcId, null, { dc_number, po_id: po.id });
+
+    // Trigger asynchronous email alert to Project SPOC / Selected Email Proxy
+    let recipientEmail = null;
+    let recipientName = 'Project SPOC';
+    if (email_to_project) {
+      const uObj = db.prepare('SELECT full_name, email FROM users WHERE email = ? OR username = ?').get(email_to_project, email_to_project);
+      if (uObj && uObj.email) {
+        recipientEmail = uObj.email;
+        recipientName = uObj.full_name;
+      } else if (email_to_project.includes('@')) {
+        recipientEmail = email_to_project;
+      }
+    }
+    if (!recipientEmail && po.project_spoc_email) {
+      recipientEmail = po.project_spoc_email;
+      recipientName = po.project_spoc_name || 'Project SPOC';
+    }
+
+    if (recipientEmail && recipientEmail.trim()) {
+      (async () => {
+        try {
+          // Format items table rows
+          let itemsHtml = '';
+          (items || []).forEach((it, idx) => {
+            const poItem = db.prepare('SELECT item_name, description, uom FROM po_line_items WHERE id = ?').get(it.line_item_id);
+            const itemName = poItem ? poItem.item_name : 'Item';
+            const uom = poItem ? poItem.uom : '';
+            const hsn = itemHSNs ? (itemHSNs[it.line_item_id] || '') : '';
+            itemsHtml += `
+              <tr style="border-bottom: 1px solid #E2E8F0;">
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${idx + 1}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${itemName}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${hsn}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${uom}</td>
+                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #1E3A8A;">${it.qty}</td>
+              </tr>
+            `;
+          });
+
+          const vehicleNo = request.vehicle_no || 'N/A';
+          const driverName = request.driver_name || 'N/A';
+          const driverPhone = request.driver_phone || 'N/A';
+          const transporterName = request.transporter || 'N/A';
+          const remarks = request.logistics_remarks || 'N/A';
+
+          const dLine1 = dispatchFrom?.line1 || request.dispatch_from_address1 || df1;
+          const dLine2 = dispatchFrom?.line2 || request.dispatch_from_address2 || df2;
+          const dPin = dispatchFrom?.pin || request.dispatch_from_pincode || dfp;
+          const dispatchFromAddress = `${dLine1}, ${dLine2} - ${dPin}`;
+
+          const location = db.prepare('SELECT label, address_line1, address_line2, city, pincode FROM customer_locations WHERE id = ?').get(po.location_id);
+          const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
+
+          const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | PO ${po.po_number}`;
+          const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
+
+          const htmlContent = `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+              <!-- Header -->
+              <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
+                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Delivery Challan Dispatched</h1>
+                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Material Transit Tracking Notification</p>
+              </div>
+
+              <!-- Main Greeting -->
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${recipientName}</strong>,</p>
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We are pleased to inform you that the shipment containing items under Purchase Order <strong>${po.po_number}</strong> has been dispatched. Below are the transit details and the item dispatch summary:</p>
+
+              <!-- Logistics and Dispatch Summary Card -->
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">🚚 Logistics & Dispatch Information</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Delivery Challan No:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;"><strong>${dc_number}</strong></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>PO/WO Number:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${po.po_number}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Vehicle No:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; font-weight: 600;">${vehicleNo}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Driver Name:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${driverName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Driver Phone:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${driverPhone}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Transporter Name:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${transporterName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Dispatch From Address:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; font-size: 12px;">${dispatchFromAddress}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Destination Site Address:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; font-size: 12px; font-weight: 600;">${destinationAddress}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Auto-Invoice Generated:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B;">${isAutoInvoice}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>Logistics Remarks:</strong></td>
+                    <td style="padding: 4px 0; color: #1E293B; font-style: italic;">${remarks}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Line Items Dispatched Table -->
+              <div style="margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Dispatch Material Summary</h3>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0;">
+                  <thead>
+                    <tr style="background-color: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">#</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Item Name</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">HSN Code</th>
+                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">UOM</th>
+                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Qty Dispatched</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemsHtml}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Next Steps Card -->
+              <div style="background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 14px; color: #065F46; font-size: 13px; line-height: 1.5; margin-top: 24px;">
+                <strong>💡 Next Step for Site Operations:</strong><br/>
+                Once the vehicle arrives at the destination site, please inspect the material and acknowledge/confirm receipt on the portal to close the delivery cycle.
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
+              <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
+            </div>
+          `;
+
+          await sendEmail({
+            to: recipientEmail,
+            subject,
+            html: htmlContent
+          });
+          console.log(`✉️ Automated DC dispatch email sent to: ${recipientEmail}`);
+        } catch (mailErr) {
+          console.error('❌ Failed to send automated DC email alert:', mailErr);
+        }
+      })();
+    }
+
     res.json({ success: true, dc_number, dc_id: dcId });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
