@@ -132,14 +132,15 @@ export default function PODetails() {
   const getStatusBadge = (status) => {
     const styles = {
       pending: { background: '#FEF3C7', color: '#92400E', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
-      nt_created: { background: '#DBEAFE', color: '#1E40AF', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
+      nt_created: { background: '#FEF3C7', color: '#92400E', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
       accepted: { background: '#D1FAE5', color: '#065F46', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
       rejected: { background: '#FEE2E2', color: '#991B1B', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
       dc_raised: { background: '#FED7AA', color: '#92400E', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
       invoice_raised: { background: '#EDE9FE', color: '#5B21B6', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 }
     };
     const style = styles[status] || { background: '#F3F4F6', color: '#374151', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 };
-    return <span style={style}>{status.replace('_', ' ').toUpperCase()}</span>;
+    const text = status === 'nt_created' ? 'PENDING' : status.replace('_', ' ').toUpperCase();
+    return <span style={style}>{text}</span>;
   };
 
   const handleAccept = () => {

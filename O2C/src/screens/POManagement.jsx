@@ -35,14 +35,15 @@ export default function POManagement() {
   const getStatusBadge = (status) => {
     const styles = {
       pending: { background: '#FEF3C7', color: '#92400E', padding: '2px 8px', borderRadius: '12px', fontSize: '0.85rem' },
-      nt_created: { background: '#DBEAFE', color: '#1E40AF', padding: '2px 8px', borderRadius: '12px', fontSize: '0.85rem' },
+      nt_created: { background: '#FEF3C7', color: '#92400E', padding: '2px 8px', borderRadius: '12px', fontSize: '0.85rem' },
       accepted: { background: '#D1FAE5', color: '#065F46', padding: '2px 8px', borderRadius: '12px', fontSize: '0.85rem' },
       rejected: { background: '#FEE2E2', color: '#991B1B', padding: '2px 8px', borderRadius: '12px', fontSize: '0.85rem' },
       dc_raised: { background: '#FED7AA', color: '#92400E', padding: '2px 8px', borderRadius: '12px', fontSize: '0.85rem' },
       invoice_raised: { background: '#EDE9FE', color: '#5B21B6', padding: '2px 8px', borderRadius: '12px', fontSize: '0.85rem' }
     };
     const style = styles[status] || { background: '#F3F4F6', color: '#374151', padding: '2px 8px', borderRadius: '12px', fontSize: '0.85rem' };
-    return <span style={style}>{status.replace('_', ' ').toUpperCase()}</span>;
+    const text = status === 'nt_created' ? 'PENDING' : status.replace('_', ' ').toUpperCase();
+    return <span style={style}>{text}</span>;
   };
 
   return (
