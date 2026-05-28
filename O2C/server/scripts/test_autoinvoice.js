@@ -90,7 +90,7 @@ async function runTests() {
     const poResult = db.prepare(`
       INSERT INTO purchase_orders (
         order_id, customer_id, location_id, po_number, po_date, total_value, gst_total, grand_total, need_sales_invoice_approval, status
-      ) VALUES (?, ?, ?, ?, '2026-05-26', 10000, 1800, 11800, 'no', 'accepted')
+      ) VALUES (?, ?, ?, ?, '2026-05-26', 10000, 1800, 11800, 'yes', 'accepted')
     `).run(
       `PO-${testSuffix}`,
       customerId,

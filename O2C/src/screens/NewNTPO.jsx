@@ -239,13 +239,8 @@ export default function NewNTPO() {
     let sv_rate = parseFloat(row.service_rate) || 0;
     let sv_gst_pct = cleanGst(row.service_gst_rate);
 
-    // GST validation logic: If either Qty or Rate is 0, GST is NA (0)
-    if (s_qty === 0 || s_rate === 0) {
-      s_gst_pct = 0;
-    }
-    if (sv_qty === 0 || sv_rate === 0) {
-      sv_gst_pct = 0;
-    }
+    // GST validation logic: Keep the rate percentage chosen by the user, don't wipe it out.
+    // Calculations of gst_s and gst_sv will naturally be 0 if qty or rate is 0.
 
     const taxable_s = s_qty * s_rate;
     const gst_s = taxable_s * (s_gst_pct / 100);
@@ -840,7 +835,7 @@ export default function NewNTPO() {
 
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        const heading = it.item_name || it.package_name || it.ref_no || `Row ${i + 1}`;
+        const heading = `Sl No: ${i + 1}`;
         const s_qty = parseFloat(it.supply_qty) || 0;
         const s_rate = parseFloat(it.supply_rate) || 0;
         const sv_qty = parseFloat(it.service_qty) || 0;
@@ -1105,60 +1100,90 @@ export default function NewNTPO() {
         )}
 
         {step === 3 && (
-          <div style={{ display: 'grid', gap: '12px', marginBottom: '16px', maxWidth: '600px' }}>
-            <div>
-              <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Sales Order Date</label>
-              <div className="date-picker-container" style={{ position: 'relative' }}>
-                <DatePicker
-                  selected={poDate ? new Date(poDate) : null}
-                  onChange={(date) => setPODate(date ? date.toISOString().split('T')[0] : '')}
-                  dateFormat="dd/MM/yyyy"
-                  className="form-input compact-form-input"
-                  placeholderText="DD/MM/YYYY"
-                />
-                <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              
+              {/* Left Column: Continuous Entry Fields */}
               <div>
-                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Start Date</label>
-                <div className="date-picker-container" style={{ position: 'relative' }}>
-                  <DatePicker
-                    selected={startDate ? new Date(startDate) : null}
-                    onChange={(date) => setStartDate(date ? date.toISOString().split('T')[0] : '')}
-                    dateFormat="dd/MM/yyyy"
-                    className="form-input compact-form-input"
-                    placeholderText="DD/MM/YYYY"
-                    disabled={hasOriginalPO === true}
-                  />
-                  <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
-                </div>
-              </div>
-              <div>
-                <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Est. End Date</label>
-                <div className="date-picker-container" style={{ position: 'relative' }}>
-                  <DatePicker
-                    selected={endDate ? new Date(endDate) : null}
-                    onChange={(date) => setEndDate(date ? date.toISOString().split('T')[0] : '')}
-                    dateFormat="dd/MM/yyyy"
-                    className="form-input compact-form-input"
-                    placeholderText="DD/MM/YYYY"
-                    disabled={hasOriginalPO === true}
-                  />
-                  <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
-                </div>
-              </div>
-            </div>
-
-            {hasOriginalPO !== null && (
-              <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', marginTop: '12px' }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: '13px', color: '#1E293B', fontWeight: 700, borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>Project SPOC Details</span>
-                  <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(From Master or Customer Address — Edit under Master or Customer Address)</span>
-                </h4>
+                <h3 style={{ fontSize: '14px', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontWeight: 700, color: '#334155' }}>3. Basic Details</h3>
                 <div style={{ display: 'grid', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Name <span style={{ color: 'red' }}>*</span></label>
+                    <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Sales Order Date</label>
+                    <div className="date-picker-container" style={{ position: 'relative' }}>
+                      <DatePicker
+                        selected={poDate ? new Date(poDate) : null}
+                        onChange={(date) => setPODate(date ? date.toISOString().split('T')[0] : '')}
+                        dateFormat="dd/MM/yyyy"
+                        className="form-input compact-form-input"
+                        placeholderText="DD/MM/YYYY"
+                      />
+                      <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Start Date</label>
+                      <div className="date-picker-container" style={{ position: 'relative' }}>
+                        <DatePicker
+                          selected={startDate ? new Date(startDate) : null}
+                          onChange={(date) => setStartDate(date ? date.toISOString().split('T')[0] : '')}
+                          dateFormat="dd/MM/yyyy"
+                          className="form-input compact-form-input"
+                          placeholderText="DD/MM/YYYY"
+                          disabled={hasOriginalPO === true}
+                        />
+                        <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Est. End Date</label>
+                      <div className="date-picker-container" style={{ position: 'relative' }}>
+                        <DatePicker
+                          selected={endDate ? new Date(endDate) : null}
+                          onChange={(date) => setEndDate(date ? date.toISOString().split('T')[0] : '')}
+                          dateFormat="dd/MM/yyyy"
+                          className="form-input compact-form-input"
+                          placeholderText="DD/MM/YYYY"
+                          disabled={hasOriginalPO === true}
+                        />
+                        <span className="material-symbols-outlined calendar-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748B', pointerEvents: 'none' }}>calendar_today</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '8px', border: '1px solid #E2E8F0', marginTop: '12px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#3B82F6' }}>settings_suggest</span>
+                      <span>Need Approval by Sales for invoice ? <span style={{ color: 'red' }}>*</span></span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '24px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="needSalesInvoiceApproval"
+                          value="yes"
+                          checked={needSalesInvoiceApproval === 'yes'}
+                          onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        Yes
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="needSalesInvoiceApproval"
+                          value="no"
+                          checked={needSalesInvoiceApproval === 'no'}
+                          onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        No
+                      </label>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Name <span style={{ color: 'red' }}>*</span></label>
                     <select 
                       value={projectSpocName || ''} 
                       onChange={(e) => {
@@ -1169,7 +1194,7 @@ export default function NewNTPO() {
                         setProjectSpocPhone(user ? (user.phone || '') : '');
                       }} 
                       className="compact-form-input-text"
-                      style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px', background: 'white' }}
+                      style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px', background: 'white' }}
                     >
                       <option value="">Select Project SPOC</option>
                       {projectUsers.map(user => (
@@ -1177,99 +1202,96 @@ export default function NewNTPO() {
                       ))}
                     </select>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Email ID <span style={{ color: 'red' }}>*</span></label>
-                      <input 
-                        type="email"
-                        value={projectSpocEmail || ''} 
-                        readOnly
-                        placeholder="Project SPOC Email ID" 
-                        className="compact-form-input-text"
-                        style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: isProjectPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Project SPOC Contact Number <span style={{ color: 'red' }}>*</span></label>
-                      <input 
-                        type="text"
-                        value={projectSpocPhone || ''} 
-                        readOnly
-                        placeholder="Project SPOC Contact Number" 
-                        className="compact-form-input-text"
-                        style={{ 
-                          background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0', 
-                          color: isProjectPhoneInvalid ? '#DC2626' : '#64748B', 
-                          border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1', 
-                          cursor: 'not-allowed' 
-                        }} 
-                      />
-                      {isProjectPhoneInvalid && (
-                        <p style={{ color: '#EF4444', fontSize: '11px', marginTop: '4px', fontWeight: 500 }}>
-                          Must be exactly 10 digits. Update under Project User Master.
-                        </p>
-                      )}
-                    </div>
-                  </div>
                 </div>
               </div>
-            )}
 
-            <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', marginTop: '12px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>Attach Invoice with DC? (Select "No" if Sales has to request for Invoice) <span style={{ color: 'red' }}>*</span></span>
-              </div>
-              <div style={{ display: 'flex', gap: '24px', marginTop: '8px', marginBottom: '4px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    name="needSalesInvoiceApproval"
-                    value="yes"
-                    checked={needSalesInvoiceApproval === 'yes'}
-                    onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  Yes
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    name="needSalesInvoiceApproval"
-                    value="no"
-                    checked={needSalesInvoiceApproval === 'no'}
-                    onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  No
-                </label>
-              </div>
-            </div>
-
-            {loading ? (
-              <div style={{ padding: '40px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', margin: '20px 0' }}>
-                <div className="spinner" style={{ margin: '0 auto 12px', width: '36px', height: '36px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                <h3 style={{ margin: 0, color: '#1e293b', fontSize: '14px' }}>Processing Attachments...</h3>
-                <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: '12px' }}>Uploading files and preparing your PO workspace.</p>
-              </div>
-            ) : (
+              {/* Right Column: Project SPOC Details */}
               <div>
-                <h3 style={{ fontSize: '14px', margin: '12px 0 8px', color: '#334155' }}>Attachments</h3>
-                <div style={{ display: 'grid', gap: '10px' }}>
-                  {['po_copy', 'po_annex', 'other'].map(type => (
-                    <div key={type} style={{ border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: '6px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '6px', textTransform: 'capitalize', color: '#475569' }}>{type === 'po_copy' ? 'Customer Approval' : type === 'po_annex' ? 'PO Annex' : 'Other Attachment'}</label>
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.xlsm,.csv" onChange={(e) => setAttachments(prev => ({ ...prev, [type]: e.target.files[0] }))} style={{ flex: 1, fontSize: '12px' }} />
-                        {attachments[type] && <button onClick={() => setShowViewer(type)} style={{ background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '0 8px', height: '24px', cursor: 'pointer', fontSize: '11px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>View</button>}
+                <h3 style={{ fontSize: '14px', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontWeight: 700, color: '#334155' }}>SPOC Details</h3>
+                {hasOriginalPO !== null && (
+                  <div style={{ border: '1px solid #E2E8F0', padding: '14px', borderRadius: '8px', background: '#F8FAFC' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10B981' }}>badge</span>
+                      <span>Project SPOC</span>
+                      <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(Select from Project Users)</span>
+                    </div>
+                    <div style={{ display: 'grid', gap: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Email ID <span style={{ color: 'red' }}>*</span></label>
+                          <input 
+                            type="email"
+                            value={projectSpocEmail || ''} 
+                            readOnly
+                            placeholder="Project SPOC Email ID" 
+                            className="compact-form-input-text"
+                            style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: isProjectPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Project SPOC Contact <span style={{ color: 'red' }}>*</span></label>
+                          <input 
+                            type="text"
+                            value={projectSpocPhone || ''} 
+                            readOnly
+                            placeholder="Project SPOC Contact Number" 
+                            className="compact-form-input-text"
+                            style={{ 
+                              background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0', 
+                              color: isProjectPhoneInvalid ? '#DC2626' : '#64748B', 
+                              border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1', 
+                              cursor: 'not-allowed' 
+                            }} 
+                          />
+                          {isProjectPhoneInvalid && (
+                            <p style={{ color: '#EF4444', fontSize: '10px', marginTop: '4px', fontWeight: 500 }}>
+                              Must be exactly 10 digits. Update under Project User Master.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', gap: '12px' }}>
-                  <button onClick={() => { handleDownloadTemplate(); nextStep(); }} style={{ height: '36px', padding: '0 16px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{loading ? 'Uploading...' : 'Download Template & Next'}</button>
-                </div>
+                  </div>
+                )}
               </div>
-            )}
+
+            </div>
+
+            {/* Bottom Row: Attachments */}
+            <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '20px', marginTop: '8px' }}>
+              {loading ? (
+                <div style={{ padding: '40px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', margin: '20px 0' }}>
+                  <div className="spinner" style={{ margin: '0 auto 12px', width: '36px', height: '36px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                  <h3 style={{ margin: 0, color: '#1e293b', fontSize: '14px' }}>Processing Attachments...</h3>
+                  <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: '12px' }}>Uploading files and preparing your PO workspace.</p>
+                </div>
+              ) : (
+                <div>
+                  <h3 style={{ fontSize: '14px', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontWeight: 700, color: '#334155' }}>4. Attachments</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                    {['po_copy', 'po_annex', 'other'].map(type => (
+                      <div key={type} style={{ border: '1px solid #E5E7EB', padding: '12px', borderRadius: '8px', background: '#F8FAFC' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '6px', textTransform: 'capitalize', color: '#334155' }}>
+                          {type === 'po_copy' ? 'Customer Approval' : type === 'po_annex' ? 'PO Annex' : 'Other Attachment'}
+                        </label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.xlsm,.csv" onChange={(e) => setAttachments(prev => ({ ...prev, [type]: e.target.files[0] }))} style={{ fontSize: '11px', width: '100%' }} />
+                          {attachments[type] && (
+                            <button onClick={() => setShowViewer(type)} style={{ background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', fontSize: '12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
+                              View Uploaded File
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', gap: '12px' }}>
+                    <button onClick={() => { handleDownloadTemplate(); nextStep(); }} style={{ height: '36px', padding: '0 16px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{loading ? 'Uploading...' : 'Download Template & Next'}</button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1505,7 +1527,7 @@ export default function NewNTPO() {
                       <td style={{ padding: '0', border: '1px solid #E5E7EB', background: '#ECFDF5', height: '32px' }}><input type="number" value={it.supply_rate} onChange={(e) => updateItem(idx, 'supply_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '0 8px', height: '32px', fontSize: '0.7rem', background: 'transparent' }} /></td>
                       <td style={{ padding: '0', border: '1px solid #E5E7EB', background: '#ECFDF5', height: '32px' }}>
                         <select
-                          value={it.supply_gst_rate || ''}
+                          value={it.supply_gst_rate ?? ''}
                           onChange={(e) => updateItem(idx, 'supply_gst_rate', e.target.value)}
                           disabled={(parseFloat(it.supply_qty) || 0) === 0 || (parseFloat(it.supply_rate) || 0) === 0}
                           style={{ width: '100%', border: 'none', padding: '0 8px', height: '32px', fontSize: '0.7rem', background: ((parseFloat(it.supply_qty) || 0) === 0 || (parseFloat(it.supply_rate) || 0) === 0) ? '#f3f4f6' : 'transparent', outline: 'none' }}
@@ -1522,7 +1544,7 @@ export default function NewNTPO() {
                       <td style={{ padding: '0', border: '1px solid #E5E7EB', background: '#EFF6FF', height: '32px' }}><input type="number" value={it.service_rate} onChange={(e) => updateItem(idx, 'service_rate', e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'right', padding: '0 8px', height: '32px', fontSize: '0.7rem', background: 'transparent' }} /></td>
                       <td style={{ padding: '0', border: '1px solid #E5E7EB', background: '#EFF6FF', height: '32px' }}>
                         <select
-                          value={it.service_gst_rate || ''}
+                          value={it.service_gst_rate ?? ''}
                           onChange={(e) => updateItem(idx, 'service_gst_rate', e.target.value)}
                           disabled={(parseFloat(it.service_qty) || 0) === 0 || (parseFloat(it.service_rate) || 0) === 0}
                           style={{ width: '100%', border: 'none', padding: '0 8px', fontSize: '0.7rem', background: ((parseFloat(it.service_qty) || 0) === 0 || (parseFloat(it.service_rate) || 0) === 0) ? '#f3f4f6' : 'transparent', outline: 'none', height: '32px' }}

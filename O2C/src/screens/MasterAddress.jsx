@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import CustomStateSelect from '../components/CustomStateSelect';
 import CustomCitySelect from '../components/CustomCitySelect';
 import { POPULAR_CITIES } from '../utils/cities';
+import { API_BASE_URL } from '../config';
 
 export default function MasterAddress() {
   const [addresses, setAddresses] = useState([]);
@@ -24,7 +25,12 @@ export default function MasterAddress() {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState('address'); // 'address' or 'signature'
+  const [activeSection, setActiveSection] = useState('address'); // 'address', 'signature', or 'branding'
+
+  // Branding States
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [organizationName, setOrganizationName] = useState('');
 
   // Signature States & Handlers
   const canvasRef = useRef(null);
@@ -46,9 +52,20 @@ export default function MasterAddress() {
     }
   };
 
+  const fetchBrandingData = async () => {
+    try {
+      const res = await axios.get('/api/branding');
+      setLogoPreview(res.data.logo_path);
+      setOrganizationName(res.data.organization_name || '');
+    } catch (err) {
+      console.error('Failed to fetch branding data:', err);
+    }
+  };
+
   useEffect(() => {
     fetchAddresses();
     fetchGlobalSignature();
+    fetchBrandingData();
   }, []);
 
   useEffect(() => {
@@ -198,6 +215,69 @@ export default function MasterAddress() {
     }
   };
 
+  const handleSaveBranding = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    if (logoFile) {
+      formData.append('logo', logoFile);
+    }
+    formData.append('organization_name', organizationName);
+
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      };
+      const res = await axios.post('/api/branding', formData, { headers });
+      
+      setLogoPreview(res.data.logo_path);
+      setLogoFile(null);
+      
+      window.dispatchEvent(new Event('branding-updated'));
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: 'Logo & Department settings saved successfully!',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to save Logo & Department settings'
+      });
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    const result = await Swal.fire({
+      title: 'Remove Logo?',
+      text: 'Are you sure you want to remove the company logo?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Yes, remove it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const token = sessionStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        await axios.post('/api/global-settings/sidebar_logo_path', { value: null }, { headers });
+        setLogoPreview(null);
+        setLogoFile(null);
+        window.dispatchEvent(new Event('branding-updated'));
+        Swal.fire('Removed!', 'Logo has been removed.', 'success');
+      } catch (err) {
+        Swal.fire('Error', 'Failed to remove logo', 'error');
+      }
+    }
+  };
+
   const fetchAddresses = async () => {
     try {
       const token = sessionStorage.getItem('token');
@@ -298,12 +378,14 @@ export default function MasterAddress() {
           </button>
           <div>
             <h1 className="text-h1 page-header__title" style={{ fontSize: '1.2rem', margin: 0 }}>
-              {activeSection === 'address' ? 'My Addresses' : 'Centralized Signature'}
+              {activeSection === 'address' ? 'My Addresses' : activeSection === 'signature' ? 'Centralized Signature' : 'Logo & Company'}
             </h1>
             <p className="page-header__subtitle" style={{ fontSize: '0.85rem', margin: 0 }}>
               {activeSection === 'address'
                 ? 'Manage corporate and warehouse dispatch locations'
-                : 'Configure company authorization signature for transactions'}
+                : activeSection === 'signature'
+                ? 'Configure company authorization signature for transactions'
+                : 'Configure sidebar branding, company names and logos'}
             </p>
           </div>
         </div>
@@ -364,6 +446,27 @@ export default function MasterAddress() {
         >
           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>draw</span>
           Authorized Signature
+        </button>
+        <div style={{ color: '#9CA3AF', fontWeight: 500, fontSize: '14px' }}>/</div>
+        <button
+          onClick={() => setActiveSection('branding')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: '6px 12px',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            color: activeSection === 'branding' ? 'var(--primary)' : '#6B7280',
+            borderBottom: activeSection === 'branding' ? '2.5px solid var(--primary)' : '2.5px solid transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>palette</span>
+          Logo & Company
         </button>
       </div>
 
@@ -675,6 +778,150 @@ export default function MasterAddress() {
             </div>
           </div>
         </>
+      )}
+
+      {activeSection === 'branding' && (
+        <div className="card animate-slide-up" style={{ padding: '24px', borderRadius: '12px', marginTop: '16px', border: '1px solid #E5E7EB', background: 'white' }}>
+          <div style={{ marginBottom: '20px' }}>
+            <h3 className="text-h3" style={{ color: 'var(--secondary)', marginBottom: '4px', fontSize: '1.15rem', fontWeight: 700 }}>Logo & Company Settings</h3>
+            <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
+              Customize the sidebar branding by uploading your company logo and configuring organization/company name.
+            </p>
+          </div>
+
+          <form onSubmit={handleSaveBranding} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              
+              {/* Form Inputs (Left Column) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'center' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '6px', display: 'block' }}>
+                    Organization / Company Name
+                  </label>
+                  <input 
+                    className="form-input" 
+                    style={{ padding: '8px 12px', height: '38px', fontSize: '0.875rem', width: '100%', boxSizing: 'border-box', borderRadius: '8px' }} 
+                    value={organizationName} 
+                    onChange={e => setOrganizationName(e.target.value)} 
+                    placeholder="e.g. Sudha Analyticals" 
+                  />
+                </div>
+              </div>
+
+              {/* Logo Upload & Preview (Right Column) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '2px', display: 'block' }}>
+                  Company Logo
+                </label>
+                
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  {/* Upload Dropzone */}
+                  <div 
+                    onClick={() => {
+                      const fileInput = document.getElementById('logo-upload-input');
+                      if (fileInput) fileInput.click();
+                    }}
+                    style={{
+                      flex: 1,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      color: '#4F46E5',
+                      fontSize: '12px',
+                      background: '#F9FAFB',
+                      padding: '24px 16px',
+                      borderRadius: '8px',
+                      border: '2px dashed #E5E7EB',
+                      textAlign: 'center',
+                      transition: 'all 0.2s ease',
+                      minHeight: '120px'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#6366F1' }}>upload_file</span>
+                    <span style={{ color: '#4B5563', fontWeight: 600 }}>Click to upload company logo</span>
+                    <span style={{ fontSize: '10px', color: '#9CA3AF' }}>PNG, JPG, JPEG, SVG (Max 2MB)</span>
+                    <input 
+                      id="logo-upload-input"
+                      type="file" 
+                      accept="image/*" 
+                      style={{ display: 'none' }} 
+                      onChange={e => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          setLogoFile(file);
+                          setLogoPreview(URL.createObjectURL(file));
+                        }
+                      }} 
+                    />
+                  </div>
+
+                  {/* Active Preview */}
+                  <div style={{ width: '160px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#6B7280', letterSpacing: '0.05em' }}>Logo Preview</span>
+                    <div style={{
+                      border: '1.5px dashed #E5E7EB',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      background: '#F9FAFB',
+                      width: '100%',
+                      height: '90px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {logoPreview ? (
+                        <img 
+                          src={logoPreview.startsWith('http') || logoPreview.startsWith('blob:') ? logoPreview : `${API_BASE_URL}${logoPreview}`} 
+                          alt="Logo Preview" 
+                          style={{ maxWidth: '100%', maxHeight: '74px', objectFit: 'contain' }} 
+                        />
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 500 }}>No logo set</span>
+                      )}
+                    </div>
+                    {logoPreview && (
+                      <button 
+                        type="button" 
+                        className="btn" 
+                        onClick={handleRemoveLogo} 
+                        style={{ 
+                          height: '24px', 
+                          fontSize: '10px', 
+                          background: '#FEF2F2', 
+                          color: '#EF4444', 
+                          border: '1px solid #FCA5A5', 
+                          padding: '0 8px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Remove Logo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #E5E7EB', paddingTop: '16px', marginTop: '10px' }}>
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                style={{ padding: '8px 20px', fontSize: '0.9rem', height: '38px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>save</span>
+                Save Branding Settings
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );

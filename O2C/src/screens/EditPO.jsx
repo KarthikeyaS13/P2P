@@ -329,7 +329,10 @@ export default function EditPO() {
       const gst_total = items.reduce((acc, it) => acc + (it.rev_total_gst || 0), 0);
       const grand_total = items.reduce((acc, it) => acc + (it.rev_total_invoice || 0), 0);
 
+      const newStatus = poDetails.is_nt_po ? 'nt_created' : 'pending';
+
       const payload = {
+        status: newStatus,
         project_spoc_name: projectSpocName.trim(),
         project_spoc_email: projectSpocEmail.trim(),
         project_spoc_phone: projectSpocPhone.trim(),
@@ -367,13 +370,20 @@ export default function EditPO() {
         }))
       };
 
-      await axios.put(`/api/pos/${poDetails.id}`, payload, { headers });
+      const response = await axios.put(`/api/pos/${poDetails.id}`, payload, { headers });
 
       // Clear draft after successful submission
       sessionStorage.removeItem(`edit_po_draft_${poDetails.id}`);
 
-      Swal.fire({ icon: 'success', title: 'Revised', text: 'PO Revised successfully!', timer: 2000, showConfirmButton: false });
-      navigate('/dashboard');
+      Swal.fire({
+        icon: 'success',
+        title: 'PO Revised Successfully',
+        html: `The Purchase Order has been revised to <strong>${response.data.po_number}</strong>.`,
+        confirmButtonColor: '#10B981',
+        confirmButtonText: 'Great!'
+      }).then(() => {
+        navigate('/dashboard');
+      });
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to revise PO' });
     } finally {
@@ -533,7 +543,9 @@ export default function EditPO() {
                 <select value={selectedPO || ''} onChange={handlePOSelect} style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px' }}>
                   <option value="">-- Select PO --</option>
                   {allPOs.filter(p => p.customer_id == selectedCustomer && p.location_id == selectedLocation).map(po => (
-                    <option key={po.id} value={po.id}>{po.po_number || po.order_id}</option>
+                    <option key={po.id} value={po.id}>
+                      {po.po_number || po.order_id} {po.status ? `(${po.status.toUpperCase().replace('_', ' ')})` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -543,6 +555,26 @@ export default function EditPO() {
 
             {poDetails && (
               <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '8px', border: '1px solid #E5E7EB', marginBottom: '20px', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.01)' }}>
+                {poDetails.status === 'rejected' && poDetails.remarks && (
+                  <div style={{
+                    background: '#FEF2F2',
+                    border: '1px solid #FCA5A5',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}>
+                    <span className="material-symbols-outlined" style={{ color: '#EF4444', fontSize: '24px', marginTop: '2px' }}>report</span>
+                    <div>
+                      <h4 style={{ margin: '0 0 4px 0', color: '#991B1B', fontWeight: 700, fontSize: '0.9rem' }}>Sales Order Rejected / Denied</h4>
+                      <p style={{ margin: 0, color: '#7F1D1D', fontSize: '0.85rem', lineHeight: '1.4' }}>
+                        <strong>Reason for Denial:</strong> {poDetails.remarks}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
                   <div style={{ background: 'white', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
                     <p style={{ color: '#6B7280', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>New Version Sales Order No</p>
@@ -644,33 +676,36 @@ export default function EditPO() {
                   </div>
                 </div>
 
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginTop: '12px', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>Attach Invoice with DC? (Select "No" if Sales has to request for Invoice) <span style={{ color: 'red' }}>*</span></span>
-                </div>
-                <div style={{ display: 'flex', gap: '24px', marginTop: '6px', marginBottom: '6px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
-                    <input 
-                      type="radio" 
-                      name="needSalesInvoiceApproval" 
-                      value="yes" 
-                      checked={needSalesInvoiceApproval === 'yes'} 
-                      onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    Yes
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
-                    <input 
-                      type="radio" 
-                      name="needSalesInvoiceApproval" 
-                      value="no" 
-                      checked={needSalesInvoiceApproval === 'no'} 
-                      onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    No
-                  </label>
-                </div>
+                  <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '8px', border: '1px solid #E2E8F0', marginTop: '12px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#3B82F6' }}>settings_suggest</span>
+                      <span>Need Approval by Sales for invoice ? <span style={{ color: 'red' }}>*</span></span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '24px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                        <input 
+                          type="radio" 
+                          name="needSalesInvoiceApproval" 
+                          value="yes" 
+                          checked={needSalesInvoiceApproval === 'yes'} 
+                          onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        Yes
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                        <input 
+                          type="radio" 
+                          name="needSalesInvoiceApproval" 
+                          value="no" 
+                          checked={needSalesInvoiceApproval === 'no'} 
+                          onChange={(e) => setNeedSalesInvoiceApproval(e.target.value)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        No
+                      </label>
+                    </div>
+                  </div>
 
               </div>
             )}

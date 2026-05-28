@@ -229,7 +229,7 @@ function autoGenerateInvoiceForDC(dcId, po, createdByUserId, username) {
     return;
   }
 
-  const isAutoApproved = po.need_sales_invoice_approval === 'yes';
+  const isAutoApproved = po.need_sales_invoice_approval === 'no';
 
   let invoice_number;
   let initialStatus;
@@ -757,6 +757,63 @@ app.post('/api/global-settings/:key', authenticate, (req, res) => {
   }
 });
 
+// --- Dynamic Branding API ---
+app.get('/api/branding', (req, res) => {
+  try {
+    const logoRow = db.prepare('SELECT value FROM global_settings WHERE key = ?').get('sidebar_logo_path');
+    const deptRow = db.prepare('SELECT value FROM global_settings WHERE key = ?').get('sidebar_department_name');
+    const orgRow = db.prepare('SELECT value FROM global_settings WHERE key = ?').get('sidebar_organization_name');
+    res.json({
+      logo_path: logoRow ? logoRow.value : null,
+      department_name: deptRow ? deptRow.value : '',
+      organization_name: orgRow ? orgRow.value : ''
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/branding', authenticate, upload.single('logo'), (req, res) => {
+  try {
+    const { department_name, organization_name } = req.body;
+    
+    db.exec('BEGIN');
+    try {
+      if (req.file) {
+        const logoPath = `/uploads/${req.file.filename}`;
+        db.prepare('INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('sidebar_logo_path', logoPath);
+      }
+      
+      if (department_name !== undefined) {
+        db.prepare('INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('sidebar_department_name', department_name.trim());
+      }
+      
+      if (organization_name !== undefined) {
+        db.prepare('INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('sidebar_organization_name', organization_name.trim());
+      }
+      
+      db.exec('COMMIT');
+      
+      // Return updated branding info
+      const logoRow = db.prepare('SELECT value FROM global_settings WHERE key = ?').get('sidebar_logo_path');
+      const deptRow = db.prepare('SELECT value FROM global_settings WHERE key = ?').get('sidebar_department_name');
+      const orgRow = db.prepare('SELECT value FROM global_settings WHERE key = ?').get('sidebar_organization_name');
+      
+      res.json({
+        success: true,
+        logo_path: logoRow ? logoRow.value : null,
+        department_name: deptRow ? deptRow.value : '',
+        organization_name: orgRow ? orgRow.value : ''
+      });
+    } catch (innerErr) {
+      db.exec('ROLLBACK');
+      throw innerErr;
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Master Addresses API ---
 app.get('/api/master-addresses', authenticate, (req, res) => {
   try {
@@ -815,11 +872,20 @@ app.post('/api/login', (req, res) => {
   username = username?.toLowerCase().trim();
   password = password?.trim();
   try {
-    const user = db.prepare(`SELECT u.id, u.username, u.full_name, u.phone, u.password_hash, u.is_active, r.name as role
-      FROM users u JOIN user_roles ur ON u.id=ur.user_id JOIN roles r ON ur.role_id=r.id WHERE u.username=?`).get(username);
+    const user = db.prepare(`
+      SELECT u.id, u.username, u.full_name, u.phone, u.password_hash, u.is_active, r.name as role
+      FROM users u 
+      JOIN user_roles ur ON u.id = ur.user_id 
+      JOIN roles r ON ur.role_id = r.id 
+      WHERE u.username = ? OR u.phone = ?
+    `).get(username, username);
 
     if (!user || !bcrypt.compareSync(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (user.is_active === 0) {
+      return res.status(401).json({ error: 'Your account is inactive. Please contact administrator.' });
     }
 
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role, full_name: user.full_name, phone: user.phone }, JWT_SECRET, { expiresIn: '1d' });
@@ -832,7 +898,35 @@ app.post('/api/login', (req, res) => {
 
 app.get('/api/users/me', authenticate, (req, res) => res.json(req.user));
 
-// --- Project Users Management ---
+app.post('/api/change-password', authenticate, (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    const userId = req.user.id;
+    const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
+      return res.status(400).json({ error: 'Incorrect current password' });
+    }
+
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newHash, userId);
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Change Password Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Centralized User Management (Generalized from Project Users) ---
 app.get('/api/project-users', requireRole(['admin', 'sales', 'accounts', 'management']), (req, res) => {
   try {
     const rows = db.prepare(`
@@ -840,7 +934,6 @@ app.get('/api/project-users', requireRole(['admin', 'sales', 'accounts', 'manage
       FROM users u
       JOIN user_roles ur ON u.id = ur.user_id
       JOIN roles r ON ur.role_id = r.id
-      WHERE r.name = 'projects'
       ORDER BY u.full_name ASC
     `).all();
     res.json(rows);
@@ -852,12 +945,13 @@ app.get('/api/project-users', requireRole(['admin', 'sales', 'accounts', 'manage
 
 app.post('/api/project-users', requireRole(['admin']), (req, res) => {
   try {
-    let { full_name, email, phone, username, password, is_active } = req.body;
+    let { full_name, email, phone, username, password, role, is_active } = req.body;
     username = username?.toLowerCase().trim();
     email = email?.trim();
+    const finalRole = role ? role.toLowerCase().trim() : 'projects';
 
-    if (!full_name || !username || !password || !email) {
-      return res.status(400).json({ error: 'Full name, email, username and password are required' });
+    if (!full_name || !username || !email) {
+      return res.status(400).json({ error: 'Full name, email, and username are required' });
     }
 
     // Email pattern check
@@ -873,6 +967,11 @@ app.post('/api/project-users', requireRole(['admin']), (req, res) => {
       if (!phoneRegex.test(phone)) {
         return res.status(400).json({ error: 'Invalid contact number format' });
       }
+      
+      const existingPhone = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone);
+      if (existingPhone) {
+        return res.status(400).json({ error: 'Phone number already registered' });
+      }
     }
 
     // Unique checks
@@ -886,7 +985,9 @@ app.post('/api/project-users', requireRole(['admin']), (req, res) => {
       return res.status(400).json({ error: 'Email ID already exists' });
     }
 
-    const hash = bcrypt.hashSync(password, 10);
+    // Default password to pwd@<phone> or pwd@1234567890 if no phone is specified
+    const finalPassword = password || (phone ? `pwd@${phone}` : 'pwd@1234567890');
+    const hash = bcrypt.hashSync(finalPassword, 10);
 
     const insertTx = db.transaction(() => {
       const resUser = db.prepare(`
@@ -896,9 +997,9 @@ app.post('/api/project-users', requireRole(['admin']), (req, res) => {
 
       const userId = resUser.lastInsertRowid;
 
-      let roleId = db.prepare("SELECT id FROM roles WHERE name = 'projects'").get()?.id;
+      let roleId = db.prepare("SELECT id FROM roles WHERE name = ?").get(finalRole)?.id;
       if (!roleId) {
-        const resRole = db.prepare("INSERT INTO roles (name) VALUES ('projects')").run();
+        const resRole = db.prepare("INSERT INTO roles (name) VALUES (?)").run(finalRole);
         roleId = resRole.lastInsertRowid;
       }
 
@@ -909,11 +1010,14 @@ app.post('/api/project-users', requireRole(['admin']), (req, res) => {
     const newUserId = insertTx();
 
     // Log audit trail
-    auditLog(req.user.username, 'CREATE', 'ProjectUser', newUserId, null, { username, full_name, email, phone, is_active });
+    auditLog(req.user.username, 'CREATE', 'UserManagement', newUserId, null, { username, full_name, email, phone, role: finalRole, is_active });
 
     res.json({ success: true, id: newUserId });
   } catch (err) {
     console.error('ERROR in POST /api/project-users:', err);
+    if (err.message && err.message.includes('FOREIGN KEY')) {
+      return res.status(400).json({ error: 'A database constraint prevents registering this user. Please ensure the selected role exists or contact administrator.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -921,9 +1025,10 @@ app.post('/api/project-users', requireRole(['admin']), (req, res) => {
 app.put('/api/project-users/:id', requireRole(['admin']), (req, res) => {
   const userId = req.params.id;
   try {
-    let { full_name, email, phone, username, password, is_active } = req.body;
+    let { full_name, email, phone, username, password, role, is_active } = req.body;
     username = username?.toLowerCase().trim();
     email = email?.trim();
+    const finalRole = role ? role.toLowerCase().trim() : undefined;
 
     if (!full_name || !username || !email) {
       return res.status(400).json({ error: 'Full name, email and username are required' });
@@ -942,6 +1047,11 @@ app.put('/api/project-users/:id', requireRole(['admin']), (req, res) => {
       if (!phoneRegex.test(phone)) {
         return res.status(400).json({ error: 'Invalid contact number format' });
       }
+      
+      const existingPhone = db.prepare('SELECT id FROM users WHERE phone = ? AND id != ?').get(phone, userId);
+      if (existingPhone) {
+        return res.status(400).json({ error: 'Phone number already registered' });
+      }
     }
 
     // Unique checks excluding self
@@ -955,34 +1065,65 @@ app.put('/api/project-users/:id', requireRole(['admin']), (req, res) => {
       return res.status(400).json({ error: 'Email ID already exists' });
     }
 
-    const oldUser = db.prepare('SELECT username, full_name, email, phone, is_active, password_hash FROM users WHERE id = ?').get(userId);
-    if (!oldUser) {
+    const oldUserRow = db.prepare(`
+      SELECT u.username, u.full_name, u.email, u.phone, u.is_active, r.name as role 
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = ?
+    `).get(userId);
+    
+    if (!oldUserRow) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    let query = `
-      UPDATE users 
-      SET username = ?, full_name = ?, email = ?, phone = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
-    `;
-    const params = [username, full_name, email, phone || null, is_active ? 1 : 0];
+    const updateTx = db.transaction(() => {
+      let query = `
+        UPDATE users 
+        SET username = ?, full_name = ?, email = ?, phone = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
+      `;
+      const params = [username, full_name, email, phone || null, is_active ? 1 : 0];
 
-    if (password && password.trim() !== '') {
-      const hash = bcrypt.hashSync(password, 10);
-      query += `, password_hash = ?`;
-      params.push(hash);
-    }
+      if (password && password.trim() !== '') {
+        const hash = bcrypt.hashSync(password, 10);
+        query += `, password_hash = ?`;
+        params.push(hash);
+      }
 
-    query += ` WHERE id = ?`;
-    params.push(userId);
+      query += ` WHERE id = ?`;
+      params.push(userId);
 
-    db.prepare(query).run(...params);
+      db.prepare(query).run(...params);
 
-    const newUser = db.prepare('SELECT username, full_name, email, phone, is_active FROM users WHERE id = ?').get(userId);
-    auditLog(req.user.username, 'UPDATE', 'ProjectUser', userId, oldUser, newUser);
+      if (finalRole) {
+        let roleId = db.prepare("SELECT id FROM roles WHERE name = ?").get(finalRole)?.id;
+        if (!roleId) {
+          const resRole = db.prepare("INSERT INTO roles (name) VALUES (?)").run(finalRole);
+          roleId = resRole.lastInsertRowid;
+        }
+        db.prepare('DELETE FROM user_roles WHERE user_id = ?').run(userId);
+        db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)').run(userId, roleId);
+      }
+    });
+
+    updateTx();
+
+    const newUserRow = db.prepare(`
+      SELECT u.username, u.full_name, u.email, u.phone, u.is_active, r.name as role 
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = ?
+    `).get(userId);
+    
+    auditLog(req.user.username, 'UPDATE', 'UserManagement', userId, oldUserRow, newUserRow);
 
     res.json({ success: true });
   } catch (err) {
     console.error('ERROR in PUT /api/project-users/:id:', err);
+    if (err.message && err.message.includes('FOREIGN KEY')) {
+      return res.status(400).json({ error: 'A database constraint prevents updating this user. Please ensure all related records and roles are valid.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -990,24 +1131,32 @@ app.put('/api/project-users/:id', requireRole(['admin']), (req, res) => {
 app.delete('/api/project-users/:id', requireRole(['admin']), (req, res) => {
   const userId = req.params.id;
   try {
-    const oldUser = db.prepare('SELECT username, full_name, email, phone, is_active FROM users WHERE id = ?').get(userId);
-    if (!oldUser) {
+    const oldUserRow = db.prepare(`
+      SELECT u.username, u.full_name, u.email, u.phone, u.is_active, r.name as role 
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = ?
+    `).get(userId);
+
+    if (!oldUserRow) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const deleteTx = db.transaction(() => {
-      // Delete from user_roles
       db.prepare('DELETE FROM user_roles WHERE user_id = ?').run(userId);
-      // Delete from users
       db.prepare('DELETE FROM users WHERE id = ?').run(userId);
     });
 
     deleteTx();
-    auditLog(req.user.username, 'DELETE', 'ProjectUser', userId, oldUser, null);
+    auditLog(req.user.username, 'DELETE', 'UserManagement', userId, oldUserRow, null);
 
     res.json({ success: true });
   } catch (err) {
     console.error('ERROR in DELETE /api/project-users/:id:', err);
+    if (err.message && err.message.includes('FOREIGN KEY')) {
+      return res.status(400).json({ error: 'This user cannot be deleted because they have associated records (e.g. Invoices, Purchase Orders, or Delivery Challans) in the system. To disable their access, please set their status to Inactive instead.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -1024,7 +1173,7 @@ app.get('/api/search', authenticate, (req, res) => {
     const pos = db.prepare(`
       SELECT id, po_number as title, 'Purchase Order' as type, '/pos/' || id as link
       FROM purchase_orders 
-      WHERE po_number LIKE ? 
+      WHERE po_number LIKE ? AND status != 'revised'
       LIMIT 5
     `).all(searchVal);
 
@@ -1061,20 +1210,63 @@ app.get('/api/audit-log', requireRole(['admin', 'auditor', 'management']), (req,
 // --- Dashboard ---
 app.get('/api/dashboard', authenticate, (req, res) => {
   try {
+    const isSales = req.user.role?.toLowerCase() === 'sales';
+    const userId = req.user.id;
+
     const stats = {
-      active_pos: db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE status NOT IN ('rejected','invoice_closed')`).get().c,
-      pending_pos: db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE status='pending'`).get().c,
-      pending_dcs: db.prepare(`SELECT COUNT(*) as c FROM dc_requests WHERE status='dc_requested'`).get().c,
-      pending_invoices: db.prepare(`SELECT COUNT(*) as c FROM invoices WHERE status IN ('draft','raised')`).get().c,
-      pending_invoice_requests: db.prepare(`SELECT COUNT(*) as c FROM delivery_challans WHERE delivery_status = 'delivery_confirmed'`).get().c,
-      pending_ar: db.prepare(`SELECT COUNT(*) as c FROM ar_entries WHERE status IN ('pending','partial')`).get().c,
-      total_customers: db.prepare(`SELECT COUNT(*) as c FROM customers`).get().c,
+      pending_regular_pos: isSales
+        ? db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE is_nt_po = 0 AND status IN ('pending', 'rejected') AND status != 'revised' AND created_by = ?`).get(userId).c
+        : db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE is_nt_po = 0 AND status IN ('pending', 'rejected') AND status != 'revised'`).get().c,
+
+      pending_nt_pos: isSales
+        ? db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE is_nt_po = 1 AND status IN ('nt_created', 'rejected') AND status != 'revised' AND created_by = ?`).get(userId).c
+        : db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE is_nt_po = 1 AND status IN ('nt_created', 'rejected') AND status != 'revised'`).get().c,
+
+      active_pos: isSales
+        ? db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE status NOT IN ('rejected','invoice_closed','revised') AND created_by = ?`).get(userId).c
+        : db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE status NOT IN ('rejected','invoice_closed','revised')`).get().c,
+
+      pending_pos: isSales
+        ? db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE status IN ('pending', 'nt_created') AND status != 'revised' AND created_by = ?`).get(userId).c
+        : db.prepare(`SELECT COUNT(*) as c FROM purchase_orders WHERE status IN ('pending', 'nt_created') AND status != 'revised'`).get().c,
+
+      pending_dcs: isSales
+        ? db.prepare(`SELECT COUNT(*) as c FROM dc_requests dr JOIN purchase_orders po ON dr.po_id = po.id WHERE dr.status='dc_requested' AND po.created_by = ?`).get(userId).c
+        : db.prepare(`SELECT COUNT(*) as c FROM dc_requests WHERE status='dc_requested'`).get().c,
+
+      pending_invoices: isSales
+        ? db.prepare(`SELECT COUNT(*) as c FROM invoices i JOIN purchase_orders po ON i.po_id = po.id WHERE i.status IN ('draft','raised') AND po.created_by = ?`).get(userId).c
+        : db.prepare(`SELECT COUNT(*) as c FROM invoices WHERE status IN ('draft','raised')`).get().c,
+
+      pending_invoice_requests: isSales
+        ? db.prepare(`SELECT COUNT(*) as c FROM delivery_challans dc JOIN purchase_orders po ON dc.po_id = po.id WHERE dc.status IN ('delivery_confirmed', 'partially_invoiced') AND (dc.invoicing_status IS NULL OR dc.invoicing_status != 'fully_invoiced') AND po.created_by = ?`).get(userId).c
+        : db.prepare(`SELECT COUNT(*) as c FROM delivery_challans WHERE status IN ('delivery_confirmed', 'partially_invoiced') AND (invoicing_status IS NULL OR invoicing_status != 'fully_invoiced')`).get().c,
+
+      pending_ar: isSales
+        ? db.prepare(`SELECT COUNT(*) as c FROM ar_entries ar JOIN purchase_orders po ON ar.po_id = po.id WHERE ar.status IN ('pending','partial') AND po.created_by = ?`).get(userId).c
+        : db.prepare(`SELECT COUNT(*) as c FROM ar_entries WHERE status IN ('pending','partial')`).get().c,
+
+      total_customers: isSales
+        ? db.prepare(`SELECT COUNT(DISTINCT customer_id) as c FROM purchase_orders WHERE created_by = ?`).get(userId).c
+        : db.prepare(`SELECT COUNT(*) as c FROM customers`).get().c,
     };
-    const recent_pos = db.prepare(`SELECT po.po_number, po.order_id, po.status, po.grand_total, c.name as customer_name, po.updated_at FROM purchase_orders po JOIN customers c ON po.customer_id=c.id ORDER BY po.updated_at DESC LIMIT 5`).all();
-    const recent_dcs = db.prepare(`SELECT dc.dc_number, dc.status, po.po_number, dc.created_at FROM delivery_challans dc JOIN purchase_orders po ON dc.po_id=po.id ORDER BY dc.created_at DESC LIMIT 5`).all();
-    const recent_invoices = db.prepare(`SELECT inv.invoice_number, inv.status, inv.grand_total, c.name as customer_name, inv.created_at FROM invoices inv JOIN customers c ON inv.customer_id=c.id ORDER BY inv.created_at DESC LIMIT 5`).all();
+
+    const recent_pos = isSales
+      ? db.prepare(`SELECT po.po_number, po.order_id, po.status, po.grand_total, c.name as customer_name, po.updated_at FROM purchase_orders po JOIN customers c ON po.customer_id=c.id WHERE po.status != 'revised' AND po.created_by = ? ORDER BY po.updated_at DESC LIMIT 5`).all(userId)
+      : db.prepare(`SELECT po.po_number, po.order_id, po.status, po.grand_total, c.name as customer_name, po.updated_at FROM purchase_orders po JOIN customers c ON po.customer_id=c.id WHERE po.status != 'revised' ORDER BY po.updated_at DESC LIMIT 5`).all();
+
+    const recent_dcs = isSales
+      ? db.prepare(`SELECT dc.dc_number, dc.status, po.po_number, dc.created_at FROM delivery_challans dc JOIN purchase_orders po ON dc.po_id=po.id WHERE po.status != 'revised' AND po.created_by = ? ORDER BY dc.created_at DESC LIMIT 5`).all(userId)
+      : db.prepare(`SELECT dc.dc_number, dc.status, po.po_number, dc.created_at FROM delivery_challans dc JOIN purchase_orders po ON dc.po_id=po.id WHERE po.status != 'revised' ORDER BY dc.created_at DESC LIMIT 5`).all();
+
+    const recent_invoices = isSales
+      ? db.prepare(`SELECT inv.invoice_number, inv.status, inv.grand_total, c.name as customer_name, inv.created_at FROM invoices inv JOIN customers c ON inv.customer_id=c.id JOIN purchase_orders po ON inv.po_id=po.id WHERE po.created_by = ? ORDER BY inv.created_at DESC LIMIT 5`).all(userId)
+      : db.prepare(`SELECT inv.invoice_number, inv.status, inv.grand_total, c.name as customer_name, inv.created_at FROM invoices inv JOIN customers c ON inv.customer_id=c.id ORDER BY inv.created_at DESC LIMIT 5`).all();
+
     res.json({ stats, recent_pos, recent_dcs, recent_invoices });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- Customers ---
@@ -1510,10 +1702,17 @@ app.get('/api/pos', authenticate, (req, res) => {
     if (status) {
       conditions.push(`p.status = ?`);
       params.push(status);
+    } else {
+      conditions.push(`p.status != 'revised'`);
     }
 
     if (type === 'original') {
       conditions.push(`p.is_nt_po = 0 AND p.is_temporary = 0`);
+    }
+
+    if (req.user.role?.toLowerCase() === 'sales') {
+      conditions.push(`p.created_by = ?`);
+      params.push(req.user.id);
     }
 
     if (conditions.length > 0) {
@@ -1567,7 +1766,15 @@ app.get('/api/pos/:id', authenticate, (req, res) => {
       ORDER BY line_number ASC
     `).all(req.params.id);
 
-    res.json({ ...po, items });
+    const parentId = po.parent_po_id || po.id;
+    const revisionHistory = db.prepare(`
+      SELECT id, po_number, status, grand_total, created_at, version 
+      FROM purchase_orders 
+      WHERE id = ? OR parent_po_id = ? 
+      ORDER BY version ASC
+    `).all(parentId, parentId);
+
+    res.json({ ...po, items, revision_history: revisionHistory });
   } catch (err) {
     console.error('ERROR:', err);
     res.status(500).json({ error: err.message });
@@ -1884,144 +2091,172 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
   try {
     db.exec('BEGIN');
     const oldPO = db.prepare("SELECT * FROM purchase_orders WHERE id = ?").get(req.params.id);
-    if (status) db.prepare(`UPDATE purchase_orders SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(status, req.params.id);
-    if (project_spoc_name !== undefined) {
-      db.prepare(`
-        UPDATE purchase_orders 
-        SET project_spoc_name = ?, project_spoc_email = ?, project_spoc_phone = ?, need_sales_invoice_approval = ?, updated_at = CURRENT_TIMESTAMP 
-        WHERE id = ?
-      `).run(project_spoc_name, project_spoc_email, project_spoc_phone, need_sales_invoice_approval || 'yes', req.params.id);
+    if (!oldPO) {
+      db.exec('ROLLBACK');
+      return res.status(404).json({ error: 'PO not found' });
     }
-    if (items && items.length) {
-      const existingItems = db.prepare('SELECT id FROM po_line_items WHERE po_id = ?').all(req.params.id);
-      const existingIds = existingItems.map(x => x.id);
-      const incomingIds = items.filter(it => it.id).map(it => it.id);
 
-      const idsToDelete = existingIds.filter(id => !incomingIds.includes(id));
-      if (idsToDelete.length > 0) {
-        const deleteStmt = db.prepare('DELETE FROM po_line_items WHERE id = ?');
-        for (const idToDelete of idsToDelete) {
-          deleteStmt.run(idToDelete);
+    if (oldPO.status === 'revised') {
+      db.exec('ROLLBACK');
+      return res.status(400).json({ error: 'This PO has already been revised and cannot be edited again.' });
+    }
+
+    const parentId = oldPO.parent_po_id || oldPO.id;
+
+    // Fetch the true original PO's po_number to use as the basePO reference
+    const parentPO = db.prepare("SELECT po_number FROM purchase_orders WHERE id = ?").get(parentId);
+    const basePO = parentPO ? parentPO.po_number : oldPO.po_number;
+
+    const existing = db.prepare(`
+      SELECT po_number FROM purchase_orders 
+      WHERE id = ? OR parent_po_id = ?
+    `).all(parentId, parentId);
+    
+    let maxRev = 0;
+    existing.forEach(p => {
+      if (p.po_number.startsWith(basePO + '-')) {
+        const suffix = p.po_number.substring(basePO.length + 1);
+        if (/^\d{2}$/.test(suffix)) {
+          const revNum = parseInt(suffix, 10);
+          if (revNum > maxRev) maxRev = revNum;
         }
       }
+    });
+    
+    const nextRev = maxRev + 1;
+    const revisedPONumber = `${basePO}-${String(nextRev).padStart(2, '0')}`;
+    const nextVersion = nextRev + 1; // version column: 1 is original, 2 is first revision, etc.
 
-      const stmt = db.prepare(`
-        INSERT INTO po_line_items (
-          po_id, line_number, reference_number, package_name, heading,
-          sub_heading, item_name, description,
-          uom, supply_qty, supply_rate, supply_gst_rate,
-          service_qty, service_rate, service_gst_rate,
-          taxable_supply, gst_supply, total_supply,
-          taxable_service, gst_service, total_service,
-          total_taxable, total_gst, total_invoice,
-          edit_supply_qty, edit_supply_rate, edit_supply_gst_rate,
-          edit_service_qty, edit_service_rate, edit_service_gst_rate,
-          created_at, updated_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
-      `);
+    // 1. Snapshot the old PO in po_version_history
+    const oldItems = db.prepare('SELECT * FROM po_line_items WHERE po_id = ?').all(oldPO.id);
+    db.prepare(`
+      INSERT INTO po_version_history (po_id, version, snapshot_json, change_summary, changed_by)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      oldPO.id,
+      oldPO.version || 1,
+      JSON.stringify({ po: oldPO, items: oldItems }),
+      `Revised to ${revisedPONumber}`,
+      req.user.id
+    );
 
-      const updateStmt = db.prepare(`
-        UPDATE po_line_items SET
-          line_number = ?, reference_number = ?, package_name = ?, heading = ?,
-          sub_heading = ?, item_name = ?, description = ?,
-          uom = ?, supply_qty = ?, supply_rate = ?, supply_gst_rate = ?,
-          service_qty = ?, service_rate = ?, service_gst_rate = ?,
-          taxable_supply = ?, gst_supply = ?, total_supply = ?,
-          taxable_service = ?, gst_service = ?, total_service = ?,
-          total_taxable = ?, total_gst = ?, total_invoice = ?,
-          edit_supply_qty = ?, edit_supply_rate = ?, edit_supply_gst_rate = ?,
-          edit_service_qty = ?, edit_service_rate = ?, edit_service_gst_rate = ?,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `);
+    // 2. Mark old PO as 'revised'
+    db.prepare("UPDATE purchase_orders SET status = 'revised', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(oldPO.id);
 
-      let subtotal = 0, gst_total = 0;
-      items.forEach((it, i) => {
+    // 3. Calculate new totals
+    let subtotal = 0, gst_total = 0;
+    if (items && items.length) {
+      items.forEach(it => {
         subtotal += (it.total_taxable || 0);
         gst_total += (it.total_gst || 0);
-
-        if (it.id && existingIds.includes(it.id)) {
-          updateStmt.run(
-            i + 1,
-            it.ref_no || '',
-            it.package_name || '',
-            it.heading || '',
-            it.sub_heading || '',
-            it.item_name || 'Item',
-            it.description || '',
-            it.uom || '',
-            it.supply_qty || 0,
-            it.supply_rate || 0,
-            it.supply_gst_rate || 0,
-            it.service_qty || 0,
-            it.service_rate || 0,
-            it.service_gst_rate || 0,
-            it.taxable_supply || 0,
-            it.gst_supply || 0,
-            it.total_supply || 0,
-            it.taxable_service || 0,
-            it.gst_service || 0,
-            it.total_service || 0,
-            it.total_taxable || 0,
-            it.total_gst || 0,
-            it.total_invoice || 0,
-            it.edit_supply_qty || null,
-            it.edit_supply_rate || null,
-            it.edit_supply_gst_rate || null,
-            it.edit_service_qty || null,
-            it.edit_service_rate || null,
-            it.edit_service_gst_rate || null,
-            it.id
-          );
-        } else {
-          stmt.run(
-            req.params.id, i + 1,
-            it.ref_no || '',
-            it.package_name || '',
-            it.heading || '',
-            it.sub_heading || '',
-            it.item_name || 'Item',
-            it.description || '',
-            it.uom || '',
-            it.supply_qty || 0,
-            it.supply_rate || 0,
-            it.supply_gst_rate || 0,
-            it.service_qty || 0,
-            it.service_rate || 0,
-            it.service_gst_rate || 0,
-            it.taxable_supply || 0,
-            it.gst_supply || 0,
-            it.total_supply || 0,
-            it.taxable_service || 0,
-            it.gst_service || 0,
-            it.total_service || 0,
-            it.total_taxable || 0,
-            it.total_gst || 0,
-            it.total_invoice || 0,
-            it.edit_supply_qty || null,
-            it.edit_supply_rate || null,
-            it.edit_supply_gst_rate || null,
-            it.edit_service_qty || null,
-            it.edit_service_rate || null,
-            it.edit_service_gst_rate || null
-          );
-        }
       });
-      db.prepare(`UPDATE purchase_orders SET subtotal=?, gst_total=?, grand_total=?, total_value=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(subtotal, gst_total, subtotal + gst_total, subtotal + gst_total, req.params.id);
     }
+
+    // 4. Create new PO revision record
+    const r = db.prepare(`
+      INSERT INTO purchase_orders (
+        order_id, customer_id, location_id,
+        po_number, po_date, start_date, end_date,
+        status, version, is_temp_po, is_temporary, is_nt_po,
+        parent_po_id, linked_po_id, po_copy_path, po_annex_path, other_attachment_path,
+        created_by, project_spoc_name, project_spoc_email, project_spoc_phone,
+        need_sales_invoice_approval, subtotal, gst_total, grand_total, total_value, nt_count
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      'ORD-' + Date.now(), oldPO.customer_id, oldPO.location_id,
+      revisedPONumber, oldPO.po_date || null, oldPO.start_date || null, oldPO.end_date || null,
+      status || oldPO.status, nextVersion, oldPO.is_temp_po, oldPO.is_temporary, oldPO.is_nt_po,
+      parentId, oldPO.linked_po_id, oldPO.po_copy_path || null, oldPO.po_annex_path || null, oldPO.other_attachment_path || null,
+      oldPO.created_by,
+      project_spoc_name !== undefined ? project_spoc_name : oldPO.project_spoc_name,
+      project_spoc_email !== undefined ? project_spoc_email : oldPO.project_spoc_email,
+      project_spoc_phone !== undefined ? project_spoc_phone : oldPO.project_spoc_phone,
+      need_sales_invoice_approval || oldPO.need_sales_invoice_approval || 'yes',
+      subtotal, gst_total, subtotal + gst_total, subtotal + gst_total, oldPO.nt_count || 0
+    );
+
+    const newPoId = r.lastInsertRowid;
+
+    // 5. Insert new po_line_items, mapping qty_delivered and qty_invoiced from previous version matching item ids
+    const itemStmt = db.prepare(`
+      INSERT INTO po_line_items (
+        po_id, line_number, reference_number, package_name, heading,
+        sub_heading, item_name, description,
+        uom, supply_qty, supply_rate, supply_gst_rate,
+        service_qty, service_rate, service_gst_rate,
+        taxable_supply, gst_supply, total_supply,
+        taxable_service, gst_service, total_service,
+        total_taxable, total_gst, total_invoice,
+        qty_delivered, qty_invoiced,
+        edit_supply_qty, edit_supply_rate, edit_supply_gst_rate,
+        edit_service_qty, edit_service_rate, edit_service_gst_rate
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `);
+
+    if (items && items.length) {
+      items.forEach((it, index) => {
+        let qtyDelivered = 0;
+        let qtyInvoiced = 0;
+        if (it.id) {
+          const oldItem = db.prepare('SELECT qty_delivered, qty_invoiced FROM po_line_items WHERE id = ?').get(it.id);
+          if (oldItem) {
+            qtyDelivered = oldItem.qty_delivered || 0;
+            qtyInvoiced = oldItem.qty_invoiced || 0;
+          }
+        }
+        itemStmt.run(
+          newPoId, index + 1,
+          it.ref_no || '',
+          it.package_name || '',
+          it.heading || '',
+          it.sub_heading || '',
+          it.item_name || 'Item',
+          it.description || '',
+          it.uom || '',
+          it.supply_qty || 0,
+          it.supply_rate || 0,
+          it.supply_gst_rate || 0,
+          it.service_qty || 0,
+          it.service_rate || 0,
+          it.service_gst_rate || 0,
+          it.taxable_supply || 0,
+          it.gst_supply || 0,
+          it.total_supply || 0,
+          it.taxable_service || 0,
+          it.gst_service || 0,
+          it.total_service || 0,
+          it.total_taxable || 0,
+          it.total_gst || 0,
+          it.total_invoice || 0,
+          qtyDelivered,
+          qtyInvoiced,
+          it.edit_supply_qty || null,
+          it.edit_supply_rate || null,
+          it.edit_supply_gst_rate || null,
+          it.edit_service_qty || null,
+          it.edit_service_rate || null,
+          it.edit_service_gst_rate || null
+        );
+      });
+    }
+
+    // 6. Migrate in-flight transactions to the new PO ID so they seamlessly link to the active PO
+    db.prepare("UPDATE dc_requests SET po_id = ? WHERE po_id = ? AND status = 'pending'").run(newPoId, oldPO.id);
+    db.prepare("UPDATE delivery_challans SET po_id = ? WHERE po_id = ? AND status = 'raised'").run(newPoId, oldPO.id);
+    db.prepare("UPDATE invoice_requests SET po_id = ? WHERE po_id = ? AND status = 'pending'").run(newPoId, oldPO.id);
+    db.prepare("UPDATE invoices SET po_id = ? WHERE po_id = ? AND status = 'draft'").run(newPoId, oldPO.id);
+
     db.exec('COMMIT');
-    auditLog(req.user.username, 'UPDATE', 'PurchaseOrder', req.params.id, oldPO, req.body);
 
     // Trigger asynchronous email alert to Project SPOC when PO is updated
     (async () => {
       try {
-        const updatedPO = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);
+        const updatedPO = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(newPoId);
         if (updatedPO && updatedPO.project_spoc_email && updatedPO.project_spoc_email.trim()) {
           const customer = db.prepare('SELECT name FROM customers WHERE id = ?').get(updatedPO.customer_id);
           const customerName = customer ? customer.name : 'N/A';
-          const updatedItems = db.prepare('SELECT * FROM po_line_items WHERE po_id = ?').all(req.params.id);
+          const updatedItems = db.prepare('SELECT * FROM po_line_items WHERE po_id = ?').all(newPoId);
 
-          // Format items table rows
           let itemsHtml = '';
           (updatedItems || []).forEach((it, idx) => {
             const qty = parseFloat(it.supply_qty) || 0;
@@ -2041,19 +2276,19 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
           });
 
           const isNt = updatedPO.is_nt_po ? 'Non-Tender (NT)' : 'Tender';
-          const subject = `🔄 PO Updated Notification: ${updatedPO.po_number} - ${customerName}`;
+          const subject = `🔄 PO Revised Notification: ${updatedPO.po_number} - ${customerName}`;
 
           const htmlContent = `
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
               <!-- Header -->
               <div style="background: linear-gradient(135deg, #0F766E 0%, #14B8A6 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
-                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Purchase Order Updated</h1>
+                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Purchase Order Revised</h1>
                 <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Enterprise O2C Workflow Alert</p>
               </div>
 
               <!-- Main Greeting -->
               <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${updatedPO.project_spoc_name || 'Project SPOC'}</strong>,</p>
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We would like to inform you that your <strong>${isNt}</strong> Purchase Order has been successfully updated in the Enterprise O2C Portal. Please review the updated details below:</p>
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We would like to inform you that your <strong>${isNt}</strong> Purchase Order has been successfully revised to a new version in the Enterprise O2C Portal. Please review the updated details below:</p>
 
               <!-- Order Summary Card -->
               <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
@@ -2138,15 +2373,18 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
             subject,
             html: htmlContent
           });
-          console.log(`✉️ Automated PO updated notification sent to Project SPOC at: ${updatedPO.project_spoc_email}`);
+          console.log(`✉️ Automated PO revised notification sent to Project SPOC at: ${updatedPO.project_spoc_email}`);
         }
       } catch (mailErr) {
-        console.error('❌ Failed to send automated PO updated email alert:', mailErr);
+        console.error('❌ Failed to send automated PO revised email alert:', mailErr);
       }
     })();
 
-    res.json({ success: true });
-  } catch (err) { db.exec('ROLLBACK'); res.status(500).json({ error: err.message }); }
+    res.json({ success: true, id: newPoId, po_number: revisedPONumber });
+  } catch (err) {
+    db.exec('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete('/api/pos/:id', requireRole(['admin']), (req, res) => {
@@ -2375,7 +2613,7 @@ app.post('/api/invoices', authenticate, (req, res) => {
 
 app.get('/api/invoices', authenticate, (req, res) => {
   try {
-    const rows = db.prepare(`
+    let sql = `
       SELECT 
         i.*,
         c.name as customer_name,
@@ -2389,8 +2627,14 @@ app.get('/api/invoices', authenticate, (req, res) => {
       LEFT JOIN purchase_orders p ON i.po_id = p.id
       LEFT JOIN delivery_challans d ON i.dc_id = d.id
       LEFT JOIN ar_entries ar ON i.id = ar.invoice_id
-      ORDER BY i.created_at DESC
-    `).all();
+    `;
+    const params = [];
+    if (req.user.role?.toLowerCase() === 'sales') {
+      sql += ` WHERE p.created_by = ? `;
+      params.push(req.user.id);
+    }
+    sql += ` ORDER BY i.created_at DESC `;
+    const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
     console.error('ERROR:', err);
@@ -2490,8 +2734,8 @@ app.get('/api/pos/:id/supplied-details', authenticate, (req, res) => {
         dc.status,
         dc.delivery_status,
         dc.vehicle_no,
-        SUM(dli.quantity_dispatched) as total_qty,
-        SUM(dli.quantity_dispatched * (
+        SUM(COALESCE(dli.received_qty, dli.quantity_dispatched)) as total_qty,
+        SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
           CASE 
             WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
             WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
@@ -2760,20 +3004,26 @@ app.post('/api/dc', authenticate, (req, res) => {
       }
     }
 
-    const dc_number = 'DC-' + Date.now();
+    const isAutoApproved = po.need_sales_invoice_approval === 'no';
+    const initialStatus = isAutoApproved ? 'delivery_confirmed' : 'issued';
+    const initialDeliveryStatus = isAutoApproved ? 'delivery_confirmed' : 'awaiting_confirmation';
+    const receivedByVal = isAutoApproved ? 'System (Direct Flow)' : null;
+    const confirmedAtVal = isAutoApproved ? new Date().toISOString() : null;
 
     const dcResult = db.prepare(`
       INSERT INTO delivery_challans (
-        dc_number, po_id, customer_id, location_id,
+        dc_number, po_id, customer_id, customer_location_id,
         status, dc_date, vehicle_number,
         driver_name, notes, created_by,
-        delivery_status, email_to_project
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        delivery_status, email_to_project,
+        received_by, delivery_confirmed_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       dc_number, po_id, customer_id, location_id,
-      'issued', dc_date, vehicle_number || '',
+      initialStatus, dc_date, vehicle_number || '',
       driver_name || '', notes || '', req.user.id,
-      'awaiting_confirmation', email_to_project || null
+      initialDeliveryStatus, email_to_project || null,
+      receivedByVal, confirmedAtVal
     );
 
     const dcId = dcResult.lastInsertRowid;
@@ -2781,18 +3031,22 @@ app.post('/api/dc', authenticate, (req, res) => {
     const itemStmt = db.prepare(`
       INSERT INTO dc_line_items (
         dc_id, po_line_item_id, item_name,
-        description, quantity_dispatched, uom
-      ) VALUES (?,?,?,?,?,?)
+        description, quantity_dispatched, uom,
+        received_qty, item_condition
+      ) VALUES (?,?,?,?,?,?,?,?)
     `);
 
     (items || []).forEach(item => {
+      const qtyDispatched = parseFloat(item.quantity_dispatched) || 0;
       itemStmt.run(
         dcId,
         item.po_line_item_id || null,
         item.item_name,
         item.description || '',
-        parseFloat(item.quantity_dispatched) || 0,
-        item.uom || ''
+        qtyDispatched,
+        item.uom || '',
+        isAutoApproved ? qtyDispatched : null,
+        isAutoApproved ? 'OK' : 'OK'
       );
     });
 
@@ -2800,7 +3054,9 @@ app.post('/api/dc', authenticate, (req, res) => {
       "UPDATE purchase_orders SET status='dc_raised' WHERE id=?"
     ).run(po_id);
 
-    autoGenerateInvoiceForDC(dcId, po, req.user.id, req.user.username);
+    if (isAutoApproved) {
+      autoGenerateInvoiceForDC(dcId, po, req.user.id, req.user.username);
+    }
 
     db.exec('COMMIT');
 
@@ -2856,7 +3112,7 @@ app.post('/api/dc', authenticate, (req, res) => {
           const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
 
           const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | PO ${po.po_number}`;
-          const isAutoInvoice = po.need_sales_invoice_approval === 'yes' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
+          const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
 
           const htmlContent = `
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
@@ -2975,21 +3231,50 @@ app.get('/api/dc', authenticate, (req, res) => {
         cl.city as location_city,
         dr.dc_request_no,
         i.id as invoice_id,
-        i.invoice_number
+        i.invoice_number,
+        COALESCE(sub.total_qty, 0) as total_qty,
+        COALESCE(sub.total_value, 0) as total_value
       FROM delivery_challans d
       LEFT JOIN purchase_orders p ON d.po_id = p.id
       LEFT JOIN customers c ON d.customer_id = c.id
       LEFT JOIN customer_locations cl ON d.customer_location_id = cl.id
       LEFT JOIN dc_requests dr ON d.dc_request_id = dr.id
       LEFT JOIN invoices i ON i.dc_id = d.id
+      LEFT JOIN (
+        SELECT 
+          dli.dc_id,
+          SUM(dli.quantity_dispatched) as total_qty,
+          SUM(dli.quantity_dispatched * (
+            CASE 
+              WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+              WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+              ELSE 0 
+            END
+          )) as total_value
+        FROM dc_line_items dli
+        JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+        GROUP BY dli.dc_id
+      ) sub ON d.id = sub.dc_id
     `;
     const params = [];
+    const conditions = [];
+
     if (req.user.role === 'projects') {
-      sql += ` WHERE p.project_spoc_name = ? `;
+      conditions.push(`p.project_spoc_name = ?`);
       params.push(req.user.full_name);
     }
+
+    if (req.user.role?.toLowerCase() === 'sales') {
+      conditions.push(`p.created_by = ?`);
+      params.push(req.user.id);
+    }
+
+    if (conditions.length > 0) {
+      sql += ` WHERE ` + conditions.join(' AND ');
+    }
+
     sql += ` ORDER BY d.created_at DESC `;
-    const rows = db.prepare(sql).all(params);
+    const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
     console.error('GET /api/dc ERROR:', err);
@@ -3119,6 +3404,68 @@ app.post('/api/dc/:id/confirm-delivery', authenticate, upload.fields([
       for (const item of parsedItems) {
         updateItem.run(item.received_qty, item.condition, item.id);
       }
+
+      // 3. Handle rejected/shorted items by creating a CDC request
+      const rejectedItems = [];
+      for (const item of parsedItems) {
+        const dcLineItem = db.prepare('SELECT po_line_item_id, quantity_dispatched, item_name, description, uom, hsn FROM dc_line_items WHERE id = ?').get(item.id);
+        if (dcLineItem) {
+          const rejectedQty = dcLineItem.quantity_dispatched - item.received_qty;
+          if (rejectedQty > 0) {
+            rejectedItems.push({
+              po_line_item_id: dcLineItem.po_line_item_id,
+              rejected_qty: rejectedQty,
+              item_name: dcLineItem.item_name,
+              description: dcLineItem.description,
+              uom: dcLineItem.uom,
+              hsn: dcLineItem.hsn
+            });
+          }
+        }
+      }
+
+      if (rejectedItems.length > 0) {
+        // Generate CDC request number
+        const lastCDC = db.prepare("SELECT dc_request_no FROM dc_requests WHERE dc_request_no LIKE 'CDC/%' ORDER BY id DESC LIMIT 1").get();
+        let nextCDCNum = 1;
+        if (lastCDC && lastCDC.dc_request_no && lastCDC.dc_request_no.startsWith('CDC/')) {
+          const parts = lastCDC.dc_request_no.split('/');
+          nextCDCNum = parseInt(parts[parts.length - 1]) + 1;
+        }
+        const cdc_request_no = `CDC/2026/${String(nextCDCNum).padStart(3, '0')}`;
+
+        // Get original DC details
+        const originalDC = db.prepare('SELECT * FROM delivery_challans WHERE id = ?').get(dcId);
+        if (originalDC) {
+          // Insert the CDC request
+          const cdcResult = db.prepare(`
+            INSERT INTO dc_requests (
+              po_id, location_id, dc_request_no, dispatch_date, transporter,
+              special_instructions, status,
+              vehicle_no, driver_name, driver_phone,
+              dispatch_from_address1, dispatch_from_address2, dispatch_from_pincode,
+              requested_dc_number, is_manual_dc
+            ) VALUES (?, ?, ?, ?, ?, ?, 'pending_review', ?, ?, ?, ?, ?, ?, ?, 0)
+          `).run(
+            originalDC.po_id, originalDC.customer_location_id, cdc_request_no, originalDC.dispatch_date || '', originalDC.transporter || '',
+            `CDC for rejected items from DC ${originalDC.dc_number}. Remarks: ${siteRemarks || 'None'} | Damage: ${damageRemarks || 'None'} | Shortage: ${shortageRemarks || 'None'}`,
+            originalDC.vehicle_no || '', originalDC.driver_name || '', originalDC.driver_phone || '',
+            originalDC.dispatch_from_address1 || '', originalDC.dispatch_from_address2 || '', originalDC.dispatch_from_pincode || '',
+            cdc_request_no
+          );
+
+          const cdcRequestId = cdcResult.lastInsertRowid;
+
+          // Insert items
+          const insertCdcItem = db.prepare(`
+            INSERT INTO dc_request_items (dc_request_id, line_item_id, qty)
+            VALUES (?, ?, ?)
+          `);
+          for (const rej of rejectedItems) {
+            insertCdcItem.run(cdcRequestId, rej.po_line_item_id, rej.rejected_qty);
+          }
+        }
+      }
     });
 
     transaction();
@@ -3197,7 +3544,7 @@ app.post('/api/dc-requests', authenticate, upload.single('proof'), (req, res) =>
       return res.status(400).json({ error: 'Valid 6-digit numeric Pincode is mandatory.' });
     }
 
-    const lastDCR = db.prepare('SELECT dc_request_no FROM dc_requests ORDER BY id DESC LIMIT 1').get();
+    const lastDCR = db.prepare("SELECT dc_request_no FROM dc_requests WHERE dc_request_no LIKE 'DCR/%' ORDER BY id DESC LIMIT 1").get();
     let nextNum = 1;
     if (lastDCR && lastDCR.dc_request_no && lastDCR.dc_request_no.startsWith('DCR/')) {
       const parts = lastDCR.dc_request_no.split('/');
@@ -3255,9 +3602,20 @@ app.get('/api/dc-requests', authenticate, (req, res) => {
     `;
 
     const params = [];
+    const conditions = [];
+
     if (status) {
-      sql += " WHERE dr.status = ?";
+      conditions.push("dr.status = ?");
       params.push(status);
+    }
+
+    if (req.user.role?.toLowerCase() === 'sales') {
+      conditions.push("p.created_by = ?");
+      params.push(req.user.id);
+    }
+
+    if (conditions.length > 0) {
+      sql += " WHERE " + conditions.join(" AND ");
     }
 
     sql += " ORDER BY dr.created_at DESC";
@@ -3360,6 +3718,66 @@ app.get('/api/dc-requests/:id', authenticate, (req, res) => {
   }
 });
 
+app.post('/api/dc-requests/:id/approve-cdc', authenticate, (req, res) => {
+  const requestId = req.params.id;
+  try {
+    const request = db.prepare('SELECT * FROM dc_requests WHERE id = ?').get(requestId);
+    if (!request) return res.status(404).json({ error: 'CDC Request not found' });
+
+    const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(request.po_id);
+    if (!po) return res.status(404).json({ error: 'PO not found' });
+
+    const items = db.prepare('SELECT * FROM dc_request_items WHERE dc_request_id = ?').all(requestId);
+    if (items.length === 0) return res.status(400).json({ error: 'No items in this request' });
+
+    db.exec('BEGIN');
+    try {
+      // Add quantities back to the PO by decreasing qty_delivered
+      for (const item of items) {
+        db.prepare('UPDATE po_line_items SET qty_delivered = MAX(0, qty_delivered - ?) WHERE id = ?')
+          .run(item.qty, item.line_item_id);
+      }
+
+      // Update the CDC request status to 'approved'
+      db.prepare("UPDATE dc_requests SET status = 'approved' WHERE id = ?").run(requestId);
+
+      db.exec('COMMIT');
+      
+      // Audit log
+      auditLog(req.user.username, 'APPROVE', 'CDCRequest', requestId, null, { dc_request_no: request.dc_request_no, po_id: po.id });
+
+      res.json({ success: true, message: 'CDC Request approved. Rejected items added back to PO outstanding quantity successfully.' });
+    } catch (err) {
+      db.exec('ROLLBACK');
+      console.error('Failed to approve CDC:', err);
+      res.status(500).json({ error: 'Failed to approve CDC: ' + err.message });
+    }
+  } catch (err) {
+    console.error('Approve CDC error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/dc-requests/:id/reject-cdc', authenticate, (req, res) => {
+  const requestId = req.params.id;
+  const { remarks } = req.body;
+  try {
+    const request = db.prepare('SELECT * FROM dc_requests WHERE id = ?').get(requestId);
+    if (!request) return res.status(404).json({ error: 'CDC Request not found' });
+
+    db.prepare("UPDATE dc_requests SET status = 'rejected', logistics_remarks = ? WHERE id = ?")
+      .run(remarks || 'Rejected by Sales Order Reviewer', requestId);
+
+    // Audit log
+    auditLog(req.user.username, 'REJECT', 'CDCRequest', requestId, null, { dc_request_no: request.dc_request_no, remarks });
+
+    res.json({ success: true, message: 'CDC Request rejected successfully.' });
+  } catch (err) {
+    console.error('Reject CDC error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
   const requestId = req.params.id;
   const { customDCNo, manualDC, dispatchFrom, itemHSNs, signature, email_to_project } = req.body;
@@ -3373,6 +3791,39 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
 
     const items = db.prepare('SELECT * FROM dc_request_items WHERE dc_request_id = ?').all(requestId);
     if (items.length === 0) return res.status(400).json({ error: 'No items in this request' });
+
+    // Handle CDC requests (rejected items return)
+    if (request.dc_request_no && request.dc_request_no.startsWith('CDC/')) {
+      db.exec('BEGIN');
+      try {
+        // Add quantities back to the PO by decreasing qty_delivered
+        for (const item of items) {
+          db.prepare('UPDATE po_line_items SET qty_delivered = MAX(0, qty_delivered - ?) WHERE id = ?')
+            .run(item.qty, item.line_item_id);
+        }
+
+        // Update the CDC request status to 'approved'
+        db.prepare("UPDATE dc_requests SET status = 'approved' WHERE id = ?").run(requestId);
+
+        db.exec('COMMIT');
+        
+        // Audit log
+        try {
+          const auditLog = require('./services/auditLog'); // or local helper
+          auditLog(req.user.username, 'APPROVE', 'CDCRequest', requestId, null, { dc_request_no: request.dc_request_no, po_id: po.id });
+        } catch (e) {
+          // fallback in case helper is named auditLog or is a global
+          if (typeof auditLog === 'function') {
+            auditLog(req.user.username, 'APPROVE', 'CDCRequest', requestId, null, { dc_request_no: request.dc_request_no, po_id: po.id });
+          }
+        }
+
+        return res.json({ success: true, message: 'CDC Request approved. Rejected items added back to PO outstanding quantity successfully.' });
+      } catch (err) {
+        db.exec('ROLLBACK');
+        return res.status(500).json({ error: 'Failed to approve CDC: ' + err.message });
+      }
+    }
 
     // Enforce HSN validation for all items as we automatically generate invoice (raised or request)
     for (const item of items) {
@@ -3410,6 +3861,12 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
 
     const dc_number = customDCNo || request.requested_dc_number || ('DC-' + Date.now());
 
+    const isAutoApproved = po.need_sales_invoice_approval === 'no';
+    const initialStatus = isAutoApproved ? 'delivery_confirmed' : 'in_transit';
+    const initialDeliveryStatus = isAutoApproved ? 'delivery_confirmed' : 'awaiting_site_confirmation';
+    const receivedByVal = isAutoApproved ? 'System (Direct Flow)' : null;
+    const confirmedAtVal = isAutoApproved ? new Date().toISOString() : null;
+
     const result = db.prepare(`
       INSERT INTO delivery_challans (
         dc_number, manual_dc_number, dc_request_id, po_id, customer_id, 
@@ -3417,8 +3874,9 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
         dispatch_from_address1, dispatch_from_address2, dispatch_from_pincode,
         vehicle_no, driver_name, driver_phone, transporter,
         created_by, delivery_status, dispatched_at,
-        dispatch_proof_path, logistics_remarks, signature_data, email_to_project
-      ) VALUES (?, ?, ?, ?, ?, ?, 'in_transit', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
+        dispatch_proof_path, logistics_remarks, signature_data, email_to_project,
+        received_by, delivery_confirmed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?)
     `).run(
       dc_number,
       manualDC || request.requested_dc_number || null,
@@ -3426,6 +3884,7 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
       po.id,
       po.customer_id,
       request.location_id,
+      initialStatus,
       request.dispatch_date,
       dispatchFrom?.line1 || request.dispatch_from_address1 || df1,
       dispatchFrom?.line2 || request.dispatch_from_address2 || df2,
@@ -3435,17 +3894,19 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
       request.driver_phone || '',
       request.transporter || '',
       req.user.id,
-      'awaiting_site_confirmation',
+      initialDeliveryStatus,
       request.proof_path || null,
       request.logistics_remarks || '',
       signature || null,
-      email_to_project || null
+      email_to_project || null,
+      receivedByVal,
+      confirmedAtVal
     );
 
     const dcId = result.lastInsertRowid;
     const insertItem = db.prepare(`
-      INSERT INTO dc_line_items (dc_id, po_line_item_id, item_name, description, quantity_dispatched, uom, hsn)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO dc_line_items (dc_id, po_line_item_id, item_name, description, quantity_dispatched, uom, hsn, received_qty, item_condition)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const item of items) {
@@ -3457,7 +3918,9 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
         poItem.description || '',
         item.qty,
         poItem.uom || '',
-        itemHSNs[item.line_item_id] || ''
+        itemHSNs[item.line_item_id] || '',
+        isAutoApproved ? item.qty : null,
+        isAutoApproved ? 'OK' : 'OK'
       );
 
       // Update PO Line Item delivered qty
@@ -3468,7 +3931,9 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
     db.prepare("UPDATE dc_requests SET status = 'dispatched' WHERE id = ?").run(requestId);
     db.prepare("UPDATE purchase_orders SET status = 'dc_raised' WHERE id = ?").run(po.id);
 
-    autoGenerateInvoiceForDC(dcId, po, req.user.id, req.user.username);
+    if (isAutoApproved) {
+      autoGenerateInvoiceForDC(dcId, po, req.user.id, req.user.username);
+    }
 
     db.exec('COMMIT');
     auditLog(req.user.username, 'CREATE', 'DeliveryChallan', dcId, null, { dc_number, po_id: po.id });
@@ -3526,7 +3991,7 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
           const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
 
           const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | PO ${po.po_number}`;
-          const isAutoInvoice = po.need_sales_invoice_approval === 'yes' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
+          const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
 
           const htmlContent = `
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
@@ -3688,7 +4153,7 @@ app.get('/api/po-flow', authenticate, (req, res) => {
         c.name as customer_name,
         COALESCE((SELECT SUM(supply_qty + service_qty) FROM po_line_items WHERE po_id = p.id), 0) as po_qty,
         COALESCE((
-          SELECT SUM(dli.quantity_dispatched * (
+          SELECT SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
             CASE 
               WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
               WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
@@ -3701,7 +4166,7 @@ app.get('/api/po-flow', authenticate, (req, res) => {
           WHERE dc.po_id = p.id AND dc.status != 'cancelled'
         ), 0) as supplied_value,
         COALESCE((
-          SELECT SUM(dli.quantity_dispatched * (
+          SELECT SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
             CASE 
               WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
               WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
@@ -3737,6 +4202,7 @@ app.get('/api/po-flow', authenticate, (req, res) => {
         (SELECT COUNT(*) FROM invoices WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')) as invoice_count
       FROM purchase_orders p
       JOIN customers c ON p.customer_id = c.id
+      WHERE p.status != 'revised'
       ORDER BY p.created_at DESC
     `).all();
     res.json(rows);
@@ -3750,6 +4216,110 @@ app.get('/api/po-flow', authenticate, (req, res) => {
 
 
 
+app.get('/api/reports/po-summary', authenticate, (req, res) => {
+  try {
+    let sql = `
+      SELECT 
+        p.id, 
+        p.po_number, 
+        p.po_date,
+        p.start_date,
+        p.end_date,
+        p.grand_total as po_value,
+        c.name as customer_name,
+        COALESCE((SELECT SUM(supply_qty + service_qty) FROM po_line_items WHERE po_id = p.id), 0) as po_qty,
+        COALESCE((
+          SELECT SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
+            CASE 
+              WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+              WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+              ELSE 0 
+            END
+          ))
+          FROM dc_line_items dli
+          JOIN delivery_challans dc ON dli.dc_id = dc.id
+          JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+          WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+        ), 0) as supplied_value,
+        COALESCE((
+          SELECT SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
+            CASE 
+              WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+              WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+              ELSE 0 
+            END
+          ))
+          FROM dc_line_items dli
+          JOIN delivery_challans dc ON dli.dc_id = dc.id
+          JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+          WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+        ), 0) - COALESCE((
+          SELECT SUM(grand_total) 
+          FROM invoices 
+          WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
+        ), 0) as to_be_invoiced_value,
+        COALESCE((
+          SELECT SUM(ii.quantity) 
+          FROM invoice_items ii
+          JOIN invoices i ON ii.invoice_id = i.id
+          WHERE i.po_id = p.id AND i.status NOT IN ('requested', 'cancelled')
+        ), 0) as invoiced_qty,
+        COALESCE((
+          SELECT SUM(grand_total) 
+          FROM invoices 
+          WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
+        ), 0) as invoice_amount,
+        COALESCE((
+          SELECT SUM(amount_received) 
+          FROM ar_entries 
+          WHERE po_id = p.id
+        ), 0) as received_amount,
+        (SELECT COUNT(*) FROM delivery_challans WHERE po_id = p.id AND status != 'cancelled') as dc_count,
+        (SELECT COUNT(*) FROM invoices WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')) as invoice_count
+      FROM purchase_orders p
+      JOIN customers c ON p.customer_id = c.id
+      WHERE p.status != 'revised'
+    `;
+    const params = [];
+    if (req.user.role?.toLowerCase() === 'sales') {
+      sql += ` AND p.created_by = ? `;
+      params.push(req.user.id);
+    }
+    sql += ` ORDER BY p.created_at DESC `;
+    const rows = db.prepare(sql).all(...params);
+    res.json(rows);
+  } catch (err) {
+    console.error('ERROR in /api/reports/po-summary:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/reports/items', authenticate, (req, res) => {
+  try {
+    let sql = `
+      SELECT 
+        pli.*,
+        p.po_number,
+        p.po_date,
+        c.name as customer_name
+      FROM po_line_items pli
+      JOIN purchase_orders p ON pli.po_id = p.id
+      JOIN customers c ON p.customer_id = c.id
+      WHERE p.status != 'revised'
+    `;
+    const params = [];
+    if (req.user.role?.toLowerCase() === 'sales') {
+      sql += ` AND p.created_by = ? `;
+      params.push(req.user.id);
+    }
+    sql += ` ORDER BY p.created_at DESC, pli.line_number ASC `;
+    const rows = db.prepare(sql).all(...params);
+    res.json(rows);
+  } catch (err) {
+    console.error('ERROR in /api/reports/items:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`O2C Server V2 running on port ${PORT}`));

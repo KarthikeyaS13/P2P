@@ -32,14 +32,20 @@ export default function Dashboard() {
         res = await axios.get('/api/pos', { headers });
         setSummaryData(res.data.filter(p => !['rejected', 'invoice_closed'].includes(p.status)));
       } else if (type === 'pending_pos') {
-        res = await axios.get('/api/pos?status=pending', { headers });
-        setSummaryData(res.data);
+        res = await axios.get('/api/pos', { headers });
+        setSummaryData(res.data.filter(p => p.status === 'pending' || p.status === 'nt_created'));
       } else if (type === 'pending_dcs') {
         res = await axios.get('/api/dc-requests?status=dc_requested', { headers });
         setSummaryData(res.data);
       } else if (type === 'pending_invoice_requests') {
         res = await axios.get('/api/dc', { headers });
         setSummaryData(res.data.filter(d => d.delivery_status === 'delivery_confirmed'));
+      } else if (type === 'pending_regular_pos') {
+        res = await axios.get('/api/pos', { headers });
+        setSummaryData(res.data.filter(p => p.is_nt_po === 0 && ['pending', 'rejected'].includes(p.status)));
+      } else if (type === 'pending_nt_pos') {
+        res = await axios.get('/api/pos', { headers });
+        setSummaryData(res.data.filter(p => p.is_nt_po === 1 && ['nt_created', 'rejected'].includes(p.status)));
       } else if (type === 'total_customers') {
         res = await axios.get('/api/customers', { headers });
         setSummaryData(res.data);
@@ -49,6 +55,195 @@ export default function Dashboard() {
     } finally {
       setSummaryLoading(false);
     }
+  };
+
+  const renderSummaryModal = () => {
+    if (!summaryConfig) return null;
+    return (
+      <div className="summary-modal-overlay" onClick={() => setSummaryConfig(null)}>
+        <div className="summary-modal-content" onClick={e => e.stopPropagation()}>
+          <div className="summary-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid #e2e8f0' }}>
+            <h2 className="text-h2" style={{ margin: 0, fontSize: '1.15rem', color: '#1e3a8a', fontWeight: 700 }}>{summaryConfig.title}</h2>
+            <button className="btn-ghost" onClick={() => setSummaryConfig(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#64748b' }}>close</span>
+            </button>
+          </div>
+          <div className="summary-modal-body" style={{ padding: '12px 16px', overflowY: 'auto', flex: 1 }}>
+            {summaryLoading ? (
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Loading summary data...</p>
+              </div>
+            ) : summaryData.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--secondary)' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>No items found in this category.</p>
+              </div>
+            ) : (
+              <div className="table-wrapper" style={{ overflowX: 'auto' }}>
+                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    {summaryConfig.type.includes('pos') && (
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Sales Order Number</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Customer</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Status</th>
+                        <th className="text-right" style={{ textAlign: 'right', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Total</th>
+                      </tr>
+                    )}
+                    {summaryConfig.type === 'pending_dcs' && (
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Request Number</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Customer</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Sales Order Number</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Status</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Date</th>
+                      </tr>
+                    )}
+                    {summaryConfig.type === 'pending_invoice_requests' && (
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Dispatch Date</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Delivery Challan Number</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Manual DC</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Vehicle No</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Status</th>
+                        <th className="text-right" style={{ textAlign: 'right', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Qty</th>
+                        <th className="text-right" style={{ textAlign: 'right', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Value</th>
+                      </tr>
+                    )}
+                    {summaryConfig.type === 'total_customers' && (
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Customer Name</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Code</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Location Count</th>
+                      </tr>
+                    )}
+                  </thead>
+                  <tbody>
+                    {summaryData.map((item, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        {summaryConfig.type.includes('pos') && (
+                          <>
+                            <td style={{ fontWeight: 600, color: '#3b82f6', padding: '6px 10px', fontSize: '12px' }}>{item.po_number}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.customer_name}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px' }}>
+                              <span className={`badge badge--${item.status?.replace('_', '-')}`} style={{ fontSize: '10px', padding: '1px 6px' }}>
+                                <span className="badge__dot"></span>{item.status}
+                              </span>
+                            </td>
+                            <td className="text-right" style={{ fontWeight: 600, textAlign: 'right', padding: '6px 10px', fontSize: '12px', color: '#334155' }}>₹{item.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          </>
+                        )}
+                        {summaryConfig.type === 'pending_dcs' && (
+                          <>
+                            <td style={{ fontWeight: 600, color: '#3b82f6', padding: '6px 10px', fontSize: '12px', textAlign: 'left' }}>{item.dc_request_no || item.requested_dc_number || '-'}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155', textAlign: 'left' }}>{item.customer_name || '-'}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155', textAlign: 'left' }}>{item.po_no || '-'}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', textAlign: 'left' }}>
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                background: '#fef9c3',
+                                color: '#854d0e',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                textTransform: 'uppercase',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#854d0e' }}></span>
+                                {item.status?.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155', textAlign: 'left' }}>{new Date(item.created_at).toLocaleDateString('en-IN')}</td>
+                          </>
+                        )}
+                        {summaryConfig.type === 'pending_invoice_requests' && (
+                          <>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.dispatch_date ? new Date(item.dispatch_date).toLocaleDateString('en-IN') : '-'}</td>
+                            <td style={{ fontWeight: 700, color: '#0369a1', padding: '6px 10px', fontSize: '12px' }}>{item.dc_number}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.manual_dc_number || '-'}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.vehicle_no || item.vehicle_number || '-'}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px' }}>
+                              <span style={{
+                                fontSize: '9px',
+                                fontWeight: 700,
+                                background: item.status === 'delivered' || item.delivery_status === 'delivered' || item.delivery_status === 'delivery_confirmed' ? '#dcfce7' : '#fef9c3',
+                                color: item.status === 'delivered' || item.delivery_status === 'delivered' || item.delivery_status === 'delivery_confirmed' ? '#166534' : '#854d0e',
+                                padding: '1px 6px',
+                                borderRadius: '12px',
+                                textTransform: 'uppercase'
+                              }}>
+                                {item.delivery_status || item.status}
+                              </span>
+                            </td>
+                            <td className="text-right" style={{ fontWeight: 600, textAlign: 'right', padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.total_qty}</td>
+                            <td className="text-right" style={{ fontWeight: 700, color: '#0369a1', textAlign: 'right', padding: '6px 10px', fontSize: '12px' }}>
+                              ₹{item.total_value?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </>
+                        )}
+                        {summaryConfig.type === 'total_customers' && (
+                          <>
+                            <td style={{ fontWeight: 600, color: '#3b82f6', padding: '6px 10px', fontSize: '12px' }}>{item.name}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.cust_code}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.location_count || 0} Locations</td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {summaryConfig.type === 'pending_invoice_requests' && (
+                  <div style={{ padding: '8px 12px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', marginTop: '10px', borderRadius: '0 0 6px 6px' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '11px', color: '#64748b', marginRight: '8px' }}>Total Pending Value:</span>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#0369a1' }}>
+                        ₹{summaryData.reduce((acc, curr) => acc + (Number(curr.total_value) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <style>{`
+          .summary-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(2px);
+            animation: fadeIn 0.15s ease-out;
+          }
+          .summary-modal-content {
+            background: white;
+            width: 90%;
+            max-width: 750px;
+            max-height: 80vh;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            animation: scaleIn 0.15s ease-out;
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes scaleIn {
+            from { transform: scale(0.97); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+          }
+        `}</style>
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -189,6 +384,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        {renderSummaryModal()}
       </div>
     );
   }
@@ -209,18 +405,78 @@ export default function Dashboard() {
             <div className="feature-card animate-fade animate-stagger-1" onClick={() => navigate('/new-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <span style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>New Sales Order</span>
-                <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#EEF2FF', color: '#4F46E5' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_shopping_cart</span>
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick('pending_regular_pos', 'Pending Standard Sales Orders');
+                  }}
+                  title="View pending standard sales orders"
+                  style={{
+                    background: '#EEF2FF',
+                    color: '#4F46E5',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    border: '1px solid #C7D2FE',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#4F46E5';
+                    e.currentTarget.style.color = '#FFFFFF';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#EEF2FF';
+                    e.currentTarget.style.color = '#4F46E5';
+                  }}
+                >
+                  {data?.stats?.pending_regular_pos ?? 0} Pending
                 </div>
               </div>
               <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: '#6B7280', lineHeight: '1.4' }}>Create and upload a new standard Sales Order.</p>
             </div>
-
+ 
             <div className="feature-card animate-fade animate-stagger-2" onClick={() => navigate('/new-nt-po')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <span style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>New NT Sales Order</span>
-                <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#F5F3FF', color: '#8B5CF6' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>post_add</span>
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick('pending_nt_pos', 'Pending NT Sales Orders');
+                  }}
+                  title="View pending NT sales orders"
+                  style={{
+                    background: '#F5F3FF',
+                    color: '#8B5CF6',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    border: '1px solid #DDD6FE',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#8B5CF6';
+                    e.currentTarget.style.color = '#FFFFFF';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#F5F3FF';
+                    e.currentTarget.style.color = '#8B5CF6';
+                  }}
+                >
+                  {data?.stats?.pending_nt_pos ?? 0} Pending
                 </div>
               </div>
               <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: '#6B7280', lineHeight: '1.4' }}>Initiate a Non-Tendered/Internal Sales Order.</p>
@@ -262,6 +518,7 @@ export default function Dashboard() {
             {/* Any future dashboard cards can be dropped directly into this 3rd column */}
           </div>
         </div>
+        {renderSummaryModal()}
       </div>
     );
   }
@@ -280,8 +537,38 @@ export default function Dashboard() {
           <div className="feature-card animate-fade animate-stagger-1" onClick={() => navigate('/dc-request')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', minHeight: '120px', alignItems: 'stretch', textAlign: 'left', gap: '0px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>Create Delivery Challan Request</span>
-              <div className="feature-card__icon" style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, background: '#ECFDF5', color: '#10B981' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_task</span>
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCardClick('pending_dcs', 'Pending Delivery Challan Requests');
+                }}
+                title="View pending delivery challan requests"
+                style={{
+                  background: '#ECFDF5',
+                  color: '#10B981',
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  border: '1px solid #A7F3D0',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  whiteSpace: 'nowrap'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#10B981';
+                  e.currentTarget.style.color = '#FFFFFF';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#ECFDF5';
+                  e.currentTarget.style.color = '#10B981';
+                }}
+              >
+                {data?.stats?.pending_dcs ?? 0} Pending
               </div>
             </div>
             <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>Request material dispatch for approved Sales Orders.</p>
@@ -307,7 +594,7 @@ export default function Dashboard() {
             <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6B7280' }}>View dispatch history and fulfillment analytics.</p>
           </div>
         </div>
-
+        {renderSummaryModal()}
       </div>
     );
   }
@@ -353,6 +640,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        {renderSummaryModal()}
       </div>
     );
   }
@@ -445,142 +733,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {summaryConfig && (
-        <div className="summary-modal-overlay" onClick={() => setSummaryConfig(null)}>
-          <div className="summary-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="summary-modal-header">
-              <h2 className="text-h2" style={{ margin: 0 }}>{summaryConfig.title}</h2>
-              <button className="btn-ghost" onClick={() => setSummaryConfig(null)}>
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <div className="summary-modal-body">
-              {summaryLoading ? (
-                <div style={{ padding: '40px', textAlign: 'center' }}>
-                  <p>Loading summary data...</p>
-                </div>
-              ) : summaryData.length === 0 ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--secondary)' }}>
-                  <p>No items found in this category.</p>
-                </div>
-              ) : (
-                <div className="table-wrapper">
-                  <table className="data-table">
-                    <thead>
-                      {summaryConfig.type.includes('pos') && (
-                        <tr><th>Sales Order Number</th><th>Customer</th><th>Status</th><th className="text-right">Total</th></tr>
-                      )}
-                      {summaryConfig.type === 'pending_dcs' && (
-                        <tr><th>Request Number</th><th>Sales Order Number</th><th>Status</th><th>Date</th></tr>
-                      )}
-                      {summaryConfig.type === 'pending_invoice_requests' && (
-                        <tr><th>Delivery Challan Number</th><th>Customer</th><th>Sales Order Number</th><th>Date</th></tr>
-                      )}
-                      {summaryConfig.type === 'total_customers' && (
-                        <tr><th>Customer Name</th><th>Code</th><th>Location Count</th></tr>
-                      )}
-                    </thead>
-                    <tbody>
-                      {summaryData.map((item, idx) => (
-                        <tr key={idx}>
-                          {summaryConfig.type.includes('pos') && (
-                            <>
-                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.po_number}</td>
-                              <td>{item.customer_name}</td>
-                              <td>
-                                <span className={`badge badge--${item.status?.replace('_', '-')}`}>
-                                  <span className="badge__dot"></span>{item.status}
-                                </span>
-                              </td>
-                              <td className="text-right" style={{ fontWeight: 600 }}>₹{item.grand_total?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            </>
-                          )}
-                          {summaryConfig.type === 'pending_dcs' && (
-                            <>
-                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.dc_request_no || item.requested_dc_number || '-'}</td>
-                              <td>{item.po_no || '-'}</td>
-                              <td>
-                                <span className={`badge badge--${item.status?.replace('_', '-')}`}>
-                                  <span className="badge__dot"></span>{item.status}
-                                </span>
-                              </td>
-                              <td>{new Date(item.created_at).toLocaleDateString('en-IN')}</td>
-                            </>
-                          )}
-                          {summaryConfig.type === 'pending_invoice_requests' && (
-                            <>
-                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.dc_number}</td>
-                              <td>{item.customer_name}</td>
-                              <td>{item.po_no}</td>
-                              <td>{new Date(item.created_at).toLocaleDateString('en-IN')}</td>
-                            </>
-                          )}
-                          {summaryConfig.type === 'total_customers' && (
-                            <>
-                              <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{item.name}</td>
-                              <td>{item.cust_code}</td>
-                              <td>{item.location_count || 0} Locations</td>
-                            </>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        .summary-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.4);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 2000;
-          backdrop-filter: blur(4px);
-          animation: fadeIn 0.2s ease-out;
-        }
-        .summary-modal-content {
-          background: white;
-          width: 90%;
-          max-width: 900px;
-          max-height: 85vh;
-          border-radius: var(--radius-xl);
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-          animation: scaleIn 0.2s ease-out;
-        }
-        .summary-modal-header {
-          padding: 20px 24px;
-          border-bottom: 1px solid var(--outline-variant);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .summary-modal-body {
-          padding: 24px;
-          overflow-y: auto;
-          flex: 1;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes scaleIn {
-          from { transform: scale(0.95); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
+      {renderSummaryModal()}
     </div>
   );
 }

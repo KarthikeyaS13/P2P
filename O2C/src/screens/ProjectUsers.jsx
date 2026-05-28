@@ -25,13 +25,13 @@ export default function ProjectUsers() {
     phone: '',
     username: '',
     password: '',
-    role: 'Project',
+    role: 'projects',
     is_active: true,
   });
 
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const role = currentUser?.role?.toLowerCase();
+  const currentUserRole = currentUser?.role?.toLowerCase();
   const isPhoneInvalid = form.phone && form.phone.trim() ? form.phone.length !== 10 : false;
 
   useEffect(() => {
@@ -45,11 +45,11 @@ export default function ProjectUsers() {
       const res = await axios.get('/api/project-users', { headers });
       setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error('Failed to fetch project users:', err);
+      console.error('Failed to fetch users:', err);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Failed to load project users',
+        text: 'Failed to load system users',
         confirmButtonColor: '#3B82F6'
       });
     } finally {
@@ -68,7 +68,7 @@ export default function ProjectUsers() {
       phone: '',
       username: '',
       password: '',
-      role: 'Project',
+      role: 'projects',
       is_active: true,
     });
   };
@@ -95,9 +95,6 @@ export default function ProjectUsers() {
     if (!form.username.trim()) {
       return Swal.fire({ icon: 'warning', title: 'Validation Warning', text: 'Username is required' });
     }
-    if (!isEditing && !form.password.trim()) {
-      return Swal.fire({ icon: 'warning', title: 'Validation Warning', text: 'Password is required' });
-    }
 
     try {
       const token = sessionStorage.getItem('token');
@@ -108,7 +105,7 @@ export default function ProjectUsers() {
         Swal.fire({
           icon: 'success',
           title: 'Updated!',
-          text: 'Project user details updated successfully.',
+          text: 'User details updated successfully.',
           timer: 1500,
           showConfirmButton: false
         });
@@ -117,7 +114,7 @@ export default function ProjectUsers() {
         Swal.fire({
           icon: 'success',
           title: 'Created!',
-          text: 'New project user registered successfully.',
+          text: 'New user registered successfully.',
           timer: 1500,
           showConfirmButton: false
         });
@@ -143,7 +140,7 @@ export default function ProjectUsers() {
       phone: u.phone || '',
       username: u.username,
       password: '', // blank by default on edit
-      role: 'Project',
+      role: u.role || 'projects',
       is_active: u.is_active !== 0,
     });
     setEditId(u.id);
@@ -154,7 +151,7 @@ export default function ProjectUsers() {
   const handleDelete = async (id, name) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
-      html: `You are about to delete project user <b>${name}</b>.<br/><br/><span style="color: #EF4444; font-weight: 700;">WARNING:</span> This action is irreversible.`,
+      html: `You are about to delete user <b>${name}</b>.<br/><br/><span style="color: #EF4444; font-weight: 700;">WARNING:</span> This action is irreversible.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#EF4444',
@@ -170,7 +167,7 @@ export default function ProjectUsers() {
         });
         Swal.fire({
           title: 'Deleted!',
-          text: 'Project user has been deleted.',
+          text: 'User has been deleted.',
           icon: 'success',
           confirmButtonColor: '#3B82F6'
         });
@@ -206,6 +203,27 @@ export default function ProjectUsers() {
       cell: info => info.getValue() || <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>N/A</span>,
     },
     {
+      accessorKey: 'role',
+      header: 'Assigned Role',
+      cell: info => {
+        const val = info.getValue() || '';
+        return (
+          <span style={{ 
+            textTransform: 'capitalize', 
+            fontWeight: 600, 
+            color: '#2563EB',
+            background: '#EFF6FF',
+            padding: '2px 8px',
+            borderRadius: '6px',
+            fontSize: '0.8rem',
+            display: 'inline-block'
+          }}>
+            {val}
+          </span>
+        );
+      }
+    },
+    {
       accessorKey: 'is_active',
       header: 'Status',
       cell: info => {
@@ -232,7 +250,7 @@ export default function ProjectUsers() {
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
             onClick={() => handleEdit(row.original)}
-            title="Edit Project User"
+            title="Edit User Details"
             style={{
               background: 'none',
               border: 'none',
@@ -247,7 +265,7 @@ export default function ProjectUsers() {
           </button>
           <button
             onClick={() => handleDelete(row.original.id, row.original.full_name)}
-            title="Delete Project User"
+            title="Delete User"
             style={{
               background: 'none',
               border: 'none',
@@ -277,7 +295,7 @@ export default function ProjectUsers() {
   });
 
   if (loading) {
-    return <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Loading project users...</div>;
+    return <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Loading users...</div>;
   }
 
   return (
@@ -294,8 +312,8 @@ export default function ProjectUsers() {
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
           </button>
           <div>
-            <h2 style={{ margin: 0, color: '#111827', fontSize: '1.2rem' }}>Project Co-Ordinators</h2>
-            <p style={{ color: '#6B7280', margin: 0, fontSize: '0.85rem' }}>Create and oversee user credentials for project execution teams</p>
+            <h2 style={{ margin: 0, color: '#111827', fontSize: '1.2rem' }}>User Management</h2>
+            <p style={{ color: '#6B7280', margin: 0, fontSize: '0.85rem' }}>Centralized role-based access control system across departments</p>
           </div>
         </div>
 
@@ -317,7 +335,7 @@ export default function ProjectUsers() {
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_add</span>
-            Create Project User
+            Add New User
           </button>
         )}
       </div>
@@ -333,7 +351,7 @@ export default function ProjectUsers() {
           boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
         }}>
           <h3 className="text-h3" style={{ marginBottom: '16px', fontSize: '1.1rem', color: 'var(--primary)' }}>
-            {isEditing ? 'Edit Project User Details' : 'Create New Project User'}
+            {isEditing ? 'Edit User Details' : 'Register New User'}
           </h3>
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
@@ -373,7 +391,13 @@ export default function ProjectUsers() {
                   onChange={e => {
                     const val = e.target.value.replace(/\D/g, ''); // only allow digits
                     if (val.length <= 10) {
-                      setForm({ ...form, phone: val });
+                      setForm(prev => {
+                        const updated = { ...prev, phone: val };
+                        if (!isEditing) {
+                          updated.password = val ? `pwd@${val}` : '';
+                        }
+                        return updated;
+                      });
                     }
                   }}
                   placeholder="e.g. 9876543210"
@@ -406,7 +430,7 @@ export default function ProjectUsers() {
 
               <div className="form-group">
                 <label className="form-label">
-                  Password {isEditing ? '(Leave blank to keep unchanged)' : '*'}
+                  Password {isEditing ? '(Leave blank to keep unchanged)' : '(Optional - Auto-generates as pwd@<phone_number>)'}
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <input
@@ -416,7 +440,6 @@ export default function ProjectUsers() {
                     value={form.password}
                     onChange={e => setForm({ ...form, password: e.target.value })}
                     placeholder={isEditing ? '••••••••' : 'Enter password'}
-                    required={!isEditing}
                     autoComplete="new-password"
                   />
                   <button
@@ -442,14 +465,19 @@ export default function ProjectUsers() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Role</label>
-                <input
-                  type="text"
+                <label className="form-label">Department / Role *</label>
+                <select
                   className="form-input"
                   value={form.role}
-                  disabled
-                  style={{ background: '#F3F4F6', color: '#6B7280', cursor: 'not-allowed' }}
-                />
+                  onChange={e => setForm({ ...form, role: e.target.value })}
+                  required
+                >
+                  <option value="admin">Admin</option>
+                  <option value="sales">Sales</option>
+                  <option value="accounts">Accounts</option>
+                  <option value="projects">Projects</option>
+                  <option value="stores">Stores</option>
+                </select>
               </div>
 
               <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -522,7 +550,7 @@ export default function ProjectUsers() {
           <span className="material-symbols-outlined" style={{ color: '#9CA3AF', fontSize: '18px' }}>search</span>
           <input
             type="text"
-            placeholder="Search by name, email, or username..."
+            placeholder="Search by name, email, role, or username..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -586,7 +614,7 @@ export default function ProjectUsers() {
             ) : (
               <tr>
                 <td colSpan={columns.length} style={{ padding: '24px', textAlign: 'center', color: '#6B7280' }}>
-                  No project users found.
+                  No users found.
                 </td>
               </tr>
             )}

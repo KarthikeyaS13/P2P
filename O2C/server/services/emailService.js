@@ -33,9 +33,9 @@ if (SMTP_USER && SMTP_PASS) {
   }
 
   transporter = nodemailer.createTransport(transportConfig);
-  console.log(`✅ Email service initialized with SMTP Host: ${transportConfig.host}`);
+  // console.log(`✅ Email service initialized with SMTP Host: ${transportConfig.host}`);
 } else {
-  console.log('⚠️ SMTP credentials not found in environment variables. Email service is running in mock/dry-run mode.');
+  // console.log('⚠️ SMTP credentials not found in environment variables. Email service is running in mock/dry-run mode.');
 }
 
 /**

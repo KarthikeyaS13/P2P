@@ -28,6 +28,7 @@ import MasterAddress from './screens/MasterAddress';
 import ProjectUsers from './screens/ProjectUsers';
 import POFlowManagement from './screens/POFlowManagement';
 import VerifyDocument from './screens/VerifyDocument';
+import Reports from './screens/Reports';
 
 import { useAuth } from './context/AuthContext';
 
@@ -84,6 +85,7 @@ function App() {
               <Route path="/master-address" element={<MasterAddress />} />
               <Route path="/project-users" element={<RoleGate allowedRoles={['admin']}><ProjectUsers /></RoleGate>} />
               <Route path="/po-flow" element={<RoleGate allowedRoles={['admin']}><POFlowManagement /></RoleGate>} />
+              <Route path="/reports" element={<RoleGate allowedRoles={['sales', 'accounts', 'management', 'auditor']}><Reports /></RoleGate>} />
 
               {/* Sales / Admin */}
               <Route path="/customers" element={<RoleGate allowedRoles={['sales']}><Customers /></RoleGate>} />

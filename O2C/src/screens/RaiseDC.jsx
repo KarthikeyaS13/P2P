@@ -640,7 +640,7 @@ export default function RaiseDC() {
                   <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.vehicle_no || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
                 </div>
                 <div className="info-block">
-                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Driver Name</label>
+                  <label style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Driver Name / Agent Name</label>
                   <div style={{ fontSize: '13px', fontWeight: 600 }}>{details.driver_name || <span style={{ color: '#9CA3AF' }}>Not Provided</span>}</div>
                 </div>
                 <div className="info-block">
@@ -1157,10 +1157,26 @@ export default function RaiseDC() {
 
   return (
     <div className="screen-enter" style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <div className="page-header" style={{ marginBottom: '12px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <div>
-          <h1 className="text-h1 page-header__title" style={{ fontSize: '24px', margin: 0 }}>Raise Delivery Challan</h1>
-          <p className="page-header__subtitle" style={{ fontSize: '12px', margin: 0 }}>Review and formally issue Delivery Challans for pending store requests.</p>
+      <div className="page-header" style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="btn-ghost btn-back"
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1 className="text-h1 page-header__title" style={{ fontSize: '24px', margin: 0 }}>Raise Delivery Challan</h1>
+            <p className="page-header__subtitle" style={{ fontSize: '12px', margin: 0 }}>Review and formally issue Delivery Challans for pending store requests.</p>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ position: 'relative', width: '260px' }}>

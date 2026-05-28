@@ -223,7 +223,17 @@ export default function DCRequest() {
       Swal.fire({
         icon: 'warning',
         title: 'Logistics Details Required',
-        text: 'Please enter Vehicle Number, Driver Name, and Driver Phone before submitting the request.'
+        text: 'Please enter Vehicle Number, Driver / Agent Name, and Driver Phone before submitting the request.'
+      });
+      return;
+    }
+
+    const cleanVehicle = (logistics.vehicle_no || '').replace(/\s+/g, '');
+    if (cleanVehicle.length !== 10) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Vehicle Number',
+        text: 'Please enter a valid 10-character Vehicle Number (excluding spaces).'
       });
       return;
     }
@@ -498,17 +508,21 @@ export default function DCRequest() {
               <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Vehicle Number <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 className="form-input"
-                placeholder="e.g. TS 09 EX 1234"
+                placeholder="e.g. TS09EX 1234"
                 value={logistics.vehicle_no}
-                onChange={e => setLogistics({ ...logistics, vehicle_no: e.target.value.toUpperCase() })}
+                maxLength={10}
+                onChange={e => {
+                  const val = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+                  setLogistics({ ...logistics, vehicle_no: val });
+                }}
                 style={{ height: '32px', fontSize: '13px', padding: '0 8px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box' }}
               />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Driver Name <span style={{ color: '#EF4444' }}>*</span></label>
+              <label className="form-label" style={{ color: '#475569', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px', display: 'block' }}>Driver Name / Agent Name <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 className="form-input"
-                placeholder="Enter driver name"
+                placeholder="Enter driver or agent name"
                 value={logistics.driver_name}
                 onChange={e => setLogistics({ ...logistics, driver_name: e.target.value })}
                 style={{ height: '32px', fontSize: '13px', padding: '0 8px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '100%', boxSizing: 'border-box' }}
@@ -722,7 +736,16 @@ export default function DCRequest() {
                 Swal.fire({
                   icon: 'warning',
                   title: 'Logistics Details Required',
-                  text: 'Please enter Vehicle Number, Driver Name, and Driver Phone before reviewing the request.'
+                  text: 'Please enter Vehicle Number, Driver / Agent Name, and Driver Phone before reviewing the request.'
+                });
+                return;
+              }
+              const cleanVehicleReview = (logistics.vehicle_no || '').replace(/\s+/g, '');
+              if (cleanVehicleReview.length !== 10) {
+                Swal.fire({
+                  icon: 'warning',
+                  title: 'Invalid Vehicle Number',
+                  text: 'Please enter a valid 10-character Vehicle Number (excluding spaces).'
                 });
                 return;
               }
@@ -892,7 +915,7 @@ export default function DCRequest() {
                       <div style={{ fontSize: '12px', fontWeight: 700 }}>{logistics.vehicle_no}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '9px', color: '#94A3B8' }}>Driver Contact</div>
+                      <div style={{ fontSize: '9px', color: '#94A3B8' }}>Driver / Agent Contact</div>
                       <div style={{ fontSize: '12px', fontWeight: 700 }}>{logistics.driver_name} ({logistics.driver_phone})</div>
                     </div>
                     <div>

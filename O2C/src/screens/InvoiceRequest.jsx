@@ -252,10 +252,30 @@ export default function InvoiceRequest() {
 
   return (
     <div className="screen-enter" style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <div className="page-header" style={{ marginBottom: '12px', paddingBottom: '8px' }}>
-        <div>
-          <h1 className="text-h1" style={{ fontSize: '1.5rem', marginBottom: '2px' }}>Invoice Requests</h1>
-          <p className="page-header__subtitle" style={{ fontSize: '11px', color: '#64748B' }}>Track your submissions and approval status</p>
+      <div className="page-header" style={{ marginBottom: '12px', paddingBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button 
+            onClick={() => navigate('/dashboard')} 
+            className="btn-ghost btn-back" 
+            style={{ 
+              width: '32px', 
+              height: '32px', 
+              borderRadius: '50%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              border: '1px solid #E2E8F0',
+              background: 'white',
+              cursor: 'pointer',
+              color: '#475569'
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+          </button>
+          <div>
+            <h1 className="text-h1" style={{ fontSize: '1.5rem', marginBottom: '2px' }}>Invoice Requests</h1>
+            <p className="page-header__subtitle" style={{ fontSize: '11px', color: '#64748B' }}>Track your submissions and approval status</p>
+          </div>
         </div>
         <button className="btn btn-primary" style={{ height: '30px', padding: '0 14px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => navigate('/new-invoice')}>+ New Request</button>
       </div>
