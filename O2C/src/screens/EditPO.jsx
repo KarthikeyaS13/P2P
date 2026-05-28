@@ -42,6 +42,13 @@ export default function EditPO() {
 
   const isProjectPhoneInvalid = projectSpocName ? (!projectSpocPhone || !/^[0-9]{10}$/.test(projectSpocPhone.trim())) : false;
 
+  const filteredProjectUsers = projectUsers.filter(
+    user => user.assigned_role === "Projects" || 
+            user.role === "Projects" || 
+            user.role?.toLowerCase() === "projects" || 
+            user.assigned_role?.toLowerCase() === "projects"
+  );
+
   // Preview State
   const [previewPath, setPreviewPath] = useState(null);
   const [previewExcelData, setPreviewExcelData] = useState(null);
@@ -624,17 +631,23 @@ export default function EditPO() {
                       value={projectSpocName || ''} 
                       onChange={(e) => {
                         const val = e.target.value;
-                        const user = projectUsers.find(u => u.full_name === val);
+                        const user = filteredProjectUsers.find(u => u.full_name === val);
                         setProjectSpocName(val);
                         setProjectSpocEmail(user ? (user.email || '') : '');
                         setProjectSpocPhone(user ? (user.phone || '') : '');
                       }} 
                       style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '12px', background: 'white', boxSizing: 'border-box' }}
                     >
-                      <option value="">Select Project SPOC</option>
-                      {projectUsers.map(user => (
-                        <option key={user.id} value={user.full_name}>{user.full_name}</option>
-                      ))}
+                      {filteredProjectUsers.length === 0 ? (
+                        <option value="">No Project SPOC Available</option>
+                      ) : (
+                        <>
+                          <option value="">Select Project SPOC</option>
+                          {filteredProjectUsers.map(user => (
+                            <option key={user.id} value={user.full_name}>{user.full_name}</option>
+                          ))}
+                        </>
+                      )}
                     </select>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

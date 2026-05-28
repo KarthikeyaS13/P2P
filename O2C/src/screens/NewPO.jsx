@@ -151,6 +151,13 @@ export default function NewPO() {
   const isCustomerPhoneInvalid = basicDetails.locationId ? (!basicDetails.contactPhone || !/^[0-9]{10}$/.test(basicDetails.contactPhone.trim())) : false;
   const isProjectPhoneInvalid = basicDetails.projectSpocName ? (!basicDetails.projectSpocPhone || !/^[0-9]{10}$/.test(basicDetails.projectSpocPhone.trim())) : false;
 
+  const filteredProjectUsers = projectUsers.filter(
+    user => user.assigned_role === "Projects" || 
+            user.role === "Projects" || 
+            user.role?.toLowerCase() === "projects" || 
+            user.assigned_role?.toLowerCase() === "projects"
+  );
+
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
@@ -215,7 +222,7 @@ export default function NewPO() {
         contactPhone: loc ? (loc.contact_phone || '') : ''
       }));
     } else if (name === 'projectSpocName') {
-      const user = projectUsers.find(u => u.full_name === value);
+      const user = filteredProjectUsers.find(u => u.full_name === value);
       setBasicDetails(prev => ({
         ...prev,
         projectSpocName: value,
@@ -1131,10 +1138,16 @@ export default function NewPO() {
                       className="compact-form-input-text"
                       style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px', background: 'white' }}
                     >
-                      <option value="">Select Project SPOC</option>
-                      {projectUsers.map(user => (
-                        <option key={user.id} value={user.full_name}>{user.full_name}</option>
-                      ))}
+                      {filteredProjectUsers.length === 0 ? (
+                        <option value="">No Project SPOC Available</option>
+                      ) : (
+                        <>
+                          <option value="">Select Project SPOC</option>
+                          {filteredProjectUsers.map(user => (
+                            <option key={user.id} value={user.full_name}>{user.full_name}</option>
+                          ))}
+                        </>
+                      )}
                     </select>
                   </div>
 
