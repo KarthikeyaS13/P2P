@@ -29,6 +29,7 @@ import ProjectUsers from './screens/ProjectUsers';
 import POFlowManagement from './screens/POFlowManagement';
 import VerifyDocument from './screens/VerifyDocument';
 import Reports from './screens/Reports';
+import ManagementDashboard from './screens/ManagementDashboard';
 
 import { useAuth } from './context/AuthContext';
 
@@ -66,8 +67,49 @@ function App() {
     return <Login onSuccess={() => {
       const u = getUser();
       if (u?.role?.toLowerCase() === 'projects') navigate('/projects');
+      else if (u?.role?.toLowerCase() === 'management') navigate('/management-dashboard');
       else navigate('/');
     }} />;
+  }
+
+  if (user && user?.role?.toLowerCase() === 'management') {
+    return (
+      <div className="mgmt-app-container">
+        <main className="mgmt-app-main">
+          <Routes>
+            <Route path="/management-dashboard" element={<ManagementDashboard />} />
+            <Route path="*" element={<Navigate to="/management-dashboard" replace />} />
+          </Routes>
+        </main>
+        <style>{`
+          .mgmt-app-container {
+            background: #F8FAFC;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+          }
+          .mgmt-app-main {
+            width: 100%;
+            max-width: 480px;
+            padding: 16px;
+            box-sizing: border-box;
+          }
+          @media (max-width: 480px) {
+            .mgmt-app-container {
+              background: #FFFFFF !important;
+              justify-content: flex-start !important;
+            }
+            .mgmt-app-main {
+              max-width: 100% !important;
+              padding: 0 !important;
+            }
+          }
+        `}</style>
+      </div>
+    );
   }
 
   return (
@@ -80,12 +122,15 @@ function App() {
 
           <div className="main-content__inner">
             <Routes>
-              <Route path="/" element={<Navigate to={user?.role?.toLowerCase() === 'projects' ? "/projects" : "/dashboard"} replace />} />
+              <Route path="/" element={<Navigate to={user?.role?.toLowerCase() === 'projects' ? "/projects" : (user?.role?.toLowerCase() === 'management' ? "/management-dashboard" : "/dashboard")} replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/master-address" element={<MasterAddress />} />
               <Route path="/project-users" element={<RoleGate allowedRoles={['admin']}><ProjectUsers /></RoleGate>} />
               <Route path="/po-flow" element={<RoleGate allowedRoles={['admin']}><POFlowManagement /></RoleGate>} />
-              <Route path="/reports" element={<RoleGate allowedRoles={['sales', 'accounts', 'management', 'auditor']}><Reports /></RoleGate>} />
+              <Route path="/reports" element={<RoleGate allowedRoles={['sales', 'auditor']}><Reports /></RoleGate>} />
+              
+              {/* Management Dashboard Route */}
+              <Route path="/management-dashboard" element={<RoleGate allowedRoles={['management']}><ManagementDashboard /></RoleGate>} />
 
               {/* Sales / Admin */}
               <Route path="/customers" element={<RoleGate allowedRoles={['sales']}><Customers /></RoleGate>} />

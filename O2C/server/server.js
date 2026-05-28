@@ -1800,7 +1800,7 @@ app.post('/api/pos', authenticate, (req, res) => {
       linked_po_id, subtotal, gst_total, grand_total,
       po_copy_path, po_annex_path, other_attachment_path,
       items, project_spoc_name, project_spoc_email, project_spoc_phone,
-      need_sales_invoice_approval
+      need_sales_invoice_approval, remarks
     } = req.body;
 
     const phoneRegex = /^[0-9]{10}$/;
@@ -1855,8 +1855,8 @@ app.post('/api/pos', authenticate, (req, res) => {
         linked_po_id, subtotal, gst_total, grand_total,
         total_value, po_copy_path, po_annex_path, other_attachment_path,
         created_by, project_spoc_name, project_spoc_email, project_spoc_phone,
-        need_sales_invoice_approval
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        need_sales_invoice_approval, remarks
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       order_id, customer_id, location_id,
       finalPONumber, po_date || null, start_date || null, end_date || null,
@@ -1864,7 +1864,7 @@ app.post('/api/pos', authenticate, (req, res) => {
       safeLinkedPoId, subtotal || 0, gst_total || 0, grand_total || 0,
       grand_total || 0, po_copy_path || null, po_annex_path || null, other_attachment_path || null,
       req.user.id, finalSpocName || null, finalSpocEmail || null, finalSpocPhone || null,
-      finalNeedApproval
+      finalNeedApproval, remarks || null
     );
 
     const poId = r.lastInsertRowid;
@@ -2079,7 +2079,7 @@ app.put('/api/pos/:id/status', authenticate, (req, res) => {
 });
 
 app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']), (req, res) => {
-  const { status, items, project_spoc_name, project_spoc_email, project_spoc_phone, need_sales_invoice_approval } = req.body;
+  const { status, items, project_spoc_name, project_spoc_email, project_spoc_phone, need_sales_invoice_approval, remarks } = req.body;
 
   const phoneRegex = /^[0-9]{10}$/;
   if (project_spoc_phone !== undefined && project_spoc_phone !== null) {
@@ -2160,8 +2160,8 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
         status, version, is_temp_po, is_temporary, is_nt_po,
         parent_po_id, linked_po_id, po_copy_path, po_annex_path, other_attachment_path,
         created_by, project_spoc_name, project_spoc_email, project_spoc_phone,
-        need_sales_invoice_approval, subtotal, gst_total, grand_total, total_value, nt_count
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        need_sales_invoice_approval, subtotal, gst_total, grand_total, total_value, nt_count, remarks
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       'ORD-' + Date.now(), oldPO.customer_id, oldPO.location_id,
       revisedPONumber, oldPO.po_date || null, oldPO.start_date || null, oldPO.end_date || null,
@@ -2172,7 +2172,8 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
       project_spoc_email !== undefined ? project_spoc_email : oldPO.project_spoc_email,
       project_spoc_phone !== undefined ? project_spoc_phone : oldPO.project_spoc_phone,
       need_sales_invoice_approval || oldPO.need_sales_invoice_approval || 'yes',
-      subtotal, gst_total, subtotal + gst_total, subtotal + gst_total, oldPO.nt_count || 0
+      subtotal, gst_total, subtotal + gst_total, subtotal + gst_total, oldPO.nt_count || 0,
+      remarks !== undefined ? remarks : oldPO.remarks
     );
 
     const newPoId = r.lastInsertRowid;
@@ -3825,11 +3826,14 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
       }
     }
 
-    // Enforce HSN validation for all items as we automatically generate invoice (raised or request)
-    for (const item of items) {
-      const hsn = itemHSNs?.[item.line_item_id];
-      if (!hsn || !hsn.trim()) {
-        return res.status(400).json({ error: 'HSN code is mandatory for all items.' });
+    // Enforce HSN validation for all items if auto-invoice is active (need_sales_invoice_approval !== 'yes')
+    const isHsnMandatory = po.need_sales_invoice_approval !== 'yes';
+    if (isHsnMandatory) {
+      for (const item of items) {
+        const hsn = itemHSNs?.[item.line_item_id];
+        if (!hsn || !hsn.trim()) {
+          return res.status(400).json({ error: 'HSN code is mandatory for all items.' });
+        }
       }
     }
 
@@ -4320,6 +4324,270 @@ app.get('/api/reports/items', authenticate, (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// --- Management Dashboard Endpoints ---
+app.get('/api/management/summary', requireRole(['admin', 'management']), (req, res) => {
+  try {
+    const summary = db.prepare(`
+      SELECT 
+        COUNT(DISTINCT id) as total_so_count,
+        COALESCE(SUM(po_value), 0) as total_po_value,
+        COALESCE(SUM(supplied_value), 0) as total_supplied_value,
+        COALESCE(SUM(invoiced_value), 0) as total_invoiced_value,
+        COALESCE(SUM(collected_value), 0) as total_collected_value,
+        COALESCE(SUM(MAX(0, invoiced_value - collected_value)), 0) as total_outstanding_value
+      FROM (
+        SELECT 
+          p.id,
+          p.grand_total as po_value,
+          COALESCE((
+            SELECT SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
+              CASE 
+                WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+                WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+                ELSE 0 
+              END
+            ))
+            FROM dc_line_items dli
+            JOIN delivery_challans dc ON dli.dc_id = dc.id
+            JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+            WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+          ), 0) as supplied_value,
+          COALESCE((
+            SELECT SUM(grand_total) 
+            FROM invoices 
+            WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
+          ), 0) as invoiced_value,
+          COALESCE((
+            SELECT SUM(amount_received) 
+            FROM ar_entries 
+            WHERE po_id = p.id
+          ), 0) as collected_value
+        FROM purchase_orders p
+        WHERE p.status != 'revised'
+      )
+    `).get();
+    res.json(summary);
+  } catch (err) {
+    console.error('ERROR in /api/management/summary:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/management/customers', requireRole(['admin', 'management']), (req, res) => {
+  try {
+    const customers = db.prepare(`
+      SELECT 
+        c.id as customer_id,
+        c.name as customer_name,
+        c.cust_code as customer_code,
+        COUNT(DISTINCT p.id) as total_so_count,
+        COALESCE(SUM(po_value), 0) as total_po_value,
+        COALESCE(SUM(supplied_value), 0) as total_supplied_value,
+        COALESCE(SUM(invoiced_value), 0) as total_invoiced_value,
+        COALESCE(SUM(collected_value), 0) as total_collected_value,
+        COALESCE(SUM(MAX(0, invoiced_value - collected_value)), 0) as total_outstanding_value
+      FROM customers c
+      LEFT JOIN (
+        SELECT 
+          p.id,
+          p.customer_id,
+          p.grand_total as po_value,
+          COALESCE((
+            SELECT SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
+              CASE 
+                WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+                WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+                ELSE 0 
+              END
+            ))
+            FROM dc_line_items dli
+            JOIN delivery_challans dc ON dli.dc_id = dc.id
+            JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+            WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+          ), 0) as supplied_value,
+          COALESCE((
+            SELECT SUM(grand_total) 
+            FROM invoices 
+            WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
+          ), 0) as invoiced_value,
+          COALESCE((
+            SELECT SUM(amount_received) 
+            FROM ar_entries 
+            WHERE po_id = p.id
+          ), 0) as collected_value
+        FROM purchase_orders p
+        WHERE p.status != 'revised'
+      ) p ON c.id = p.customer_id
+      GROUP BY c.id
+      ORDER BY c.name ASC
+    `).all();
+    res.json(customers);
+  } catch (err) {
+    console.error('ERROR in /api/management/customers:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/management/customer/:id/summary', requireRole(['admin', 'management']), (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const summary = db.prepare(`
+      SELECT 
+        c.id as customer_id,
+        c.name as customer_name,
+        c.cust_code as customer_code,
+        COUNT(DISTINCT p.id) as total_so_count,
+        COALESCE(SUM(po_value), 0) as total_po_value,
+        COALESCE(SUM(supplied_value), 0) as total_supplied_value,
+        COALESCE(SUM(invoiced_value), 0) as total_invoiced_value,
+        COALESCE(SUM(collected_value), 0) as total_collected_value,
+        COALESCE(SUM(MAX(0, invoiced_value - collected_value)), 0) as total_outstanding_value
+      FROM customers c
+      LEFT JOIN (
+        SELECT 
+          p.id,
+          p.customer_id,
+          p.grand_total as po_value,
+          COALESCE((
+            SELECT SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
+              CASE 
+                WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+                WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+                ELSE 0 
+              END
+            ))
+            FROM dc_line_items dli
+            JOIN delivery_challans dc ON dli.dc_id = dc.id
+            JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+            WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+          ), 0) as supplied_value,
+          COALESCE((
+            SELECT SUM(grand_total) 
+            FROM invoices 
+            WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
+          ), 0) as invoiced_value,
+          COALESCE((
+            SELECT SUM(amount_received) 
+            FROM ar_entries 
+            WHERE po_id = p.id
+          ), 0) as collected_value
+        FROM purchase_orders p
+        WHERE p.status != 'revised'
+      ) p ON c.id = p.customer_id
+      WHERE c.id = ?
+      GROUP BY c.id
+    `).get(customerId);
+
+    const pos = db.prepare(`
+      SELECT 
+        p.id as po_id,
+        p.po_number,
+        p.po_date,
+        p.grand_total as po_value,
+        COALESCE((
+          SELECT SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
+            CASE 
+              WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+              WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+              ELSE 0 
+            END
+          ))
+          FROM dc_line_items dli
+          JOIN delivery_challans dc ON dli.dc_id = dc.id
+          JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+          WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+        ), 0) as supplied_value,
+        COALESCE((
+          SELECT SUM(grand_total) 
+          FROM invoices 
+          WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
+        ), 0) as invoiced_value,
+        COALESCE((
+          SELECT SUM(amount_received) 
+          FROM ar_entries 
+          WHERE po_id = p.id
+        ), 0) as collected_value,
+        MAX(0, COALESCE((
+          SELECT SUM(grand_total) 
+          FROM invoices 
+          WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
+        ), 0) - COALESCE((
+          SELECT SUM(amount_received) 
+          FROM ar_entries 
+          WHERE po_id = p.id
+        ), 0)) as outstanding_value
+      FROM purchase_orders p
+      WHERE p.customer_id = ? AND p.status != 'revised'
+      ORDER BY p.created_at DESC
+    `).all(customerId);
+
+    res.json({ summary, pos });
+  } catch (err) {
+    console.error('ERROR in /api/management/customer/:id/summary:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/management/so/:id/summary', requireRole(['admin', 'management']), (req, res) => {
+  try {
+    const poId = req.params.id;
+    const soDetails = db.prepare(`
+      SELECT 
+        p.id as po_id,
+        p.po_number,
+        p.po_date,
+        p.grand_total as po_value,
+        c.name as customer_name,
+        c.id as customer_id,
+        COALESCE((
+          SELECT SUM(COALESCE(dli.received_qty, dli.quantity_dispatched) * (
+            CASE 
+              WHEN pli.supply_qty > 0 THEN (pli.total_supply / pli.supply_qty)
+              WHEN pli.service_qty > 0 THEN (pli.total_service / pli.service_qty)
+              ELSE 0 
+            END
+          ))
+          FROM dc_line_items dli
+          JOIN delivery_challans dc ON dli.dc_id = dc.id
+          JOIN po_line_items pli ON dli.po_line_item_id = pli.id
+          WHERE dc.po_id = p.id AND dc.status != 'cancelled'
+        ), 0) as supplied_value,
+        COALESCE((
+          SELECT SUM(grand_total) 
+          FROM invoices 
+          WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
+        ), 0) as invoiced_value,
+        COALESCE((
+          SELECT SUM(amount_received) 
+          FROM ar_entries 
+          WHERE po_id = p.id
+        ), 0) as collected_value,
+        MAX(0, COALESCE((
+          SELECT SUM(grand_total) 
+          FROM invoices 
+          WHERE po_id = p.id AND status NOT IN ('requested', 'cancelled')
+        ), 0) - COALESCE((
+          SELECT SUM(amount_received) 
+          FROM ar_entries 
+          WHERE po_id = p.id
+        ), 0)) as outstanding_value
+      FROM purchase_orders p
+      JOIN customers c ON p.customer_id = c.id
+      WHERE p.id = ? AND p.status != 'revised'
+    `).get(poId);
+
+    if (!soDetails) {
+      return res.status(404).json({ error: 'Sales Order not found' });
+    }
+
+    res.json(soDetails);
+  } catch (err) {
+    console.error('ERROR in /api/management/so/:id/summary:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`O2C Server V2 running on port ${PORT}`));

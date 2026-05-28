@@ -116,7 +116,8 @@ export default function NewPO() {
     projectSpocName: '',
     projectSpocEmail: '',
     projectSpocPhone: '',
-    needSalesInvoiceApproval: 'yes'
+    needSalesInvoiceApproval: 'yes',
+    remarks: ''
   });
 
   // Attachments State
@@ -152,10 +153,10 @@ export default function NewPO() {
   const isProjectPhoneInvalid = basicDetails.projectSpocName ? (!basicDetails.projectSpocPhone || !/^[0-9]{10}$/.test(basicDetails.projectSpocPhone.trim())) : false;
 
   const filteredProjectUsers = projectUsers.filter(
-    user => user.assigned_role === "Projects" || 
-            user.role === "Projects" || 
-            user.role?.toLowerCase() === "projects" || 
-            user.assigned_role?.toLowerCase() === "projects"
+    user => user.assigned_role === "Projects" ||
+      user.role === "Projects" ||
+      user.role?.toLowerCase() === "projects" ||
+      user.assigned_role?.toLowerCase() === "projects"
   );
 
   useEffect(() => {
@@ -923,7 +924,8 @@ export default function NewPO() {
         project_spoc_name: basicDetails.projectSpocName.trim(),
         project_spoc_email: basicDetails.projectSpocEmail.trim(),
         project_spoc_phone: basicDetails.projectSpocPhone.trim(),
-        need_sales_invoice_approval: basicDetails.needSalesInvoiceApproval
+        need_sales_invoice_approval: basicDetails.needSalesInvoiceApproval,
+        remarks: (basicDetails.remarks || '').trim()
       };
 
       await axios.post('/api/pos', payload, { headers });
@@ -1067,7 +1069,7 @@ export default function NewPO() {
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              
+
               {/* Left Column: Continuous Form Inputs */}
               <div>
                 <h3 style={{ fontSize: '14px', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontWeight: 700, color: '#334155' }}>1. Basic Details</h3>
@@ -1201,7 +1203,7 @@ export default function NewPO() {
               <div>
                 <h3 style={{ fontSize: '14px', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontWeight: 700, color: '#334155' }}>SPOC Details</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  
+
                   {/* Customer SPOC Container */}
                   <div style={{ border: '1px solid #E2E8F0', padding: '14px', borderRadius: '8px', background: '#F8FAFC' }}>
                     <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1216,19 +1218,19 @@ export default function NewPO() {
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: isCustomerPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Phone <span style={{ color: 'red' }}>*</span></label>
-                        <input 
-                          name="contactPhone" 
-                          value={basicDetails.contactPhone} 
-                          onChange={handleBasicChange} 
-                          placeholder="Primary Phone" 
-                          className="compact-form-input-text" 
-                          readOnly 
-                          style={{ 
-                            background: isCustomerPhoneInvalid ? '#FEF2F2' : '#E2E8F0', 
-                            color: isCustomerPhoneInvalid ? '#DC2626' : '#64748B', 
-                            border: isCustomerPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1', 
-                            cursor: 'not-allowed' 
-                          }} 
+                        <input
+                          name="contactPhone"
+                          value={basicDetails.contactPhone}
+                          onChange={handleBasicChange}
+                          placeholder="Primary Phone"
+                          className="compact-form-input-text"
+                          readOnly
+                          style={{
+                            background: isCustomerPhoneInvalid ? '#FEF2F2' : '#E2E8F0',
+                            color: isCustomerPhoneInvalid ? '#DC2626' : '#64748B',
+                            border: isCustomerPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1',
+                            cursor: 'not-allowed'
+                          }}
                         />
                         {isCustomerPhoneInvalid && (
                           <p style={{ color: '#EF4444', fontSize: '10px', marginTop: '4px', fontWeight: 500 }}>
@@ -1254,19 +1256,19 @@ export default function NewPO() {
                         </div>
                         <div>
                           <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: isProjectPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Project SPOC Contact <span style={{ color: 'red' }}>*</span></label>
-                          <input 
-                            name="projectSpocPhone" 
-                            value={basicDetails.projectSpocPhone} 
-                            onChange={handleBasicChange} 
-                            placeholder="Project SPOC Contact Number" 
-                            className="compact-form-input-text" 
-                            readOnly 
-                            style={{ 
-                              background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0', 
-                              color: isProjectPhoneInvalid ? '#DC2626' : '#64748B', 
-                              border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1', 
-                              cursor: 'not-allowed' 
-                            }} 
+                          <input
+                            name="projectSpocPhone"
+                            value={basicDetails.projectSpocPhone}
+                            onChange={handleBasicChange}
+                            placeholder="Project SPOC Contact Number"
+                            className="compact-form-input-text"
+                            readOnly
+                            style={{
+                              background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0',
+                              color: isProjectPhoneInvalid ? '#DC2626' : '#64748B',
+                              border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1',
+                              cursor: 'not-allowed'
+                            }}
                           />
                           {isProjectPhoneInvalid && (
                             <p style={{ color: '#EF4444', fontSize: '10px', marginTop: '4px', fontWeight: 500 }}>
@@ -1275,6 +1277,34 @@ export default function NewPO() {
                           )}
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Notes / Remarks Container */}
+                  <div style={{ border: '1px solid #E2E8F0', padding: '14px', borderRadius: '8px', background: '#F8FAFC' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#64748B' }}>notes</span>
+                      <span>Notes</span>
+                    </div>
+                    <div>
+                      <textarea
+                        name="remarks"
+                        value={basicDetails.remarks || ''}
+                        onChange={handleBasicChange}
+                        placeholder="Enter any additional notes or instructions for this PO..."
+                        className="compact-form-input-text"
+                        style={{
+                          width: '100%',
+                          height: '60px',
+                          padding: '8px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #CBD5E1',
+                          fontSize: '12px',
+                          background: 'white',
+                          resize: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
                     </div>
                   </div>
 
@@ -1332,11 +1362,11 @@ export default function NewPO() {
               <button
                 onClick={nextStep}
                 disabled={
-                  loading || 
-                  !basicDetails.customerId || 
-                  !basicDetails.locationId || 
-                  !basicDetails.poNumber || 
-                  !basicDetails.contactName || 
+                  loading ||
+                  !basicDetails.customerId ||
+                  !basicDetails.locationId ||
+                  !basicDetails.poNumber ||
+                  !basicDetails.contactName ||
                   !basicDetails.contactPhone ||
                   isCustomerPhoneInvalid ||
                   isProjectPhoneInvalid
@@ -1345,11 +1375,11 @@ export default function NewPO() {
                   height: '36px',
                   padding: '0 24px',
                   background: (
-                    loading || 
-                    !basicDetails.customerId || 
-                    !basicDetails.locationId || 
-                    !basicDetails.poNumber || 
-                    !basicDetails.contactName || 
+                    loading ||
+                    !basicDetails.customerId ||
+                    !basicDetails.locationId ||
+                    !basicDetails.poNumber ||
+                    !basicDetails.contactName ||
                     !basicDetails.contactPhone ||
                     isCustomerPhoneInvalid ||
                     isProjectPhoneInvalid
@@ -1360,9 +1390,9 @@ export default function NewPO() {
                   fontWeight: 600,
                   fontSize: '13px',
                   cursor: (
-                    loading || 
-                    !basicDetails.customerId || 
-                    !basicDetails.locationId || 
+                    loading ||
+                    !basicDetails.customerId ||
+                    !basicDetails.locationId ||
                     !basicDetails.poNumber ||
                     isCustomerPhoneInvalid ||
                     isProjectPhoneInvalid

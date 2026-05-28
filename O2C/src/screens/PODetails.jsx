@@ -318,6 +318,42 @@ export default function PODetails() {
             )}
           </div>
         </div>
+        {po.remarks && (
+          <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #F3F4F6', paddingTop: '8px', marginTop: '4px' }}>
+            <span style={{ fontSize: '11px', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>notes</span>
+              SO Notes / Remarks
+            </span>
+            <div
+              onClick={() => {
+                if (po.remarks.length > 80) {
+                  Swal.fire({
+                    title: 'PO Notes',
+                    html: `<div style="text-align: left; font-size: 14px; line-height: 1.5; color: #374151; white-space: pre-wrap; padding: 10px;">${po.remarks}</div>`,
+                    confirmButtonText: 'Close',
+                    confirmButtonColor: 'var(--primary)'
+                  });
+                }
+              }}
+              style={{
+                fontSize: '12px',
+                color: '#374151',
+                background: '#F8FAFC',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid #E2E8F0',
+                cursor: po.remarks.length > 80 ? 'pointer' : 'default',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                fontWeight: 500
+              }}
+              title={po.remarks.length > 80 ? "Click to view full notes" : ""}
+            >
+              {po.remarks}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* SECTION 2: Search Bar */}

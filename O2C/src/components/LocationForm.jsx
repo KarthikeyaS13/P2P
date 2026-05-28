@@ -166,32 +166,32 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
-      <div style={{ background: 'white', width: '100%', maxWidth: '800px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '50px' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '16px' }}>
+      <div style={{ background: 'white', width: '100%', maxWidth: '700px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', maxHeight: '95vh', display: 'flex', flexDirection: 'column' }}>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #E5E7EB' }}>
-          <h2 style={{ margin: 0, color: '#111827' }}>{isEdit ? 'Edit Location' : 'Add New Location'}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6B7280' }}>&times;</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 18px', borderBottom: '1px solid #E5E7EB' }}>
+          <h3 style={{ margin: 0, color: '#111827', fontSize: '1.1rem' }}>{isEdit ? 'Edit Location' : 'Add New Location'}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center' }}>&times;</button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '12px 18px', overflowY: 'auto', flex: 1 }}>
 
-          <h3 style={{ color: '#1F2937', marginTop: 0, borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>Location Details</h3>
-          <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '32px' }}>
+          <h4 style={{ color: '#1F2937', marginTop: 0, borderBottom: '1px solid #E5E7EB', paddingBottom: '4px', marginBottom: '10px', fontSize: '0.9rem' }}>Location Details</h4>
+          <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '12px', rowGap: '6px', columnGap: '12px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Location Name / Project Name *</label>
-              <input name="label" value={form.label} onChange={handleChange} placeholder="e.g. Hyderabad Site, Chennai Factory" required style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Location Name / Project Name *</label>
+              <input name="label" value={form.label} onChange={handleChange} placeholder="e.g. Hyderabad Site, Chennai Factory" required style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', marginBottom: '8px', color: '#4B5563', fontWeight: 500 }}>GST Information</label>
-              <div style={{ display: 'flex', gap: '20px', marginBottom: '12px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <input type="radio" name="gst_mode" checked={!form.gst_is_different} onChange={() => handleGstModeChange(false)} />
+              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>GST Information</label>
+              <div style={{ display: 'flex', gap: '20px', marginBottom: '6px', fontSize: '0.8rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input type="radio" name="gst_mode" checked={!form.gst_is_different} onChange={() => handleGstModeChange(false)} style={{ margin: 0 }} />
                   Same as Corporate GST
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <input type="radio" name="gst_mode" checked={form.gst_is_different} onChange={() => handleGstModeChange(true)} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input type="radio" name="gst_mode" checked={form.gst_is_different} onChange={() => handleGstModeChange(true)} style={{ margin: 0 }} />
                   Different GST for this location
                 </label>
               </div>
@@ -203,62 +203,65 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
                 disabled={!form.gst_is_different}
                 style={{
                   width: '100%',
-                  padding: '10px',
+                  padding: '6px 10px',
                   borderRadius: '4px',
                   border: '1px solid #D1D5DB',
                   background: !form.gst_is_different ? '#F9FAFB' : 'white',
-                  cursor: !form.gst_is_different ? 'not-allowed' : 'text'
+                  cursor: !form.gst_is_different ? 'not-allowed' : 'text',
+                  fontSize: '0.85rem',
+                  height: '30px',
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>
-            <h3 style={{ color: '#1F2937', margin: 0 }}>Address</h3>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600, color: '#2563EB' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px', marginBottom: '10px' }}>
+            <h4 style={{ color: '#1F2937', margin: 0, fontSize: '0.9rem' }}>Address</h4>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600, color: '#2563EB' }}>
               <input
                 type="checkbox"
                 checked={form.is_corporate_address}
                 onChange={handleAddressToggle}
-                style={{ width: '16px', height: '16px' }}
+                style={{ width: '14px', height: '14px', margin: 0 }}
               />
               Same as Corporate Address
             </label>
           </div>
-          <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '32px' }}>
+          <div className="responsive-grid responsive-grid--2" style={{ marginBottom: '12px', rowGap: '6px', columnGap: '12px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 1 *</label>
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Address Line 1 *</label>
               <input
                 name="address_line1"
                 value={form.address_line1}
                 onChange={handleChange}
                 required
                 disabled={form.is_corporate_address}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
+                style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }}
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 2</label>
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Address Line 2</label>
               <input
                 name="address_line2"
                 value={form.address_line2}
                 onChange={handleChange}
                 disabled={form.is_corporate_address}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
+                style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }}
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Address Line 3</label>
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Address Line 3</label>
               <input
                 name="address_line3"
                 value={form.address_line3}
                 onChange={handleChange}
                 disabled={form.is_corporate_address}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
+                style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }}
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>City *</label>
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>City *</label>
               {isCustomCity ? (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
@@ -268,27 +271,28 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
                     placeholder="Enter city name"
                     required
                     disabled={form.is_corporate_address}
-                    style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
+                    style={{ flex: 1, padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }}
                   />
                   <button
                     type="button"
                     onClick={() => setIsCustomCity(false)}
                     disabled={form.is_corporate_address}
                     style={{
-                      padding: '10px 14px',
+                      padding: '0 12px',
                       background: '#EFF6FF',
                       color: '#1D4ED8',
                       border: '1px solid #BFDBFE',
-                      borderRadius: '8px',
+                      borderRadius: '4px',
                       cursor: form.is_corporate_address ? 'not-allowed' : 'pointer',
-                      fontSize: '13px',
+                      fontSize: '12px',
                       fontWeight: 600,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px'
+                      gap: '4px',
+                      height: '30px'
                     }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>list</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>list</span>
                     Popular
                   </button>
                 </div>
@@ -307,89 +311,89 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
                     setForm(prev => ({ ...prev, city: '' }));
                   }}
                   disabled={form.is_corporate_address}
+                  compact={true}
                 />
               )}
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>State *</label>
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>State *</label>
               <CustomStateSelect
                 value={form.state}
                 onChange={handleChange}
                 disabled={form.is_corporate_address}
+                compact={true}
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Pincode *</label>
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Pincode *</label>
               <input
                 name="pincode"
                 value={form.pincode}
                 onChange={handleChange}
                 required
                 disabled={form.is_corporate_address}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white' }}
+                style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', background: form.is_corporate_address ? '#F3F4F6' : 'white', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }}
               />
             </div>
-
-
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px', marginBottom: '16px' }}>
-            <h3 style={{ color: '#1F2937', margin: 0 }}>Customer Site Contact(mandatory)</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px', marginBottom: '10px' }}>
+            <h4 style={{ color: '#1F2937', margin: 0, fontSize: '0.9rem' }}>Customer Site Contact (mandatory)</h4>
             {!showSpoc2 && (
               <button
                 type="button"
                 onClick={() => setShowSpoc2(true)}
-                style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}
+                style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>add</span>
                 Add Second SPOC
               </button>
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: showSpoc2 ? '24px' : '32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: showSpoc2 ? '10px' : '12px', rowGap: '6px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Contact Person Name (SPOC 1)</label>
-              <input name="contact_name" value={form.contact_name} onChange={handleChange} placeholder="Full Name" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Contact Person Name (SPOC 1)</label>
+              <input name="contact_name" value={form.contact_name} onChange={handleChange} placeholder="Full Name" style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Contact Email</label>
-              <input type="email" name="contact_email" value={form.contact_email} onChange={handleChange} placeholder="email@example.com" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Contact Email</label>
+              <input type="email" name="contact_email" value={form.contact_email} onChange={handleChange} placeholder="email@example.com" style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontWeight: 500 }}>Contact Phone (10 digits)</label>
-              <input name="contact_phone" value={form.contact_phone} onChange={handleChange} placeholder="9876543210" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Contact Phone (10 digits)</label>
+              <input name="contact_phone" value={form.contact_phone} onChange={handleChange} placeholder="9876543210" style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }} />
             </div>
           </div>
 
           {showSpoc2 && (
-            <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '8px', border: '1px solid #E5E7EB', marginBottom: '32px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h4 style={{ margin: 0, color: '#374151' }}>Second SPOC Details</h4>
-                <button type="button" onClick={() => setShowSpoc2(false)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '0.8rem' }}>Remove</button>
+            <div style={{ background: '#F9FAFB', padding: '8px 12px', borderRadius: '6px', border: '1px solid #E5E7EB', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <h5 style={{ margin: 0, color: '#374151', fontSize: '0.8rem' }}>Second SPOC Details</h5>
+                <button type="button" onClick={() => setShowSpoc2(false)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '0.75rem' }}>Remove</button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', rowGap: '4px' }}>
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontSize: '0.85rem' }}>Name</label>
-                  <input name="spoc2_name" value={form.spoc2_name} onChange={handleChange} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+                  <label style={{ display: 'block', marginBottom: '1px', color: '#4B5563', fontSize: '0.75rem' }}>Name</label>
+                  <input name="spoc2_name" value={form.spoc2_name} onChange={handleChange} style={{ width: '100%', padding: '4px 8px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '26px', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontSize: '0.85rem' }}>Phone</label>
-                  <input name="spoc2_phone" value={form.spoc2_phone} onChange={handleChange} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+                  <label style={{ display: 'block', marginBottom: '1px', color: '#4B5563', fontSize: '0.75rem' }}>Phone</label>
+                  <input name="spoc2_phone" value={form.spoc2_phone} onChange={handleChange} style={{ width: '100%', padding: '4px 8px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '26px', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '4px', color: '#4B5563', fontSize: '0.85rem' }}>Email</label>
-                  <input name="spoc2_email" value={form.spoc2_email} onChange={handleChange} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #D1D5DB' }} />
+                  <label style={{ display: 'block', marginBottom: '1px', color: '#4B5563', fontSize: '0.75rem' }}>Email</label>
+                  <input name="spoc2_email" value={form.spoc2_email} onChange={handleChange} style={{ width: '100%', padding: '4px 8px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '26px', boxSizing: 'border-box' }} />
                 </div>
               </div>
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', borderTop: '1px solid #E5E7EB', paddingTop: '24px' }}>
-            <button type="button" onClick={onClose} style={{ padding: '10px 24px', background: 'white', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #E5E7EB', paddingTop: '10px' }}>
+            <button type="button" onClick={onClose} style={{ padding: '4px 16px', background: 'white', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', height: '30px' }}>
               Cancel
             </button>
-            <button type="submit" disabled={submitting} style={{ padding: '10px 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: submitting ? 0.7 : 1 }}>
+            <button type="submit" disabled={submitting} style={{ padding: '4px 16px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: submitting ? 0.7 : 1, fontSize: '0.8rem', height: '30px' }}>
               {submitting ? 'Saving...' : (isEdit ? 'Save Changes' : 'Add Location')}
             </button>
           </div>

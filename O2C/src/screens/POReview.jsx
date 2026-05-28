@@ -78,7 +78,7 @@ export default function POReview() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       if (status === 'approved') {
         await axios.post(`/api/dc-requests/${selectedCDC.id}/approve-cdc`, {}, { headers });
         Swal.fire({ icon: 'success', title: 'CDC Approved', text: 'Quantities returned to PO outstanding successfully!', timer: 2000, showConfirmButton: false });
@@ -86,7 +86,7 @@ export default function POReview() {
         await axios.post(`/api/dc-requests/${selectedCDC.id}/reject-cdc`, { remarks: cdcRemarks }, { headers });
         Swal.fire({ icon: 'success', title: 'CDC Rejected', text: 'CDC request rejected successfully!', timer: 2000, showConfirmButton: false });
       }
-      
+
       setSelectedCDC(null);
       setCdcDetails(null);
       loadPendingCDCs();
@@ -659,7 +659,15 @@ export default function POReview() {
                         <div style={{ gridColumn: '1 / -1' }}>
                           <p style={{ fontSize: '11px', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Delivery Location</p>
                           <p style={{ fontWeight: 600, margin: 0 }}>{poDetails.location_name} - {poDetails.location_city}, {poDetails.location_state}</p>
-                          <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>{poDetails.location_address}</p>
+                          <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px', lineHeight: '1.4' }}>
+                            {[
+                              poDetails.location_address,
+                              poDetails.location_address2,
+                              poDetails.location_address3,
+                              poDetails.location_city,
+                              poDetails.location_state ? `${poDetails.location_state}${poDetails.location_pincode ? ` - ${poDetails.location_pincode}` : ''}` : poDetails.location_pincode
+                            ].filter(Boolean).join(', ')}
+                          </p>
                           <p style={{ fontSize: '13px', color: 'var(--secondary)' }}>GSTIN: <span style={{ color: 'var(--surface-on)', fontWeight: 600 }}>{poDetails.location_gstin || poDetails.customer_gst || 'N/A'}</span></p>
                         </div>
                       </div>
@@ -731,6 +739,42 @@ export default function POReview() {
                           </div>
                         </div>
                       )}
+                      {poDetails?.remarks && (
+                        <div style={{ marginTop: '12px', borderTop: '1px solid #F3F4F6', paddingTop: '10px' }}>
+                          <span style={{ fontSize: '11px', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>notes</span>
+                            SO Notes / Remarks
+                          </span>
+                          <div
+                            onClick={() => {
+                              if (poDetails.remarks.length > 50) {
+                                Swal.fire({
+                                  title: 'PO Notes',
+                                  html: `<div style="text-align: left; font-size: 14px; line-height: 1.5; color: #374151; white-space: pre-wrap; padding: 10px;">${poDetails.remarks}</div>`,
+                                  confirmButtonText: 'Close',
+                                  confirmButtonColor: 'var(--primary)'
+                                });
+                              }
+                            }}
+                            style={{
+                              fontSize: '12px',
+                              color: '#374151',
+                              background: '#F8FAFC',
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid #E2E8F0',
+                              cursor: poDetails.remarks.length > 50 ? 'pointer' : 'default',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              fontWeight: 500
+                            }}
+                            title={poDetails.remarks.length > 50 ? "Click to view full notes" : ""}
+                          >
+                            {poDetails.remarks}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -769,7 +813,7 @@ export default function POReview() {
               ) : cdcDetails ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div className="grid-2" style={{ gap: '20px' }}>
-                    
+
                     {/* Rejection Details Info Card */}
                     <div className="card card--padded" style={{ background: 'white', padding: '16px', border: '1px solid var(--outline-variant)', borderRadius: '8px' }}>
                       <h4 className="text-h4" style={{ marginBottom: '16px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}>
@@ -958,8 +1002,8 @@ function ClickableDescription({ text }) {
   };
 
   return (
-    <div 
-      onClick={handleClick} 
+    <div
+      onClick={handleClick}
       style={style}
       title={isLong ? "Click to view full description" : ""}
     >

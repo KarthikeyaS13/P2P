@@ -87,52 +87,52 @@ export default function Sidebar() {
 
   let routes = [];
 
-  if (['admin', 'sales', 'stores', 'accounts', 'management', 'auditor'].includes(role)) {
-    routes.push({ path: '/dashboard', label: 'Dashboard', icon: 'dashboard' });
-  }
+  if (role === 'management') {
+    routes = [
+      { path: '/management-dashboard', label: 'Dashboard', icon: 'dashboard' },
+    ];
+  } else {
+    if (['admin', 'sales', 'stores', 'accounts', 'auditor'].includes(role)) {
+      routes.push({ path: '/dashboard', label: 'Dashboard', icon: 'dashboard' });
+    }
 
-  if (role === 'admin') {
-    routes = routes.concat([
-      { path: '/customers', label: 'Customers', icon: 'group' },
-      { path: '/po-flow', label: 'Status of Sales Order', icon: 'account_tree' },
-      { path: '/reports', label: 'Reports', icon: 'analytics' },
-      { path: '/project-users', label: 'User Management', icon: 'manage_accounts' },
-    ]);
-  } else if (role === 'sales') {
-    routes = routes.concat([
-      { path: '/new-po', label: 'New Sales Order', icon: 'add_shopping_cart' },
-      { path: '/new-nt-po', label: 'New NT Sales Order', icon: 'post_add' },
-      { path: '/edit-po', label: 'Edit Sales Order', icon: 'edit_document' },
-      { path: '/invoice-request', label: 'Invoice Req', icon: 'receipt_long' },
-      { path: '/reports', label: 'Reports', icon: 'analytics' },
-    ]);
-  } else if (role === 'projects') {
-    routes = routes.concat([
-      { path: '/projects', label: 'Project Site', icon: 'location_on' },
-    ]);
-  } else if (role === 'stores') {
-    routes = routes.concat([
-      { path: '/dc-request', label: 'Delivery Challan Requests', icon: 'local_shipping' },
-      { path: '/dispatch-confirmation', label: "Accepted Delivery Challans", icon: 'inventory' },
-    ]);
-  } else if (role === 'accounts') {
-    routes = routes.concat([
-      { path: '/verify', label: 'Verify Document', icon: 'gpp_good' },
-      { path: '/po-review', label: 'Sales Order Review', icon: 'rate_review' },
-      { path: '/raise-dc', label: 'Raise Delivery Challan', icon: 'local_shipping' },
-      { path: '/invoice-approval', label: 'Invoice Approval', icon: 'receipt_long' },
-      { path: '/ar-database', label: 'AR Database', icon: 'payments' },
-      { path: '/reports', label: 'Reports', icon: 'analytics' },
-    ]);
-  } else if (role === 'management') {
-    routes = routes.concat([
-      { path: '/reports', label: 'Reports', icon: 'analytics' },
-    ]);
-  } else if (role === 'auditor') {
-    routes = routes.concat([
-      { path: '/reports', label: 'Reports', icon: 'analytics' },
-      { path: '/analytics', label: 'Audit Logs', icon: 'analytics' },
-    ]);
+    if (role === 'admin') {
+      routes = routes.concat([
+        { path: '/customers', label: 'Customers', icon: 'group' },
+        { path: '/po-flow', label: 'Status of Sales Order', icon: 'account_tree' },
+        { path: '/project-users', label: 'User Management', icon: 'manage_accounts' },
+      ]);
+    } else if (role === 'sales') {
+      routes = routes.concat([
+        { path: '/new-po', label: 'New Sales Order', icon: 'add_shopping_cart' },
+        { path: '/new-nt-po', label: 'New NT Sales Order', icon: 'post_add' },
+        { path: '/edit-po', label: 'Edit Sales Order', icon: 'edit_document' },
+        { path: '/invoice-request', label: 'Invoice Req', icon: 'receipt_long' },
+        { path: '/reports', label: 'Reports', icon: 'analytics' },
+      ]);
+    } else if (role === 'projects') {
+      routes = routes.concat([
+        { path: '/projects', label: 'Project Site', icon: 'location_on' },
+      ]);
+    } else if (role === 'stores') {
+      routes = routes.concat([
+        { path: '/dc-request', label: 'Delivery Challan Requests', icon: 'local_shipping' },
+        { path: '/dispatch-confirmation', label: "Accepted Delivery Challans", icon: 'inventory' },
+      ]);
+    } else if (role === 'accounts') {
+      routes = routes.concat([
+        { path: '/verify', label: 'Verify Document', icon: 'gpp_good' },
+        { path: '/po-review', label: 'Sales Order Review', icon: 'rate_review' },
+        { path: '/raise-dc', label: 'Raise Delivery Challan', icon: 'local_shipping' },
+        { path: '/invoice-approval', label: 'Invoice Approval', icon: 'receipt_long' },
+        { path: '/ar-database', label: 'AR Database', icon: 'payments' },
+      ]);
+    } else if (role === 'auditor') {
+      routes = routes.concat([
+        { path: '/reports', label: 'Reports', icon: 'analytics' },
+        { path: '/analytics', label: 'Audit Logs', icon: 'analytics' },
+      ]);
+    }
   }
 
   const logoSrc = branding.logo_path

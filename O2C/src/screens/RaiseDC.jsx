@@ -239,31 +239,36 @@ export default function RaiseDC() {
   const handleRaiseDC = () => {
     if (!details) return;
 
-    // Validate HSN codes are provided (always mandatory as invoice is auto-generated)
-    const missingHSN = details.items.some(it => {
-      const val = itemHSNs[it.line_item_id || it.id];
-      return !val || !val.trim();
-    });
-    if (missingHSN) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'HSN Entry Required',
-        text: 'HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
+    const isHsnMandatory = details?.need_sales_invoice_approval !== 'yes';
+
+    if (isHsnMandatory) {
+      // Validate HSN codes are provided
+      const missingHSN = details.items.some(it => {
+        const val = itemHSNs[it.line_item_id || it.id];
+        return !val || !val.trim();
       });
-      return;
+      if (missingHSN) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'HSN Entry Required',
+          text: 'HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
+        });
+        return;
+      }
     }
 
-    // Validate HSN pattern: 4digits-2digits-2digits (e.g. 1234-56-78)
+    // Validate HSN pattern: minimum 6 and maximum 8 digits (e.g., 1234-56 or 1234-56-78)
     const invalidHSNPattern = details.items.some(it => {
       const val = itemHSNs[it.line_item_id || it.id] || '';
-      return !/^\d{4}-\d{2}-\d{2}$/.test(val);
+      if (!isHsnMandatory && !val.trim()) return false;
+      return !/^\d{4}-\d{2}(-\d{1,2})?$/.test(val);
     });
 
     if (invalidHSNPattern) {
       Swal.fire({
         icon: 'warning',
         title: 'Invalid HSN Format',
-        text: 'All HSN entries must follow the 4digits-2digits-2digits pattern (e.g., 1234-56-78).'
+        text: 'HSN codes must be 6 to 8 digits (e.g., 1234-56 or 1234-56-78).'
       });
       return;
     }
@@ -328,31 +333,36 @@ export default function RaiseDC() {
       return;
     }
 
-    // Validate HSN codes are provided (always mandatory as invoice is auto-generated)
-    const missingHSN = details.items.some(it => {
-      const val = itemHSNs[it.line_item_id || it.id];
-      return !val || !val.trim();
-    });
-    if (missingHSN) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'HSN Entry Required',
-        text: 'HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
+    const isHsnMandatory = details?.need_sales_invoice_approval !== 'yes';
+
+    if (isHsnMandatory) {
+      // Validate HSN codes are provided
+      const missingHSN = details.items.some(it => {
+        const val = itemHSNs[it.line_item_id || it.id];
+        return !val || !val.trim();
       });
-      return;
+      if (missingHSN) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'HSN Entry Required',
+          text: 'HSN codes are mandatory for all items. Please enter HSN codes before proceeding.'
+        });
+        return;
+      }
     }
 
-    // Validate HSN pattern: 4digits-2digits-2digits (e.g. 1234-56-78)
+    // Validate HSN pattern: minimum 6 and maximum 8 digits (e.g., 1234-56 or 1234-56-78)
     const invalidHSNPattern = details.items.some(it => {
       const val = itemHSNs[it.line_item_id || it.id] || '';
-      return !/^\d{4}-\d{2}-\d{2}$/.test(val);
+      if (!isHsnMandatory && !val.trim()) return false;
+      return !/^\d{4}-\d{2}(-\d{1,2})?$/.test(val);
     });
 
     if (invalidHSNPattern) {
       Swal.fire({
         icon: 'warning',
         title: 'Invalid HSN Format',
-        text: 'All HSN entries must follow the 4digits-2digits-2digits pattern (e.g., 1234-56-78).'
+        text: 'HSN codes must be 6 to 8 digits (e.g., 1234-56 or 1234-56-78).'
       });
       return;
     }
@@ -793,6 +803,7 @@ export default function RaiseDC() {
             {/* Items Table Card */}
             {(() => {
               const totalQuantity = details.items.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
+              const isHsnMandatory = details?.need_sales_invoice_approval !== 'yes';
               return (
                 <div className="card animate-slide-up" style={{ padding: '0', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
                   <div style={{ padding: '8px 16px', borderBottom: '1px solid #E5E7EB', background: '#F8FAFC' }}>
@@ -807,8 +818,13 @@ export default function RaiseDC() {
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>SL NO</th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>REFERENCE FROM PO</th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>PACKAGE</th>
-                          <th style={{ padding: '10px 12px', fontSize: '12px', background: '#b8cbf4ff', color: '#D32F2F' }}>
-                            HSN (ENTRY) *
+                          <th style={{
+                            padding: '10px 12px',
+                            fontSize: '12px',
+                            background: isHsnMandatory ? '#b8cbf4ff' : undefined,
+                            color: isHsnMandatory ? '#D32F2F' : undefined
+                          }}>
+                            HSN (ENTRY){isHsnMandatory ? ' *' : ''}
                           </th>
                           <th style={{ padding: '10px 12px', fontSize: '12px' }}>DESCRIPTION <span style={{ fontSize: '8px', color: '#4B5563' }}>(click to view description)</span></th>
                           <th style={{ padding: '10px 12px', fontSize: '12px', textAlign: 'right' }}>QTY (STORES REQ)</th>
@@ -817,7 +833,6 @@ export default function RaiseDC() {
                       </thead>
                       <tbody>
                         {details.items.map((it, idx) => {
-                          const isHsnMandatory = true;
                           const hsnValue = itemHSNs[it.line_item_id] || '';
                           const isMissingHsn = isHsnMandatory && !hsnValue.trim();
                           return (
@@ -830,7 +845,7 @@ export default function RaiseDC() {
                                   type="text"
                                   className="input-field"
                                   maxLength={10}
-                                  placeholder="XXXX-XX-XX *"
+                                  placeholder={isHsnMandatory ? "XXXX-XX-XX *" : "XXXX-XX-XX"}
                                   value={hsnValue}
                                   onChange={e => handleHSNChange(it.line_item_id, e.target.value)}
                                   style={{

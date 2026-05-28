@@ -334,7 +334,7 @@ export default function DCRequest() {
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           <div>
-            <h1 className="text-h1 page-header__title">Delivery Challan Request</h1>
+            <h1 style={{ fontSize: '20px' }} className="text-h1 page-header__title">Delivery Challan Request</h1>
             <p className="page-header__subtitle">Select items from an approved PO to initiate fulfillment.</p>
           </div>
         </div>

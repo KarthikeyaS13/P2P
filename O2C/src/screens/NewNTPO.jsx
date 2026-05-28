@@ -43,7 +43,7 @@ export default function NewNTPO() {
       return `${dd}-${mm}-${yyyy}`;
     }
     const cleanStr = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
-    
+
     if (cleanStr.includes('-')) {
       const parts = cleanStr.split('-');
       if (parts.length === 3) {
@@ -61,7 +61,7 @@ export default function NewNTPO() {
         }
       }
     }
-    
+
     if (cleanStr.includes('/')) {
       const parts = cleanStr.split('/');
       if (parts.length === 3) {
@@ -88,8 +88,8 @@ export default function NewNTPO() {
         const yyyy = d.getFullYear();
         return `${dd}-${mm}-${yyyy}`;
       }
-    } catch (e) {}
-    
+    } catch (e) { }
+
     return cleanStr;
   };
 
@@ -127,6 +127,7 @@ export default function NewNTPO() {
   const [projectSpocEmail, setProjectSpocEmail] = useState(draft.projectSpocEmail || '');
   const [projectSpocPhone, setProjectSpocPhone] = useState(draft.projectSpocPhone || '');
   const [projectUsers, setProjectUsers] = useState([]);
+  const [remarks, setRemarks] = useState(draft.remarks || '');
   const [needSalesInvoiceApproval, setNeedSalesInvoiceApproval] = useState(draft.needSalesInvoiceApproval || 'yes');
 
   // Attachments State
@@ -201,10 +202,10 @@ export default function NewNTPO() {
   const isProjectPhoneInvalid = projectSpocName ? (!projectSpocPhone || !/^[0-9]{10}$/.test(projectSpocPhone.trim())) : false;
 
   const filteredProjectUsers = projectUsers.filter(
-    user => user.assigned_role === "Projects" || 
-            user.role === "Projects" || 
-            user.role?.toLowerCase() === "projects" || 
-            user.assigned_role?.toLowerCase() === "projects"
+    user => user.assigned_role === "Projects" ||
+      user.role === "Projects" ||
+      user.role?.toLowerCase() === "projects" ||
+      user.assigned_role?.toLowerCase() === "projects"
   );
 
   // Items State
@@ -828,7 +829,7 @@ export default function NewNTPO() {
           return Swal.fire({ icon: 'warning', title: 'Invalid Project SPOC Phone', text: 'Project SPOC Contact Number must be exactly 10 digits. Please update it in Project User Master.' });
         }
       }
-      
+
       if (!needSalesInvoiceApproval) {
         return Swal.fire({ icon: 'warning', title: 'Incomplete Details', text: 'Please select whether Sales approval is needed for the invoice.' });
       }
@@ -917,7 +918,8 @@ export default function NewNTPO() {
         project_spoc_name: projectSpocName ? projectSpocName.trim() : null,
         project_spoc_email: projectSpocEmail ? projectSpocEmail.trim() : null,
         project_spoc_phone: projectSpocPhone ? projectSpocPhone.trim() : null,
-        need_sales_invoice_approval: needSalesInvoiceApproval
+        need_sales_invoice_approval: needSalesInvoiceApproval,
+        remarks: (remarks || '').trim()
       };
 
       await axios.post('/api/pos', payload, { headers });
@@ -1109,7 +1111,7 @@ export default function NewNTPO() {
         {step === 3 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              
+
               {/* Left Column: Continuous Entry Fields */}
               <div>
                 <h3 style={{ fontSize: '14px', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontWeight: 700, color: '#334155' }}>3. Basic Details</h3>
@@ -1191,15 +1193,15 @@ export default function NewNTPO() {
 
                   <div style={{ marginTop: '12px' }}>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Name <span style={{ color: 'red' }}>*</span></label>
-                    <select 
-                      value={projectSpocName || ''} 
+                    <select
+                      value={projectSpocName || ''}
                       onChange={(e) => {
                         const val = e.target.value;
                         const user = filteredProjectUsers.find(u => u.full_name === val);
                         setProjectSpocName(val);
                         setProjectSpocEmail(user ? (user.email || '') : '');
                         setProjectSpocPhone(user ? (user.phone || '') : '');
-                      }} 
+                      }}
                       className="compact-form-input-text"
                       style={{ width: '100%', height: '30px', padding: '0 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px', background: 'white' }}
                     >
@@ -1232,29 +1234,29 @@ export default function NewNTPO() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Email ID <span style={{ color: 'red' }}>*</span></label>
-                          <input 
+                          <input
                             type="email"
-                            value={projectSpocEmail || ''} 
+                            value={projectSpocEmail || ''}
                             readOnly
-                            placeholder="Project SPOC Email ID" 
+                            placeholder="Project SPOC Email ID"
                             className="compact-form-input-text"
                             style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }}
                           />
                         </div>
                         <div>
                           <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: isProjectPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Project SPOC Contact <span style={{ color: 'red' }}>*</span></label>
-                          <input 
+                          <input
                             type="text"
-                            value={projectSpocPhone || ''} 
+                            value={projectSpocPhone || ''}
                             readOnly
-                            placeholder="Project SPOC Contact Number" 
+                            placeholder="Project SPOC Contact Number"
                             className="compact-form-input-text"
-                            style={{ 
-                              background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0', 
-                              color: isProjectPhoneInvalid ? '#DC2626' : '#64748B', 
-                              border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1', 
-                              cursor: 'not-allowed' 
-                            }} 
+                            style={{
+                              background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0',
+                              color: isProjectPhoneInvalid ? '#DC2626' : '#64748B',
+                              border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1',
+                              cursor: 'not-allowed'
+                            }}
                           />
                           {isProjectPhoneInvalid && (
                             <p style={{ color: '#EF4444', fontSize: '10px', marginTop: '4px', fontWeight: 500 }}>
@@ -1263,6 +1265,35 @@ export default function NewNTPO() {
                           )}
                         </div>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes / Remarks Container */}
+                {hasOriginalPO !== null && (
+                  <div style={{ border: '1px solid #E2E8F0', padding: '14px', borderRadius: '8px', background: '#F8FAFC', marginTop: '12px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#64748B' }}>notes</span>
+                      <span>Notes</span>
+                    </div>
+                    <div>
+                      <textarea
+                        value={remarks || ''}
+                        onChange={(e) => setRemarks(e.target.value)}
+                        placeholder="Enter any additional notes or instructions for this PO..."
+                        className="compact-form-input-text"
+                        style={{
+                          width: '100%',
+                          height: '60px',
+                          padding: '8px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #CBD5E1',
+                          fontSize: '12px',
+                          background: 'white',
+                          resize: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
                     </div>
                   </div>
                 )}

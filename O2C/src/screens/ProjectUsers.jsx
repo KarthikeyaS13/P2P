@@ -477,6 +477,7 @@ export default function ProjectUsers() {
                   <option value="accounts">Accounts</option>
                   <option value="projects">Projects</option>
                   <option value="stores">Stores</option>
+                  <option value="management">Management</option>
                 </select>
               </div>
 

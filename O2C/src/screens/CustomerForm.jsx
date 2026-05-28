@@ -179,39 +179,39 @@ export default function CustomerForm() {
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
 
-  const labelStyle = { display: 'block', marginBottom: '6px', color: '#374151', fontWeight: 600, fontSize: '13px' };
+  const labelStyle = { display: 'block', marginBottom: '3px', color: '#4B5563', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.02em' };
   const inputStyle = {
     width: '100%',
-    height: '42px',
-    padding: '0 14px',
-    borderRadius: '8px',
-    border: '2px solid #D1D5DB',
-    fontSize: '14px',
+    height: '32px',
+    padding: '0 10px',
+    borderRadius: '4px',
+    border: '1px solid #CBD5E1',
+    fontSize: '13px',
     boxSizing: 'border-box',
     outline: 'none',
     transition: 'all 0.2s ease',
     background: 'white'
   };
-  const sectionTitleStyle = { color: '#1F2937', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontSize: '16px', fontWeight: 600 };
+  const sectionTitleStyle = { color: 'var(--primary)', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px', marginBottom: '10px', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' };
 
   return (
-    <div style={{ padding: '18px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+    <div style={{ padding: '0 0 16px 0', maxWidth: '1000px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
         <button
           onClick={() => navigate('/customers')}
           className="btn-ghost btn-back"
-          style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
         </button>
-        <h2 style={{ margin: 0, color: '#111827' }}>{isEdit ? 'Edit Customer' : 'Onboard New Customer'}</h2>
+        <h2 style={{ margin: 0, color: '#111827', fontSize: '1.25rem', fontWeight: 700 }}>{isEdit ? 'Edit Customer' : 'Onboard New Customer'}</h2>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ background: 'white', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+      <form onSubmit={handleSubmit} style={{ background: 'white', padding: '16px', borderRadius: '6px', border: '1px solid #E5E7EB', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
 
         {/* Section 1 - Customer Info */}
         <h3 style={sectionTitleStyle}>Customer Info</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 12px', marginBottom: '12px' }}>
           <div>
             <label style={labelStyle}>Customer Name (Internal) *</label>
             <input className="custom-form-input" name="name" value={form.name} onChange={handleChange} placeholder="As per your books" style={inputStyle} />
@@ -221,12 +221,12 @@ export default function CustomerForm() {
             <input className="custom-form-input" name="legal_name" value={form.legal_name} onChange={handleChange} placeholder="As per PAN / GST" style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>GSTIN *(unique-pan validated)</label>
-            <input className="custom-form-input" name="gstin" value={form.gstin} onChange={handleChange} placeholder="27AADCB2230M1Z2" style={inputStyle} />
-          </div>
-          <div>
             <label style={labelStyle}>Customer ID * (User Created, Max length 8 characters.)</label>
             <input className="custom-form-input" name="cust_code" value={form.cust_code} onChange={handleChange} style={inputStyle} placeholder="E.g. CUST001" disabled={isEdit} />
+          </div>
+          <div>
+            <label style={labelStyle}>GSTIN *(unique-pan validated)</label>
+            <input className="custom-form-input" name="gstin" value={form.gstin} onChange={handleChange} placeholder="27AADCB2230M1Z2" style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>PAN Number</label>
@@ -236,7 +236,7 @@ export default function CustomerForm() {
 
         {/* Section 2 - Corporate Address */}
         <h3 style={sectionTitleStyle}>Corporate Address</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 12px', marginBottom: '12px' }}>
           <div>
             <label style={labelStyle}>Address Line 1 *</label>
             <input className="custom-form-input" name="address_line1" value={form.address_line1} onChange={handleChange} style={inputStyle} />
@@ -265,20 +265,22 @@ export default function CustomerForm() {
                   type="button"
                   onClick={() => setIsCustomCity(false)}
                   style={{
-                    padding: '10px 14px',
+                    height: '32px',
+                    padding: '0 10px',
                     background: '#EFF6FF',
                     color: '#1D4ED8',
                     border: '1px solid #BFDBFE',
-                    borderRadius: '8px',
+                    borderRadius: '4px',
                     cursor: 'pointer',
-                    fontSize: '13px',
+                    fontSize: '12px',
                     fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px'
+                    gap: '4px',
+                    whiteSpace: 'nowrap'
                   }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>list</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>list</span>
                   Popular
                 </button>
               </div>
@@ -296,6 +298,7 @@ export default function CustomerForm() {
                   setIsCustomCity(true);
                   setForm(prev => ({ ...prev, city: '' }));
                 }}
+                compact={true}
               />
             )}
           </div>
@@ -304,6 +307,7 @@ export default function CustomerForm() {
             <CustomStateSelect
               value={form.state}
               onChange={handleChange}
+              compact={true}
             />
           </div>
           <div>
@@ -314,7 +318,7 @@ export default function CustomerForm() {
 
         {/* Section 3 - Contact SPOC 1 */}
         <h3 style={sectionTitleStyle}>Customer Contact Person - Primary *</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.2fr', gap: '8px 12px', marginBottom: '12px' }}>
           <div>
             <label style={labelStyle}>Contact Person Name *</label>
             <input className="custom-form-input" name="contact_name" value={form.contact_name} onChange={handleChange} style={inputStyle} />
@@ -324,18 +328,18 @@ export default function CustomerForm() {
             <input className="custom-form-input" name="contact_department" value={form.contact_department} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Official Email</label>
-            <input className="custom-form-input" type="email" name="contact_email" value={form.contact_email} onChange={handleChange} style={inputStyle} />
-          </div>
-          <div>
             <label style={labelStyle}>Official Phone (10 digits) *</label>
             <input className="custom-form-input" name="contact_phone" value={form.contact_phone} onChange={handleChange} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Official Email</label>
+            <input className="custom-form-input" type="email" name="contact_email" value={form.contact_email} onChange={handleChange} style={inputStyle} />
           </div>
         </div>
 
         {/* Section 4 - Contact SPOC 2 */}
         <h3 style={sectionTitleStyle}>Customer Contact Person - Secondary</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.2fr', gap: '8px 12px', marginBottom: '12px' }}>
           <div>
             <label style={labelStyle}>Contact Person Name</label>
             <input className="custom-form-input" name="spoc2_name" value={form.spoc2_name} onChange={handleChange} style={inputStyle} />
@@ -345,27 +349,27 @@ export default function CustomerForm() {
             <input className="custom-form-input" name="spoc2_department" value={form.spoc2_department} onChange={handleChange} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Official Email</label>
-            <input className="custom-form-input" type="email" name="spoc2_email" value={form.spoc2_email} onChange={handleChange} style={inputStyle} />
-          </div>
-          <div>
             <label style={labelStyle}>Official Phone (10 digits)</label>
             <input className="custom-form-input" name="spoc2_phone" value={form.spoc2_phone} onChange={handleChange} style={inputStyle} />
           </div>
+          <div>
+            <label style={labelStyle}>Official Email</label>
+            <input className="custom-form-input" type="email" name="spoc2_email" value={form.spoc2_email} onChange={handleChange} style={inputStyle} />
+          </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', borderTop: '1px solid #E5E7EB', paddingTop: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #E5E7EB', paddingTop: '12px' }}>
           <button
             type="button"
             onClick={() => navigate('/customers')}
-            style={{ padding: '10px 24px', background: 'white', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
+            style={{ height: '32px', padding: '0 16px', background: 'white', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={submitting}
-            style={{ padding: '10px 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: submitting ? 0.7 : 1 }}
+            style={{ height: '32px', padding: '0 16px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', opacity: submitting ? 0.7 : 1 }}
           >
             {submitting ? 'Saving...' : (isEdit ? 'Save Changes' : 'Create Customer')}
           </button>
@@ -375,7 +379,7 @@ export default function CustomerForm() {
       <style>{`
         input.custom-form-input:focus {
           border-color: #3B82F6 !important;
-          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
           transform: none !important;
         }
         input.custom-form-input:hover {
