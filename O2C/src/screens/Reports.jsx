@@ -33,7 +33,7 @@ export default function Reports() {
       });
       setPos(res.data);
     } catch (err) {
-      console.error('Error fetching reports PO summary:', err);
+      /* console.error('Error fetching reports PO summary:', err); */
     } finally {
       setLoadingPos(false);
     }
@@ -48,7 +48,7 @@ export default function Reports() {
       });
       setItems(res.data);
     } catch (err) {
-      console.error('Error fetching reports line items:', err);
+      /* console.error('Error fetching reports line items:', err); */
     } finally {
       setLoadingItems(false);
     }

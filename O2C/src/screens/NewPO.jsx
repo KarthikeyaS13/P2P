@@ -28,7 +28,7 @@ const getInitialDraft = () => {
       sessionStorage.removeItem('new_po_draft');
     }
   } catch (e) {
-    console.error('Failed to parse draft', e);
+    /* console.error('Failed to parse draft', e); */
   }
   return {};
 };
@@ -167,7 +167,7 @@ export default function NewPO() {
         const res = await axios.get('/api/customers', { headers });
         setCustomers(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        console.error('Failed to fetch customers', err);
+        /* console.error('Failed to fetch customers', err); */
       }
     };
     const fetchProjectUsers = async () => {
@@ -177,7 +177,7 @@ export default function NewPO() {
         const res = await axios.get('/api/project-users', { headers });
         setProjectUsers(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        console.error('Failed to fetch project users', err);
+        /* console.error('Failed to fetch project users', err); */
       }
     };
     fetchCustomers();
@@ -199,7 +199,7 @@ export default function NewPO() {
           const res = await axios.get(`/api/locations?customer_id=${basicDetails.customerId}`, { headers });
           setLocations(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
-          console.error('Failed to fetch locations', err);
+          /* console.error('Failed to fetch locations', err); */
         }
       }
     };
@@ -257,7 +257,7 @@ export default function NewPO() {
         setPoError('');
       }
     } catch (err) {
-      console.error('Uniqueness check failed', err);
+      /* console.error('Uniqueness check failed', err); */
     }
   };
 
@@ -285,7 +285,7 @@ export default function NewPO() {
       setAttachmentPaths(res.data);
       return res.data;
     } catch (err) {
-      console.error('Upload failed', err);
+      /* console.error('Upload failed', err); */
       return null;
     }
   };
@@ -531,7 +531,7 @@ export default function NewPO() {
       });
       setItems(newItems);
     } catch (err) {
-      console.error('Direct upload failed', err);
+      /* console.error('Direct upload failed', err); */
     } finally {
       setLoading(false);
       e.target.value = '';
@@ -831,7 +831,7 @@ export default function NewPO() {
             Swal.fire({ icon: 'error', title: 'Empty Excel', text: 'No valid items found in the Excel file. Please check the columns.' });
           }
         } catch (err) {
-          console.error(err);
+          /* console.error(err); */
           Swal.fire({ icon: 'error', title: 'Parsing Error', text: 'Error parsing Excel file.' });
         }
       }

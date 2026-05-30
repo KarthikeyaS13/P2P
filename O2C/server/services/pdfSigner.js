@@ -71,7 +71,7 @@ async function signInvoicePDF(pdfDoc, invoiceId, invoiceNumber, location = 'Bang
         }
       }
     } catch (e) {
-      console.warn('[PDFSigner] Could not parse cert details with node-forge:', e.message);
+      /* console.warn('[PDFSigner] Could not parse cert details with node-forge:', e.message); */
     }
 
     // Apply digital signature using node-signpdf
@@ -103,7 +103,7 @@ async function signInvoicePDF(pdfDoc, invoiceId, invoiceNumber, location = 'Bang
       certificateSerial,
     };
   } catch (error) {
-    console.error('[PDFSigner] Error signing PDF invoice:', error);
+    /* console.error('[PDFSigner] Error signing PDF invoice:', error); */
     throw error;
   }
 }

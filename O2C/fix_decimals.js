@@ -31,6 +31,6 @@ files.forEach(file => {
   
   if (content !== newContent) {
     fs.writeFileSync(file, newContent, 'utf8');
-    console.log(`Updated ${file}`);
+    /* console.log(`Updated ${file}`); */
   }
 });

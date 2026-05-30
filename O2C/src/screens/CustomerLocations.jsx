@@ -26,7 +26,7 @@ export default function CustomerLocations() {
         setCustomer(res.data);
         setLocations(res.data.locations || []);
       })
-      .catch(err => console.error(err))
+      .catch(err => {})
       .finally(() => setLoading(false));
   };
 

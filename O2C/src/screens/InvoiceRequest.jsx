@@ -55,7 +55,7 @@ export default function InvoiceRequest() {
         d.invoicing_status !== 'fully_invoiced'
       ));
     } catch (err) {
-      console.error('Fetch error:', err);
+      /* console.error('Fetch error:', err); */
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export default function InvoiceRequest() {
       const res = await axios.get(`/api/invoices/${invId}`, { headers });
       setSelectedInvoice(res.data);
     } catch (err) {
-      console.error('Invoice detail error:', err);
+      /* console.error('Invoice detail error:', err); */
       navigate('/invoice-request');
     }
   };

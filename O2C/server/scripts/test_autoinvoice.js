@@ -10,7 +10,7 @@ db.pragma('foreign_keys = ON');
 
 // 1. Define auditLog helper mock so autoGenerateInvoiceForDC runs successfully
 global.auditLog = function(username, action, entity, id, oldVal, newVal) {
-  console.log(`[AUDIT LOG] ${username} ${action} ${entity} #${id}`, newVal);
+  /* console.log(`[AUDIT LOG] ${username} ${action} ${entity} #${id}`, newVal); */
 };
 
 global.generateInvoiceHash = function(invoice) {
@@ -49,7 +49,7 @@ const autoGenerateInvoiceForDC = new Function('dcId', 'po', 'createdByUserId', '
 `);
 
 async function runTests() {
-  console.log('--- STARTING AUTO-INVOICE SYSTEM TESTS ---');
+  /* console.log('--- STARTING AUTO-INVOICE SYSTEM TESTS ---'); */
 
   db.exec('BEGIN');
 
@@ -131,7 +131,7 @@ async function runTests() {
     );
 
     // E. Execute autoGenerateInvoiceForDC
-    console.log('Running autoGenerateInvoiceForDC for the first time...');
+    /* console.log('Running autoGenerateInvoiceForDC for the first time...'); */
     autoGenerateInvoiceForDC(dcId, po, 1, 'accounts_test', db, crypto, global.generateInvoiceHash, global.auditLog);
 
     // F. Validate generated invoice in database
@@ -140,29 +140,29 @@ async function runTests() {
       throw new Error('Invoice was NOT generated for the DC!');
     }
 
-    console.log('SUCCESS: Invoice generated successfully!', invoice);
+    /* console.log('SUCCESS: Invoice generated successfully!', invoice); */
 
     // Assertions
     if (invoice.status !== 'requested') {
       throw new Error(`Expected invoice status to be 'requested', but got '${invoice.status}'`);
     }
-    console.log(`Assertion Passed: Invoice status is 'requested'`);
+    /* console.log(`Assertion Passed: Invoice status is 'requested'`); */
 
     if (!invoice.invoice_number.startsWith('REQ/2026/')) {
       throw new Error(`Expected invoice_number to start with 'REQ/2026/', but got '${invoice.invoice_number}'`);
     }
-    console.log(`Assertion Passed: Invoice number matches format REQ/2026/XXXX`);
+    /* console.log(`Assertion Passed: Invoice number matches format REQ/2026/XXXX`); */
 
     if (invoice.place_of_supply !== 'Karnataka') {
       throw new Error(`Expected place_of_supply to match location state 'Karnataka', but got '${invoice.place_of_supply}'`);
     }
-    console.log(`Assertion Passed: Place of Supply is correctly mapped to Location State: 'Karnataka'`);
+    /* console.log(`Assertion Passed: Place of Supply is correctly mapped to Location State: 'Karnataka'`); */
 
     // Financial calculations assertion (5 items dispatched at supply_rate of 1000 each = 5000 subtotal, 900 gst @18%, 5900 grand_total)
     if (invoice.subtotal !== 5000 || invoice.gst_total !== 900 || invoice.grand_total !== 5900) {
       throw new Error(`Financial mismatch! Subtotal: ${invoice.subtotal}, GST: ${invoice.gst_total}, Grand Total: ${invoice.grand_total}`);
     }
-    console.log(`Assertion Passed: Calculations are correct. Subtotal = 5000, GST = 900, Grand Total = 5900`);
+    /* console.log(`Assertion Passed: Calculations are correct. Subtotal = 5000, GST = 900, Grand Total = 5900`); */
 
     // Verify invoice items insertion
     const invoiceItems = db.prepare('SELECT * FROM invoice_items WHERE invoice_id = ?').all(invoice.id);
@@ -173,27 +173,27 @@ async function runTests() {
     if (invItem.quantity !== 5 || invItem.rate !== 1000 || invItem.gst_percent !== 18 || invItem.taxable_value !== 5000 || invItem.gst_amount !== 900 || invItem.total_value !== 5900) {
       throw new Error(`Invoice item financial mismatch!`, invItem);
     }
-    console.log(`Assertion Passed: Invoice line item is correctly populated`, invItem);
+    /* console.log(`Assertion Passed: Invoice line item is correctly populated`, invItem); */
 
     // G. Test Idempotency (Duplicate Prevention)
-    console.log('Running autoGenerateInvoiceForDC a second time to test idempotency...');
+    /* console.log('Running autoGenerateInvoiceForDC a second time to test idempotency...'); */
     autoGenerateInvoiceForDC(dcId, po, 1, 'accounts_test', db, crypto, global.generateInvoiceHash, global.auditLog);
 
     const invoicesCount = db.prepare('SELECT COUNT(*) as count FROM invoices WHERE dc_id = ?').get(dcId).count;
     if (invoicesCount !== 1) {
       throw new Error(`Duplicate invoices created! Count is ${invoicesCount}`);
     }
-    console.log(`Assertion Passed: Idempotency check verified. No duplicate invoices created.`);
+    /* console.log(`Assertion Passed: Idempotency check verified. No duplicate invoices created.`); */
 
   } finally {
     // Rollback test changes to preserve database clean state
     db.exec('ROLLBACK');
     db.close();
-    console.log('--- TEST TRANSACTION ROLLBACKED AND DATABASE CLOSED ---');
+    /* console.log('--- TEST TRANSACTION ROLLBACKED AND DATABASE CLOSED ---'); */
   }
 }
 
 runTests().catch(err => {
-  console.error('TEST FAILED:', err);
+  /* console.error('TEST FAILED:', err); */
   process.exit(1);
 });

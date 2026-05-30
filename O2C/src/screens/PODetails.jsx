@@ -116,7 +116,7 @@ export default function PODetails() {
         setPO(res.data);
         setItems(res.data.items || []);
       })
-      .catch(err => console.error(err))
+      .catch(err => {})
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -226,7 +226,7 @@ export default function PODetails() {
 
         setPreviewExcelData(formatted);
       } catch (err) {
-        console.error("Preview failed", err);
+        /* console.error("Preview failed", err); */
         Swal.fire({ icon: 'error', title: 'Preview Failed', text: "Could not preview Excel file." });
         setPreviewPath(null);
       } finally {

@@ -51,7 +51,7 @@ export default function ProjectsModule() {
       const pending = res.data.filter(d => d.delivery_status === 'awaiting_site_confirmation');
       setDeliveries(pending);
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ export default function ProjectsModule() {
       setDesignation('');
       setSiteRemarks('');
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       setView('list');
     } finally {
       setLoadingDetails(false);
@@ -148,7 +148,7 @@ export default function ProjectsModule() {
       Swal.fire({ icon: 'success', title: 'Confirmed', text: `Delivery for DC ${details.dc_number} confirmed successfully! Proceeding to Invoice Request.`, timer: 3000, showConfirmButton: false });
       navigate('/invoice-request');
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to confirm delivery' });
     } finally {
       setSubmitting(false);

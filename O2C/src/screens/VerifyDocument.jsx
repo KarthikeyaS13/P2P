@@ -135,7 +135,7 @@ export default function VerifyDocument() {
         setDocData(res.data.invoice);
       }
     } catch (err) {
-      console.error('[Verify] PDF upload verification failed:', err);
+      /* console.error('[Verify] PDF upload verification failed:', err); */
       setError(err.response?.data?.error || 'Failed to analyze the PDF signature. Ensure it is a valid PDF document.');
     } finally {
       setLoading(false);

@@ -51,7 +51,7 @@ export default function Dashboard() {
         setSummaryData(res.data);
       }
     } catch (err) {
-      console.error('Error fetching summary:', err);
+      /* console.error('Error fetching summary:', err); */
     } finally {
       setSummaryLoading(false);
     }
@@ -271,7 +271,7 @@ export default function Dashboard() {
             setMasterAddressCount(addrRes.data?.length || 0);
             setPoFlowCount(poFlowRes.data?.length || 0);
           } catch (adminErr) {
-            console.error('Failed to load admin stats:', adminErr);
+            /* console.error('Failed to load admin stats:', adminErr); */
           }
         }
       } catch (err) {

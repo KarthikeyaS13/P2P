@@ -28,7 +28,7 @@ const getInitialDraft = () => {
       sessionStorage.removeItem('new_nt_po_draft');
     }
   } catch (e) {
-    console.error('Failed to parse draft', e);
+    /* console.error('Failed to parse draft', e); */
   }
   return {};
 };
@@ -292,7 +292,7 @@ export default function NewNTPO() {
         const res = await axios.get('/api/customers', { headers });
         setCustomers(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        console.error(err);
+        /* console.error(err); */
       }
     };
     const fetchProjectUsers = async () => {
@@ -302,7 +302,7 @@ export default function NewNTPO() {
         const res = await axios.get('/api/project-users', { headers });
         setProjectUsers(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        console.error(err);
+        /* console.error(err); */
       }
     };
     fetchCustomers();
@@ -328,7 +328,7 @@ export default function NewNTPO() {
           const res = await axios.get(`/api/locations?customer_id=${selectedCustomer}`, { headers });
           setLocations(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
-          console.error(err);
+          /* console.error(err); */
         }
       }
     };
@@ -355,7 +355,7 @@ export default function NewNTPO() {
         setPoError('');
       }
     } catch (err) {
-      console.error('Uniqueness check failed', err);
+      /* console.error('Uniqueness check failed', err); */
     }
   };
 
@@ -377,7 +377,7 @@ export default function NewNTPO() {
         const res = await axios.get('/api/pos?type=original', { headers });
         setOriginalPOs(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        console.error(err);
+        /* console.error(err); */
       }
     } else {
       setPONumber('');
@@ -514,7 +514,7 @@ export default function NewNTPO() {
       setAttachmentPaths(res.data);
       return res.data;
     } catch (err) {
-      console.error('Upload failed', err);
+      /* console.error('Upload failed', err); */
       Swal.fire({ icon: 'error', title: 'Upload Failed', text: 'File upload failed' });
       return null;
     }
@@ -730,7 +730,7 @@ export default function NewNTPO() {
       });
       setItems(newItems);
     } catch (err) {
-      console.error('Direct upload failed', err);
+      /* console.error('Direct upload failed', err); */
     } finally {
       setLoading(false);
       e.target.value = '';

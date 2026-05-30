@@ -39,7 +39,7 @@ function verifyInvoicePDF(pdfBuffer) {
         certInfo = certsList[0][0]; // First cert of first signature
       }
     } catch (certError) {
-      console.warn('[PDFVerifier] Could not extract certificate details:', certError.message);
+      /* console.warn('[PDFVerifier] Could not extract certificate details:', certError.message); */
     }
     
     // Map certificates metadata
@@ -76,7 +76,7 @@ function verifyInvoicePDF(pdfBuffer) {
       };
     }
   } catch (error) {
-    console.error('[PDFVerifier] Verification error:', error);
+    /* console.error('[PDFVerifier] Verification error:', error); */
     return {
       valid: false,
       message: `Verification failed: ${error.message}`,
@@ -95,7 +95,7 @@ async function extractWatermarkMetadata(pdfBuffer) {
       return JSON.parse(jsonStr);
     }
   } catch (e) {
-    console.error('[PDFVerifier] Error parsing watermark JSON metadata using pdf-lib:', e.message);
+    /* console.error('[PDFVerifier] Error parsing watermark JSON metadata using pdf-lib:', e.message); */
   }
 
   // Fallback to raw binary buffer scanning if pdf-lib parsing fails or has no subject
@@ -129,7 +129,7 @@ async function extractWatermarkMetadata(pdfBuffer) {
       }
     }
   } catch (err) {
-    console.error('[PDFVerifier] Fallback scan error:', err.message);
+    /* console.error('[PDFVerifier] Fallback scan error:', err.message); */
   }
   
   return null;

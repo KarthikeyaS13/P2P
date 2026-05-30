@@ -30,6 +30,47 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 const db = new Database(path.join(__dirname, 'database.sqlite'));
 db.pragma('foreign_keys = ON');
 
+// Add new version tracking columns if they do not exist
+try {
+  db.prepare("ALTER TABLE purchase_orders ADD COLUMN original_po_id INTEGER REFERENCES purchase_orders(id)").run();
+  /* console.log("Added original_po_id column to purchase_orders."); */
+} catch (e) { }
+try {
+  db.prepare("ALTER TABLE purchase_orders ADD COLUMN version_number INTEGER DEFAULT 1").run();
+  /* console.log("Added version_number column to purchase_orders."); */
+} catch (e) { }
+try {
+  db.prepare("ALTER TABLE purchase_orders ADD COLUMN is_original BOOLEAN DEFAULT 1").run();
+  /* console.log("Added is_original column to purchase_orders."); */
+} catch (e) { }
+
+// Backfill existing data to maintain correct lineage
+try {
+  db.prepare(`
+    UPDATE purchase_orders
+    SET original_po_id = id,
+        version_number = COALESCE(version, 1),
+        is_original = 1
+    WHERE parent_po_id IS NULL AND (original_po_id IS NULL OR is_original != 1 OR version_number IS NULL)
+  `).run();
+  /* console.log("Successfully backfilled original/base purchase orders."); */
+} catch (e) {
+  /* console.error("Error backfilling original POs:", e); */
+}
+
+try {
+  db.prepare(`
+    UPDATE purchase_orders
+    SET original_po_id = parent_po_id,
+        version_number = COALESCE(version, 2),
+        is_original = 0
+    WHERE parent_po_id IS NOT NULL AND (original_po_id IS NULL OR is_original != 0 OR version_number IS NULL)
+  `).run();
+  /* console.log("Successfully backfilled revised/edited purchase orders."); */
+} catch (e) {
+  /* console.error("Error backfilling revised POs:", e); */
+}
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- Database is fully initialized and seeded via schema.sql and init_db.js ---
@@ -42,10 +83,10 @@ try {
     unsetInvs.forEach(row => {
       updateStmt.run(crypto.randomUUID(), row.id);
     });
-    console.log(`Initialized internal_document_uuid for ${unsetInvs.length} invoices.`);
+    /* console.log(`Initialized internal_document_uuid for ${unsetInvs.length} invoices.`); */
   }
 } catch (uuidErr) {
-  console.error("Failed to initialize internal_document_uuid for old invoices:", uuidErr);
+  /* console.error("Failed to initialize internal_document_uuid for old invoices:", uuidErr); */
 }
 
 // --- Routes ---
@@ -77,10 +118,10 @@ try {
       roleId = r.lastInsertRowid;
     }
     db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?,?)').run(userId, roleId);
-    console.log('Seeded accounts user successfully');
+    /* console.log('Seeded accounts user successfully'); */
   }
 } catch (err) {
-  console.error('Failed to seed accounts user:', err.message);
+  /* console.error('Failed to seed accounts user:', err.message); */
 }
 
 // --- Seed Stores User ---
@@ -97,10 +138,10 @@ try {
       roleId = r.lastInsertRowid;
     }
     db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?,?)').run(userId, roleId);
-    console.log('Seeded stores user successfully');
+    /* console.log('Seeded stores user successfully'); */
   }
 } catch (err) {
-  console.error('Failed to seed stores user:', err.message);
+  /* console.error('Failed to seed stores user:', err.message); */
 }
 
 // --- Seed Projects User ---
@@ -117,10 +158,10 @@ try {
       roleId = r.lastInsertRowid;
     }
     db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?,?)').run(userId, roleId);
-    console.log('Seeded projects user successfully');
+    /* console.log('Seeded projects user successfully'); */
   }
 } catch (err) {
-  console.error('Failed to seed projects user:', err.message);
+  /* console.error('Failed to seed projects user:', err.message); */
 }
 
 // --- File upload ---
@@ -172,7 +213,7 @@ app.get('/api/me', authenticate, (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (err) {
-    console.error(err);
+    /* console.error(err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -197,7 +238,7 @@ function auditLog(performed_by, action_type, module_name, reference_id, old_valu
       old_value ? JSON.stringify(old_value) : null,
       new_value ? JSON.stringify(new_value) : null
     );
-  } catch (e) { console.error('[Audit Error]', e.message); }
+  } catch (e) { /* console.error('[Audit Error]', e.message); */ }
 }
 
 function generateInvoiceHash(invoice) {
@@ -225,7 +266,7 @@ function autoGenerateInvoiceForDC(dcId, po, createdByUserId, username) {
   // 0. Avoid duplicate invoice generation (idempotency check)
   const existing = db.prepare('SELECT id FROM invoices WHERE dc_id = ? LIMIT 1').get(dcId);
   if (existing) {
-    console.log(`Invoice already exists for DC ID ${dcId}, skipping auto-generation.`);
+    /* console.log(`Invoice already exists for DC ID ${dcId}, skipping auto-generation.`); */
     return;
   }
 
@@ -439,12 +480,12 @@ app.get('/api/public/verify-document/:hash', (req, res) => {
         }
       }
     } catch (dbErr) {
-      console.error('Failed to fetch default master address location:', dbErr.message);
+      /* console.error('Failed to fetch default master address location:', dbErr.message); */
     }
 
     res.json({ ...invoice, items, signingLocation });
   } catch (err) {
-    console.error('Public verification error:', err);
+    /* console.error('Public verification error:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -495,7 +536,7 @@ app.get('/api/invoices/:id/pdf', authenticate, async (req, res) => {
             const parsedUrl = new URL(referer);
             frontendUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
           } catch (e) {
-            console.error('Failed to parse referer URL:', e);
+            /* console.error('Failed to parse referer URL:', e); */
           }
         }
       }
@@ -526,7 +567,7 @@ app.get('/api/invoices/:id/pdf', authenticate, async (req, res) => {
           }
         }
       } catch (dbErr) {
-        console.error('Failed to fetch default master address location:', dbErr.message);
+        /* console.error('Failed to fetch default master address location:', dbErr.message); */
       }
 
       // 2. Sign PDF
@@ -554,11 +595,11 @@ app.get('/api/invoices/:id/pdf', authenticate, async (req, res) => {
       res.setHeader('Content-Disposition', `attachment; filename=invoice_${invoice.invoice_number.replace(/\//g, '_')}.pdf`);
       return res.send(fileBytes);
     } catch (pdfErr) {
-      console.error('[PDF Route] Error generating/signing PDF:', pdfErr);
+      /* console.error('[PDF Route] Error generating/signing PDF:', pdfErr); */
       return res.status(500).json({ error: 'Failed to generate signed PDF' });
     }
   } catch (err) {
-    console.error('ERROR in /api/invoices/:id/pdf:', err);
+    /* console.error('ERROR in /api/invoices/:id/pdf:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -576,7 +617,7 @@ app.post('/api/public/verify-pdf', upload.single('pdf'), async (req, res) => {
     try {
       fs.unlinkSync(req.file.path);
     } catch (unlinkErr) {
-      console.error('Failed to remove temp uploaded verification file:', unlinkErr);
+      /* console.error('Failed to remove temp uploaded verification file:', unlinkErr); */
     }
 
     // 1. Cryptographically verify signature
@@ -616,7 +657,7 @@ app.post('/api/public/verify-pdf', upload.single('pdf'), async (req, res) => {
         pdfGrandTotal = parseFloat(match[1].replace(/,/g, ''));
       }
     } catch (parseErr) {
-      console.error('[Verify PDF] Error parsing PDF text:', parseErr.message);
+      /* console.error('[Verify PDF] Error parsing PDF text:', parseErr.message); */
     }
 
     // Compute file hash
@@ -659,7 +700,7 @@ app.post('/api/public/verify-pdf', upload.single('pdf'), async (req, res) => {
       details: verification.details
     });
   } catch (err) {
-    console.error('ERROR in /api/public/verify-pdf:', err);
+    /* console.error('ERROR in /api/public/verify-pdf:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -708,7 +749,7 @@ app.get('/api/public/verify-qr', (req, res) => {
         }
       }
     } catch (dbErr) {
-      console.error('Failed to fetch default master address location:', dbErr.message);
+      /* console.error('Failed to fetch default master address location:', dbErr.message); */
     }
 
     return res.json({
@@ -718,7 +759,7 @@ app.get('/api/public/verify-qr', (req, res) => {
       signingLocation
     });
   } catch (err) {
-    console.error('ERROR in /api/public/verify-qr:', err);
+    /* console.error('ERROR in /api/public/verify-qr:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -776,29 +817,29 @@ app.get('/api/branding', (req, res) => {
 app.post('/api/branding', authenticate, upload.single('logo'), (req, res) => {
   try {
     const { department_name, organization_name } = req.body;
-    
+
     db.exec('BEGIN');
     try {
       if (req.file) {
         const logoPath = `/uploads/${req.file.filename}`;
         db.prepare('INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('sidebar_logo_path', logoPath);
       }
-      
+
       if (department_name !== undefined) {
         db.prepare('INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('sidebar_department_name', department_name.trim());
       }
-      
+
       if (organization_name !== undefined) {
         db.prepare('INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('sidebar_organization_name', organization_name.trim());
       }
-      
+
       db.exec('COMMIT');
-      
+
       // Return updated branding info
       const logoRow = db.prepare('SELECT value FROM global_settings WHERE key = ?').get('sidebar_logo_path');
       const deptRow = db.prepare('SELECT value FROM global_settings WHERE key = ?').get('sidebar_department_name');
       const orgRow = db.prepare('SELECT value FROM global_settings WHERE key = ?').get('sidebar_organization_name');
-      
+
       res.json({
         success: true,
         logo_path: logoRow ? logoRow.value : null,
@@ -825,7 +866,7 @@ app.get('/api/master-addresses', authenticate, (req, res) => {
 });
 
 app.post('/api/master-addresses', requireRole(['admin']), (req, res) => {
-  console.log('POST /api/master-addresses hit by', req.user.username);
+  /* console.log('POST /api/master-addresses hit by', req.user.username); */
   const { name, addr_line1, addr_line2, city, state, pincode, landmark, is_default } = req.body;
   try {
     if (is_default) {
@@ -891,7 +932,7 @@ app.post('/api/login', (req, res) => {
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role, full_name: user.full_name, phone: user.phone }, JWT_SECRET, { expiresIn: '1d' });
     res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, phone: user.phone, role: user.role } });
   } catch (err) {
-    console.error('Login error:', err);
+    /* console.error('Login error:', err); */
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -921,7 +962,7 @@ app.post('/api/change-password', authenticate, (req, res) => {
 
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) {
-    console.error('Change Password Error:', err);
+    /* console.error('Change Password Error:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -938,7 +979,7 @@ app.get('/api/project-users', requireRole(['admin', 'sales', 'accounts', 'manage
     `).all();
     res.json(rows);
   } catch (err) {
-    console.error('ERROR in GET /api/project-users:', err);
+    /* console.error('ERROR in GET /api/project-users:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -967,7 +1008,7 @@ app.post('/api/project-users', requireRole(['admin']), (req, res) => {
       if (!phoneRegex.test(phone)) {
         return res.status(400).json({ error: 'Invalid contact number format' });
       }
-      
+
       const existingPhone = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone);
       if (existingPhone) {
         return res.status(400).json({ error: 'Phone number already registered' });
@@ -1014,7 +1055,7 @@ app.post('/api/project-users', requireRole(['admin']), (req, res) => {
 
     res.json({ success: true, id: newUserId });
   } catch (err) {
-    console.error('ERROR in POST /api/project-users:', err);
+    /* console.error('ERROR in POST /api/project-users:', err); */
     if (err.message && err.message.includes('FOREIGN KEY')) {
       return res.status(400).json({ error: 'A database constraint prevents registering this user. Please ensure the selected role exists or contact administrator.' });
     }
@@ -1047,7 +1088,7 @@ app.put('/api/project-users/:id', requireRole(['admin']), (req, res) => {
       if (!phoneRegex.test(phone)) {
         return res.status(400).json({ error: 'Invalid contact number format' });
       }
-      
+
       const existingPhone = db.prepare('SELECT id FROM users WHERE phone = ? AND id != ?').get(phone, userId);
       if (existingPhone) {
         return res.status(400).json({ error: 'Phone number already registered' });
@@ -1072,7 +1113,7 @@ app.put('/api/project-users/:id', requireRole(['admin']), (req, res) => {
       LEFT JOIN roles r ON ur.role_id = r.id
       WHERE u.id = ?
     `).get(userId);
-    
+
     if (!oldUserRow) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -1115,12 +1156,12 @@ app.put('/api/project-users/:id', requireRole(['admin']), (req, res) => {
       LEFT JOIN roles r ON ur.role_id = r.id
       WHERE u.id = ?
     `).get(userId);
-    
+
     auditLog(req.user.username, 'UPDATE', 'UserManagement', userId, oldUserRow, newUserRow);
 
     res.json({ success: true });
   } catch (err) {
-    console.error('ERROR in PUT /api/project-users/:id:', err);
+    /* console.error('ERROR in PUT /api/project-users/:id:', err); */
     if (err.message && err.message.includes('FOREIGN KEY')) {
       return res.status(400).json({ error: 'A database constraint prevents updating this user. Please ensure all related records and roles are valid.' });
     }
@@ -1153,7 +1194,7 @@ app.delete('/api/project-users/:id', requireRole(['admin']), (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('ERROR in DELETE /api/project-users/:id:', err);
+    /* console.error('ERROR in DELETE /api/project-users/:id:', err); */
     if (err.message && err.message.includes('FOREIGN KEY')) {
       return res.status(400).json({ error: 'This user cannot be deleted because they have associated records (e.g. Invoices, Purchase Orders, or Delivery Challans) in the system. To disable their access, please set their status to Inactive instead.' });
     }
@@ -1200,7 +1241,7 @@ app.get('/api/search', authenticate, (req, res) => {
 });
 
 // --- Audit log ---
-app.get('/api/audit-log', requireRole(['admin', 'auditor', 'management']), (req, res) => {
+app.get('/api/audit-log', requireRole(['admin', 'management']), (req, res) => {
   try {
     const rows = db.prepare(`SELECT al.*, u.full_name as user_name FROM audit_log al LEFT JOIN users u ON al.user_id=u.id ORDER BY al.created_at DESC LIMIT 500`).all();
     res.json(rows);
@@ -1288,7 +1329,7 @@ app.get('/api/customers', authenticate, (req, res) => {
     `).all();
     res.json(rows);
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -1309,7 +1350,7 @@ app.get('/api/customers/:id', authenticate, (req, res) => {
 
     res.json({ ...customer, locations });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -1385,13 +1426,13 @@ app.post('/api/customers', requireRole(['admin']), (req, res) => {
 
     res.json({ success: true, id: result.lastInsertRowid, cust_code });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
 
 app.delete('/api/customers/:id', requireRole(['admin']), (req, res) => {
-  console.log('DELETE REQUEST FOR CUSTOMER:', req.params.id);
+  /* console.log('DELETE REQUEST FOR CUSTOMER:', req.params.id); */
   const customerId = req.params.id;
   try {
     const deleteTx = db.transaction(() => {
@@ -1463,7 +1504,7 @@ app.delete('/api/customers/:id', requireRole(['admin']), (req, res) => {
     auditLog(req.user.username, 'DELETE', 'Customer', customerId, { note: 'Hard delete (cascading)' }, null);
     res.json({ success: true, message: 'Customer deleted' });
   } catch (err) {
-    console.error('DELETE ERROR:', err);
+    /* console.error('DELETE ERROR:', err); */
     res.status(500).json({ error: 'Failed: ' + err.message });
   }
 });
@@ -1538,7 +1579,7 @@ app.put('/api/customers/:id', requireRole(['admin']), (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -1554,7 +1595,7 @@ app.get('/api/locations', authenticate, (req, res) => {
     const rows = db.prepare('SELECT * FROM customer_locations WHERE customer_id = ?').all(customer_id);
     res.json(rows);
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -1597,7 +1638,7 @@ app.post('/api/locations', requireRole(['admin']), (req, res) => {
     res.json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -1643,7 +1684,7 @@ app.put('/api/locations/:id', requireRole(['admin']), (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -1663,7 +1704,7 @@ app.delete('/api/locations/:id', requireRole(['admin']), (req, res) => {
     db.prepare('DELETE FROM customer_locations WHERE id = ?').run(req.params.id);
     res.json({ success: true });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -1699,15 +1740,15 @@ app.get('/api/pos', authenticate, (req, res) => {
     const params = [];
     const conditions = [];
 
-    if (status) {
-      conditions.push(`p.status = ?`);
-      params.push(status);
-    } else {
-      conditions.push(`p.status != 'revised'`);
-    }
-
     if (type === 'original') {
-      conditions.push(`p.is_nt_po = 0 AND p.is_temporary = 0`);
+      conditions.push(`p.parent_po_id IS NULL AND p.is_nt_po = 0 AND p.is_temporary = 0`);
+    } else {
+      if (status) {
+        conditions.push(`p.status = ?`);
+        params.push(status);
+      } else {
+        conditions.push(`p.status != 'revised'`);
+      }
     }
 
     if (req.user.role?.toLowerCase() === 'sales') {
@@ -1724,7 +1765,7 @@ app.get('/api/pos', authenticate, (req, res) => {
     const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -1768,7 +1809,7 @@ app.get('/api/pos/:id', authenticate, (req, res) => {
 
     const parentId = po.parent_po_id || po.id;
     const revisionHistory = db.prepare(`
-      SELECT id, po_number, status, grand_total, created_at, version 
+      SELECT id, po_number, status, grand_total, created_at, version, version_number, is_original 
       FROM purchase_orders 
       WHERE id = ? OR parent_po_id = ? 
       ORDER BY version ASC
@@ -1776,7 +1817,7 @@ app.get('/api/pos/:id', authenticate, (req, res) => {
 
     res.json({ ...po, items, revision_history: revisionHistory });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -1816,6 +1857,13 @@ app.post('/api/pos', authenticate, (req, res) => {
     }
 
     const safeLinkedPoId = linked_po_id && linked_po_id !== '' ? parseInt(linked_po_id) : null;
+    let finalLinkedPoId = safeLinkedPoId;
+    if (safeLinkedPoId) {
+      const linkedPO = db.prepare('SELECT original_po_id FROM purchase_orders WHERE id = ?').get(safeLinkedPoId);
+      if (linkedPO && linkedPO.original_po_id) {
+        finalLinkedPoId = linkedPO.original_po_id;
+      }
+    }
     const safeIsNtPo = is_nt_po ? 1 : 0;
     const safeIsTemp = is_temporary ? 1 : 0;
 
@@ -1830,19 +1878,19 @@ app.post('/api/pos', authenticate, (req, res) => {
     const order_id = 'ORD-' + Date.now();
     const status = safeIsNtPo ? 'nt_created' : 'pending';
 
-    // Inherit Project SPOC details from parent PO if this is a linked NT PO
+    // Inherit Project SPOC details from parent PO if this is a linked NT PO and not provided by frontend
     let finalSpocName = project_spoc_name;
     let finalSpocEmail = project_spoc_email;
     let finalSpocPhone = project_spoc_phone;
     let finalNeedApproval = need_sales_invoice_approval || 'yes';
 
-    if (safeLinkedPoId) {
-      const parentPO = db.prepare('SELECT project_spoc_name, project_spoc_email, project_spoc_phone, need_sales_invoice_approval FROM purchase_orders WHERE id = ?').get(safeLinkedPoId);
+    if (finalLinkedPoId) {
+      const parentPO = db.prepare('SELECT project_spoc_name, project_spoc_email, project_spoc_phone, need_sales_invoice_approval FROM purchase_orders WHERE id = ?').get(finalLinkedPoId);
       if (parentPO) {
-        finalSpocName = parentPO.project_spoc_name;
-        finalSpocEmail = parentPO.project_spoc_email;
-        finalSpocPhone = parentPO.project_spoc_phone;
-        finalNeedApproval = parentPO.need_sales_invoice_approval || 'yes';
+        if (!finalSpocName || !finalSpocName.trim()) finalSpocName = parentPO.project_spoc_name;
+        if (!finalSpocEmail || !finalSpocEmail.trim()) finalSpocEmail = parentPO.project_spoc_email;
+        if (!finalSpocPhone || !finalSpocPhone.trim()) finalSpocPhone = parentPO.project_spoc_phone;
+        if (!need_sales_invoice_approval) finalNeedApproval = parentPO.need_sales_invoice_approval || 'yes';
       }
     }
 
@@ -1861,13 +1909,14 @@ app.post('/api/pos', authenticate, (req, res) => {
       order_id, customer_id, location_id,
       finalPONumber, po_date || null, start_date || null, end_date || null,
       status, safeIsNtPo, safeIsTemp,
-      safeLinkedPoId, subtotal || 0, gst_total || 0, grand_total || 0,
+      finalLinkedPoId, subtotal || 0, gst_total || 0, grand_total || 0,
       grand_total || 0, po_copy_path || null, po_annex_path || null, other_attachment_path || null,
       req.user.id, finalSpocName || null, finalSpocEmail || null, finalSpocPhone || null,
       finalNeedApproval, remarks || null
     );
 
     const poId = r.lastInsertRowid;
+    db.prepare('UPDATE purchase_orders SET original_po_id = ?, version_number = 1, is_original = 1 WHERE id = ?').run(poId, poId);
     auditLog(req.user.username, 'CREATE', 'PurchaseOrder', poId, null, req.body);
 
     const itemStmt = db.prepare(`
@@ -2054,7 +2103,7 @@ app.post('/api/pos', authenticate, (req, res) => {
     res.json({ success: true, order_id, po_id: poId });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2073,7 +2122,7 @@ app.put('/api/pos/:id/status', authenticate, (req, res) => {
     ).run(statusToUpdate, req.params.id);
     res.json({ success: true, status: statusToUpdate });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2111,7 +2160,7 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
       SELECT po_number FROM purchase_orders 
       WHERE id = ? OR parent_po_id = ?
     `).all(parentId, parentId);
-    
+
     let maxRev = 0;
     existing.forEach(p => {
       if (p.po_number.startsWith(basePO + '-')) {
@@ -2122,7 +2171,7 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
         }
       }
     });
-    
+
     const nextRev = maxRev + 1;
     const revisedPONumber = `${basePO}-${String(nextRev).padStart(2, '0')}`;
     const nextVersion = nextRev + 1; // version column: 1 is original, 2 is first revision, etc.
@@ -2153,20 +2202,21 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
     }
 
     // 4. Create new PO revision record
+    const originalPoId = oldPO.original_po_id || parentId;
     const r = db.prepare(`
       INSERT INTO purchase_orders (
         order_id, customer_id, location_id,
         po_number, po_date, start_date, end_date,
         status, version, is_temp_po, is_temporary, is_nt_po,
-        parent_po_id, linked_po_id, po_copy_path, po_annex_path, other_attachment_path,
+        parent_po_id, original_po_id, version_number, is_original, linked_po_id, po_copy_path, po_annex_path, other_attachment_path,
         created_by, project_spoc_name, project_spoc_email, project_spoc_phone,
         need_sales_invoice_approval, subtotal, gst_total, grand_total, total_value, nt_count, remarks
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       'ORD-' + Date.now(), oldPO.customer_id, oldPO.location_id,
       revisedPONumber, oldPO.po_date || null, oldPO.start_date || null, oldPO.end_date || null,
       status || oldPO.status, nextVersion, oldPO.is_temp_po, oldPO.is_temporary, oldPO.is_nt_po,
-      parentId, oldPO.linked_po_id, oldPO.po_copy_path || null, oldPO.po_annex_path || null, oldPO.other_attachment_path || null,
+      parentId, originalPoId, nextVersion, 0, oldPO.linked_po_id, oldPO.po_copy_path || null, oldPO.po_annex_path || null, oldPO.other_attachment_path || null,
       oldPO.created_by,
       project_spoc_name !== undefined ? project_spoc_name : oldPO.project_spoc_name,
       project_spoc_email !== undefined ? project_spoc_email : oldPO.project_spoc_email,
@@ -2607,7 +2657,7 @@ app.post('/api/invoices', authenticate, (req, res) => {
     res.json({ success: true, invoice_number, id: invoiceId });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2638,7 +2688,7 @@ app.get('/api/invoices', authenticate, (req, res) => {
     const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2683,7 +2733,7 @@ app.get('/api/invoices/:id', authenticate, (req, res) => {
 
     res.json({ ...invoice, items, payments, is_tampered });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2701,7 +2751,7 @@ app.get('/api/pos/:id/payments', authenticate, (req, res) => {
     `).all(req.params.id);
     res.json(payments);
   } catch (err) {
-    console.error('ERROR in /api/pos/:id/payments:', err);
+    /* console.error('ERROR in /api/pos/:id/payments:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2719,7 +2769,7 @@ app.get('/api/pos/:id/invoices', authenticate, (req, res) => {
     `).all(req.params.id);
     res.json(invoices);
   } catch (err) {
-    console.error('ERROR in /api/pos/:id/invoices:', err);
+    /* console.error('ERROR in /api/pos/:id/invoices:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2752,7 +2802,7 @@ app.get('/api/pos/:id/supplied-details', authenticate, (req, res) => {
     `).all(req.params.id);
     res.json(details);
   } catch (err) {
-    console.error('ERROR in /api/pos/:id/supplied-details:', err);
+    /* console.error('ERROR in /api/pos/:id/supplied-details:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2783,7 +2833,7 @@ app.get('/api/pos/:id/pending-details', authenticate, (req, res) => {
     `).all(req.params.id);
     res.json(details);
   } catch (err) {
-    console.error('ERROR in /api/pos/:id/pending-details:', err);
+    /* console.error('ERROR in /api/pos/:id/pending-details:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2917,7 +2967,7 @@ app.post('/api/invoices/:id/payment', authenticate, (req, res) => {
     res.json({ success: true });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2970,7 +3020,7 @@ app.get('/api/ar', authenticate, (req, res) => {
     `).all();
     res.json(rows);
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3215,7 +3265,7 @@ app.post('/api/dc', authenticate, (req, res) => {
     res.json({ success: true, dc_number, dc_id: dcId });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3278,7 +3328,7 @@ app.get('/api/dc', authenticate, (req, res) => {
     const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
-    console.error('GET /api/dc ERROR:', err);
+    /* console.error('GET /api/dc ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3333,7 +3383,7 @@ app.get('/api/dc/:id', authenticate, (req, res) => {
 
     res.json({ ...dc, items });
   } catch (err) {
-    console.error('GET /api/dc/:id ERROR:', err);
+    /* console.error('GET /api/dc/:id ERROR:', err); */
     res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
@@ -3472,7 +3522,7 @@ app.post('/api/dc/:id/confirm-delivery', authenticate, upload.fields([
     transaction();
     res.json({ success: true, message: 'Delivery confirmed successfully' });
   } catch (err) {
-    console.error('CONFIRM DELIVERY ERROR:', err);
+    /* console.error('CONFIRM DELIVERY ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3492,7 +3542,7 @@ app.put('/api/dc/:id/status', authenticate, (req, res) => {
     db.prepare('UPDATE delivery_challans SET status=? WHERE id=?').run(status, req.params.id);
     res.json({ success: true });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3516,7 +3566,7 @@ app.get('/api/dc-requests/pos', authenticate, (req, res) => {
     `).all();
     res.json(rows);
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3581,7 +3631,7 @@ app.post('/api/dc-requests', authenticate, upload.single('proof'), (req, res) =>
 
     res.json({ success: true, dc_request: dc_request_no, id: dc_request_id });
   } catch (err) {
-    console.error('ERROR IN POST /api/dc-requests:', err);
+    /* console.error('ERROR IN POST /api/dc-requests:', err); */
     res.status(500).json({ error: 'Server Error: ' + err.message });
   }
 });
@@ -3624,7 +3674,7 @@ app.get('/api/dc-requests', authenticate, (req, res) => {
     const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3656,7 +3706,7 @@ app.post('/api/dc-requests/:id/confirm-dispatch', authenticate, upload.single('p
 
     res.json({ success: true, message: 'Shipment confirmed and marked as dispatched' });
   } catch (err) {
-    console.error('ERROR CONFIRMING DISPATCH:', err);
+    /* console.error('ERROR CONFIRMING DISPATCH:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3714,7 +3764,7 @@ app.get('/api/dc-requests/:id', authenticate, (req, res) => {
 
     res.json({ ...request, items });
   } catch (err) {
-    console.error('ERROR:', err);
+    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3743,18 +3793,18 @@ app.post('/api/dc-requests/:id/approve-cdc', authenticate, (req, res) => {
       db.prepare("UPDATE dc_requests SET status = 'approved' WHERE id = ?").run(requestId);
 
       db.exec('COMMIT');
-      
+
       // Audit log
       auditLog(req.user.username, 'APPROVE', 'CDCRequest', requestId, null, { dc_request_no: request.dc_request_no, po_id: po.id });
 
       res.json({ success: true, message: 'CDC Request approved. Rejected items added back to PO outstanding quantity successfully.' });
     } catch (err) {
       db.exec('ROLLBACK');
-      console.error('Failed to approve CDC:', err);
+      /* console.error('Failed to approve CDC:', err); */
       res.status(500).json({ error: 'Failed to approve CDC: ' + err.message });
     }
   } catch (err) {
-    console.error('Approve CDC error:', err);
+    /* console.error('Approve CDC error:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3774,7 +3824,7 @@ app.post('/api/dc-requests/:id/reject-cdc', authenticate, (req, res) => {
 
     res.json({ success: true, message: 'CDC Request rejected successfully.' });
   } catch (err) {
-    console.error('Reject CDC error:', err);
+    /* console.error('Reject CDC error:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -3807,7 +3857,7 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
         db.prepare("UPDATE dc_requests SET status = 'approved' WHERE id = ?").run(requestId);
 
         db.exec('COMMIT');
-        
+
         // Audit log
         try {
           const auditLog = require('./services/auditLog'); // or local helper
@@ -4101,7 +4151,7 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
     res.json({ success: true, dc_number, dc_id: dcId });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
-    console.error('ERROR RAISING DC:', err);
+    /* console.error('ERROR RAISING DC:', err); */
     res.status(500).json({ error: 'Server Error: ' + err.message });
   }
 });
@@ -4211,7 +4261,7 @@ app.get('/api/po-flow', authenticate, (req, res) => {
     `).all();
     res.json(rows);
   } catch (err) {
-    console.error('ERROR in /api/po-flow:', err);
+    /* console.error('ERROR in /api/po-flow:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -4293,7 +4343,7 @@ app.get('/api/reports/po-summary', authenticate, (req, res) => {
     const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
-    console.error('ERROR in /api/reports/po-summary:', err);
+    /* console.error('ERROR in /api/reports/po-summary:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -4320,7 +4370,7 @@ app.get('/api/reports/items', authenticate, (req, res) => {
     const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
-    console.error('ERROR in /api/reports/items:', err);
+    /* console.error('ERROR in /api/reports/items:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -4369,7 +4419,7 @@ app.get('/api/management/summary', requireRole(['admin', 'management']), (req, r
     `).get();
     res.json(summary);
   } catch (err) {
-    console.error('ERROR in /api/management/summary:', err);
+    /* console.error('ERROR in /api/management/summary:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -4424,7 +4474,7 @@ app.get('/api/management/customers', requireRole(['admin', 'management']), (req,
     `).all();
     res.json(customers);
   } catch (err) {
-    console.error('ERROR in /api/management/customers:', err);
+    /* console.error('ERROR in /api/management/customers:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -4524,7 +4574,7 @@ app.get('/api/management/customer/:id/summary', requireRole(['admin', 'managemen
 
     res.json({ summary, pos });
   } catch (err) {
-    console.error('ERROR in /api/management/customer/:id/summary:', err);
+    /* console.error('ERROR in /api/management/customer/:id/summary:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -4583,11 +4633,11 @@ app.get('/api/management/so/:id/summary', requireRole(['admin', 'management']), 
 
     res.json(soDetails);
   } catch (err) {
-    console.error('ERROR in /api/management/so/:id/summary:', err);
+    /* console.error('ERROR in /api/management/so/:id/summary:', err); */
     res.status(500).json({ error: err.message });
   }
 });
 
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`O2C Server V2 running on port ${PORT}`));
+app.listen(PORT, () => {});

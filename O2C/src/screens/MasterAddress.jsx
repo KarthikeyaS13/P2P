@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CustomStateSelect from '../components/CustomStateSelect';
 import CustomCitySelect from '../components/CustomCitySelect';
 import { POPULAR_CITIES } from '../utils/cities';
@@ -25,7 +25,8 @@ export default function MasterAddress() {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState('address'); // 'address', 'signature', or 'branding'
+  const location = useLocation();
+  const [activeSection, setActiveSection] = useState(location.state?.activeSection || 'address'); // 'address', 'signature', or 'branding'
 
   // Branding States
   const [logoFile, setLogoFile] = useState(null);
@@ -48,7 +49,7 @@ export default function MasterAddress() {
         setGlobalSig(res.data.value);
       }
     } catch (err) {
-      console.error('Failed to fetch signature:', err);
+      /* console.error('Failed to fetch signature:', err); */
     }
   };
 
@@ -58,7 +59,7 @@ export default function MasterAddress() {
       setLogoPreview(res.data.logo_path);
       setOrganizationName(res.data.organization_name || '');
     } catch (err) {
-      console.error('Failed to fetch branding data:', err);
+      /* console.error('Failed to fetch branding data:', err); */
     }
   };
 
@@ -244,7 +245,7 @@ export default function MasterAddress() {
         showConfirmButton: false
       });
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -285,7 +286,7 @@ export default function MasterAddress() {
       const res = await axios.get('/api/master-addresses', { headers });
       setAddresses(res.data);
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
     } finally {
       setLoading(false);
     }

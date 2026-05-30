@@ -45,7 +45,7 @@ export default function DCRequest() {
         const res = await axios.get('/api/dc-requests/pos', { headers });
         setApprovedPOs(res.data);
       } catch (err) {
-        console.error(err);
+        /* console.error(err); */
       } finally {
         setLoadingPOs(false);
       }
@@ -70,7 +70,7 @@ export default function DCRequest() {
           });
         }
       } catch (err) {
-        console.error(err);
+        /* console.error(err); */
       }
     };
 
@@ -91,7 +91,7 @@ export default function DCRequest() {
         const res = await axios.get(`/api/next-dc-number/${po.customer_id || po.id}`, { headers });
         setAutoDCNumber(res.data.nextDC);
       } catch (err) {
-        console.error('Failed to fetch next DC number', err);
+        /* console.error('Failed to fetch next DC number', err); */
       }
     };
     fetchNextDC();
@@ -150,7 +150,7 @@ export default function DCRequest() {
         });
       }
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
     } finally {
       setLoadingItems(false);
     }
@@ -298,7 +298,7 @@ export default function DCRequest() {
       setLocationDetails({ name: '', id: '' });
 
     } catch (err) {
-      console.error('ERROR SUBMITTING DC REQUEST:', err);
+      /* console.error('ERROR SUBMITTING DC REQUEST:', err); */
       const msg = err.response?.data?.error || err.message || 'Failed to submit Delivery Challan Request';
       Swal.fire({ icon: 'error', title: 'Error', text: 'Error: ' + msg });
     } finally {

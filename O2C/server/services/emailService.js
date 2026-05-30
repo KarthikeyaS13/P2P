@@ -48,9 +48,13 @@ if (SMTP_USER && SMTP_PASS) {
  */
 async function sendEmail({ to, subject, html, text }) {
   if (!to) {
-    console.error('❌ Cannot send email: No recipient address specified.');
+    console.error('❌ [Email Service] Email Failure Reason: No recipient address specified.');
     return { success: false, error: 'No recipient' };
   }
+
+  console.log('✉️ [Email Service] Email Triggered');
+  console.log(`✉️ [Email Service] Email Recipient: ${to}`);
+  console.log(`✉️ [Email Service] Email Subject: ${subject}`);
 
   const mailOptions = {
     from: `"Enterprise O2C Portal" <${SMTP_USER || 'no-reply@company.com'}>`,
@@ -63,20 +67,14 @@ async function sendEmail({ to, subject, html, text }) {
   if (transporter) {
     try {
       const info = await transporter.sendMail(mailOptions);
-      console.log(`✉️ Email successfully sent to ${to}. Message ID: ${info.messageId}`);
+      console.log(`✅ [Email Service] Email Sent Successfully to ${to}. Message ID: ${info.messageId}`);
       return { success: true, messageId: info.messageId };
     } catch (error) {
-      console.error(`❌ Failed to send email to ${to}:`, error);
+      console.error(`❌ [Email Service] Email Failure Reason for ${to}:`, error);
       return { success: false, error };
     }
   } else {
-    console.log(`\n================= [EMAIL MOCK SERVICE] =================`);
-    console.log(`TO:      ${to}`);
-    console.log(`FROM:    ${mailOptions.from}`);
-    console.log(`SUBJECT: ${subject}`);
-    console.log(`BODY (HTML):`);
-    console.log(html);
-    console.log(`========================================================\n`);
+    console.log(`✉️ [Email Service] Email Sent (Mock Mode) successfully to ${to}`);
     return { success: true, mock: true };
   }
 }

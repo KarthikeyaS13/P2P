@@ -240,8 +240,36 @@ export default function NewInvoice() {
 
       {error && <div style={{ color: 'var(--error)', marginBottom: '16px' }}>{error}</div>}
 
-      <div className="card card--padded animate-fade">
-        <form onSubmit={handleSubmit}>
+      <div className="card card--padded animate-fade" style={{ padding: '16px 20px' }}>
+        <style>{`
+          .new-invoice-compact-form .form-group {
+            margin-bottom: 12px !important;
+          }
+          .new-invoice-compact-form .form-label {
+            font-size: 10px !important;
+            margin-bottom: 4px !important;
+            font-weight: 700 !important;
+            color: #475569 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+          .new-invoice-compact-form .grid-2 .form-input,
+          .new-invoice-compact-form .grid-2 .form-select,
+          .new-invoice-compact-form .grid-2 .react-datepicker__input-container input {
+            padding: 6px 12px !important;
+            height: 32px !important;
+            font-size: 12px !important;
+            border-radius: 4px !important;
+          }
+          .new-invoice-compact-form .grid-2 textarea.form-input {
+            height: auto !important;
+            padding: 8px 12px !important;
+          }
+          .new-invoice-compact-form .grid-2 .date-picker-container .calendar-icon {
+            font-size: 16px !important;
+          }
+        `}</style>
+        <form onSubmit={handleSubmit} className="new-invoice-compact-form">
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Select Delivery Challan</label>

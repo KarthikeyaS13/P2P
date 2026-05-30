@@ -32,7 +32,7 @@ export default function Header() {
           setSearchResults(res.data);
           setShowResults(true);
         } catch (err) {
-          console.error('Search error:', err);
+          /* console.error('Search error:', err); */
         }
       } else {
         setSearchResults([]);

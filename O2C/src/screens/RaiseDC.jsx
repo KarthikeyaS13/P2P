@@ -89,7 +89,7 @@ export default function RaiseDC() {
       const resDc = await axios.get(`/api/dc/${targetId}`, { headers });
       setDetails(resDc.data);
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       setView('list');
     } finally {
       setLoadingDetails(false);
@@ -116,10 +116,10 @@ export default function RaiseDC() {
         const puRes = await axios.get('/api/project-users', { headers });
         setProjectUsers(Array.isArray(puRes.data) ? puRes.data : []);
       } catch (errProject) {
-        console.error('Failed to fetch project users', errProject);
+        /* console.error('Failed to fetch project users', errProject); */
       }
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
     } finally {
       setLoading(false);
     }
@@ -171,13 +171,13 @@ export default function RaiseDC() {
           const sigRes = await axios.get('/api/global-settings/authorized_signature');
           setSignatureImage(sigRes.data.value || null);
         } catch (sigErr) {
-          console.error('Failed to load global signature:', sigErr);
+          /* console.error('Failed to load global signature:', sigErr); */
           setSignatureImage(null);
         }
       }
 
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       setView('list');
     } finally {
       setLoadingDetails(false);
@@ -228,7 +228,7 @@ export default function RaiseDC() {
         setIsDownloadingSilent(false);
       }, 1200);
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       setIsDownloadingSilent(false);
       Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to generate PDF' });
     }
@@ -390,7 +390,7 @@ export default function RaiseDC() {
       navigate('/raise-dc');
       fetchData();
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to raise Delivery Challan' });
     } finally {
       setSubmitting(false);
@@ -778,12 +778,12 @@ export default function RaiseDC() {
                       style={{ width: '100%', height: '38px' }}
                     >
                       <option value="">-- Select Project Manager --</option>
-                      {projectUsers.map(user => (
+                      {projectUsers.filter(user => user.role === 'projects').map(user => (
                         <option key={user.id} value={user.email}>
                           {user.full_name} ({user.email})
                         </option>
                       ))}
-                      {selectedProjectSpocEmail && !projectUsers.some(u => u.email === selectedProjectSpocEmail) && (
+                      {selectedProjectSpocEmail && !projectUsers.filter(user => user.role === 'projects').some(u => u.email === selectedProjectSpocEmail) && (
                         <option value={selectedProjectSpocEmail}>
                           {details?.project_spoc_name || 'Current Manager'} ({selectedProjectSpocEmail})
                         </option>

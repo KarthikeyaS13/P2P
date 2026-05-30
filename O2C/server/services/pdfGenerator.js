@@ -88,7 +88,7 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
       });
     }
   } catch (err) {
-    console.error('[PDFGen] Failed to embed logo in PDF:', err.message);
+    /* console.error('[PDFGen] Failed to embed logo in PDF:', err.message); */
   }
 
   // Seller / Issuer details (Left) - aligned with what we have in the screen
@@ -541,7 +541,7 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
         height: sigImgHeight,
       });
     } catch (e) {
-      console.error('[PDFGen] Failed to embed hand signature image in PDF:', e.message);
+      /* console.error('[PDFGen] Failed to embed hand signature image in PDF:', e.message); */
       currentPage.drawLine({ start: { x: authSigX, y: authSigY + 32 }, end: { x: authSigX + 150, y: authSigY + 32 }, thickness: 0.5, color: textColor });
     }
   } else {
@@ -584,7 +584,7 @@ async function generateInvoicePDFBuffer(invoice, items, customer, frontendUrl = 
       height: 80,
     });
   } catch (qrErr) {
-    console.error('[PDFGen] Failed to generate/embed QR code:', qrErr.message);
+    /* console.error('[PDFGen] Failed to generate/embed QR code:', qrErr.message); */
   }
 
   // Set the metadata subject watermark for integrity tracking

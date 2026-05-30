@@ -45,7 +45,7 @@ export default function ProjectUsers() {
       const res = await axios.get('/api/project-users', { headers });
       setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error('Failed to fetch users:', err);
+      /* console.error('Failed to fetch users:', err); */
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -123,7 +123,7 @@ export default function ProjectUsers() {
       handleCloseForm();
       fetchUsers();
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       Swal.fire({
         icon: 'error',
         title: 'Error',

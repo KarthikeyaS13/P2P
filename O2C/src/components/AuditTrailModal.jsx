@@ -20,7 +20,7 @@ export default function AuditTrailModal({ isOpen, onClose, moduleName, reference
       // Sort logs by ID ascending for sequence numbering
       setLogs(res.data.sort((a, b) => a.id - b.id));
     } catch (err) {
-      console.error('Audit Log Fetch Error:', err);
+      /* console.error('Audit Log Fetch Error:', err); */
     } finally {
       setLoading(false);
     }

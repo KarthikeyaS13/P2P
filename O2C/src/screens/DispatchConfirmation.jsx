@@ -48,7 +48,7 @@ export default function DispatchConfirmation() {
       setTrackingDCs(transit);
       setCompletedDCs(completed);
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function DispatchConfirmation() {
       const res = await axios.get(`/api/dc/${targetId}`, { headers });
       setDetails(res.data);
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       setView('list');
     } finally {
       setLoadingDetails(false);

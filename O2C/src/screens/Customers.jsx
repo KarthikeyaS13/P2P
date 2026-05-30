@@ -27,7 +27,7 @@ export default function Customers() {
         const data = Array.isArray(res.data) ? res.data : [];
         setCustomers(data);
       })
-      .catch(err => console.error(err))
+      .catch(err => {})
       .finally(() => setLoading(false));
   }, []);
 

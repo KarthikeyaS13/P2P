@@ -39,7 +39,7 @@ export default function ManagementDashboard() {
       });
       setOverallSummary(res.data);
     } catch (err) {
-      console.error('Error fetching overall management summary:', err);
+      /* console.error('Error fetching overall management summary:', err); */
     } finally {
       setLoadingOverall(false);
     }
@@ -53,7 +53,7 @@ export default function ManagementDashboard() {
       });
       setCustomers(res.data);
     } catch (err) {
-      console.error('Error fetching customer list:', err);
+      /* console.error('Error fetching customer list:', err); */
     }
   };
 
@@ -71,7 +71,7 @@ export default function ManagementDashboard() {
       });
       setCustomerOrders(res.data.pos || []);
     } catch (err) {
-      console.error('Error fetching customer orders:', err);
+      /* console.error('Error fetching customer orders:', err); */
     }
   };
 
@@ -89,7 +89,7 @@ export default function ManagementDashboard() {
       });
       setCustomerDetail(res.data.summary);
     } catch (err) {
-      console.error('Error loading customer details:', err);
+      /* console.error('Error loading customer details:', err); */
     } finally {
       setLoadingDetails(false);
     }
@@ -109,7 +109,7 @@ export default function ManagementDashboard() {
       });
       setSoDetail(res.data);
     } catch (err) {
-      console.error('Error loading SO details:', err);
+      /* console.error('Error loading SO details:', err); */
     } finally {
       setLoadingDetails(false);
     }

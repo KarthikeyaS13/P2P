@@ -18,7 +18,7 @@ module.exports = (db, authenticate, requireRole, auditLog) => {
       `).all();
       res.json(dcs);
     } catch (err) { 
-      console.error('GET DC Error:', err);
+      /* console.error('GET DC Error:', err); */
       res.status(500).json({ error: err.message }); 
     }
   });

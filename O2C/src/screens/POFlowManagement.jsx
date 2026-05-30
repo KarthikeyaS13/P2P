@@ -55,7 +55,7 @@ export default function POFlowManagement() {
         });
         setPos(res.data);
       } catch (err) {
-        console.error('Error fetching PO flow:', err);
+        /* console.error('Error fetching PO flow:', err); */
       } finally {
         setLoading(false);
       }
@@ -93,7 +93,7 @@ export default function POFlowManagement() {
       });
       setSelectedPOPayments(prev => ({ ...prev, payments: res.data }));
     } catch (err) {
-      console.error('Error fetching payments:', err);
+      /* console.error('Error fetching payments:', err); */
     } finally {
       setLoadingDetails(false);
     }
@@ -112,7 +112,7 @@ export default function POFlowManagement() {
       });
       setSelectedPOSupplied(prev => ({ ...prev, items: res.data }));
     } catch (err) {
-      console.error('Error fetching supplied details:', err);
+      /* console.error('Error fetching supplied details:', err); */
     } finally {
       setLoadingDetails(false);
     }
@@ -133,7 +133,7 @@ export default function POFlowManagement() {
       });
       setSelectedPOPending(prev => ({ ...prev, items: res.data }));
     } catch (err) {
-      console.error('Error fetching pending details:', err);
+      /* console.error('Error fetching pending details:', err); */
     } finally {
       setLoadingDetails(false);
     }
@@ -152,7 +152,7 @@ export default function POFlowManagement() {
       });
       setSelectedPOInvoiced(prev => ({ ...prev, invoices: res.data }));
     } catch (err) {
-      console.error('Error fetching invoices:', err);
+      /* console.error('Error fetching invoices:', err); */
     } finally {
       setLoadingDetails(false);
     }

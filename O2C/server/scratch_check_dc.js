@@ -11,8 +11,8 @@ const tables = [
 for (const t of tables) {
   try {
     const rows = db.prepare(`SELECT * FROM ${t}`).all();
-    console.log(`Table ${t} (${rows.length} rows):`, rows.slice(0, 5));
+    /* console.log(`Table ${t} (${rows.length} rows):`, rows.slice(0, 5)); */
   } catch (err) {
-    console.error(`Error reading table ${t}:`, err.message);
+    /* console.error(`Error reading table ${t}:`, err.message); */
   }
 }

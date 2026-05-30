@@ -4,7 +4,7 @@ const fs = require('fs');
 const bcrypt = require('bcrypt');
 
 const dbPath = path.join(__dirname, '..', 'database.sqlite');
-console.log('Opening database at:', dbPath);
+/* console.log('Opening database at:', dbPath); */
 
 const db = new Database(dbPath);
 
@@ -38,29 +38,29 @@ const tables = [
 ];
 
 try {
-  console.log('Disabling foreign keys temporarily...');
+  /* console.log('Disabling foreign keys temporarily...'); */
   db.pragma('foreign_keys = OFF');
 
   db.transaction(() => {
-    console.log('Clearing all database tables...');
+    /* console.log('Clearing all database tables...'); */
     for (const table of tables) {
       try {
         db.prepare(`DELETE FROM ${table}`).run();
-        console.log(`Cleared table: ${table}`);
+        /* console.log(`Cleared table: ${table}`); */
       } catch (tableErr) {
-        console.warn(`Could not clear table ${table}:`, tableErr.message);
+        /* console.warn(`Could not clear table ${table}:`, tableErr.message); */
       }
     }
 
-    console.log('Resetting sequence counters...');
+    /* console.log('Resetting sequence counters...'); */
     db.prepare('DELETE FROM sqlite_sequence').run();
 
-    console.log('Seeding default roles...');
-    const roles = ['sales', 'stores', 'projects', 'accounts', 'admin', 'management', 'approver', 'auditor'];
+    /* console.log('Seeding default roles...'); */
+    const roles = ['sales', 'stores', 'projects', 'accounts', 'admin', 'management', 'approver'];
     const insertRole = db.prepare('INSERT INTO roles (name) VALUES (?)');
     roles.forEach(role => insertRole.run(role));
 
-    console.log('Seeding default users...');
+    /* console.log('Seeding default users...'); */
     const insertUser = db.prepare('INSERT INTO users (username, full_name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)');
     const assignRole = db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)');
     const getRole = db.prepare('SELECT id FROM roles WHERE name = ?');
@@ -74,7 +74,6 @@ try {
       { username: 'stores', full_name: 'Stores Department', email: 'stores@o2c.local', phone: null, role: 'stores' },
       { username: 'projects', full_name: 'Projects Department', email: 'projects@o2c.local', phone: null, role: 'projects' },
       { username: 'mgmt1', full_name: 'Tom Management', email: 'tom@o2c.local', phone: null, role: 'management' },
-      { username: 'audit1', full_name: 'Audit User', email: 'audit@o2c.local', phone: null, role: 'auditor' },
       { username: 'emailkarthikeya', full_name: 'Karthikeya S', email: 'karthikeya@o2c.local', phone: null, role: 'admin' }
     ];
 
@@ -85,17 +84,17 @@ try {
     });
   })();
 
-  console.log('Re-enabling foreign keys...');
+  /* console.log('Re-enabling foreign keys...'); */
   db.pragma('foreign_keys = ON');
 
-  console.log('Running VACUUM...');
+  /* console.log('Running VACUUM...'); */
   db.prepare('VACUUM').run();
 
-  console.log('Database cleared successfully');
-  console.log('Default data seeded successfully');
+  /* console.log('Database cleared successfully'); */
+  /* console.log('Default data seeded successfully'); */
 
 } catch (err) {
-  console.error('DATABASE RESET FAILED:', err);
+  /* console.error('DATABASE RESET FAILED:', err); */
 } finally {
   db.close();
 }
@@ -104,7 +103,7 @@ try {
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 const signedPdfsDir = path.join(uploadsDir, 'signed-pdfs');
 
-console.log('Clearing uploads directory...');
+/* console.log('Clearing uploads directory...'); */
 
 function clearDirectoryContents(dirPath) {
   if (!fs.existsSync(dirPath)) return;
@@ -116,7 +115,7 @@ function clearDirectoryContents(dirPath) {
       clearDirectoryContents(filePath);
     } else {
       fs.unlinkSync(filePath);
-      console.log(`Deleted file: ${filePath}`);
+      /* console.log(`Deleted file: ${filePath}`); */
     }
   }
 }
@@ -130,12 +129,12 @@ try {
       const stat = fs.statSync(itemPath);
       if (!stat.isDirectory()) {
         fs.unlinkSync(itemPath);
-        console.log(`Deleted upload file: ${itemPath}`);
+        /* console.log(`Deleted upload file: ${itemPath}`); */
       }
     }
   }
   clearDirectoryContents(signedPdfsDir);
-  console.log('UPLOADS CLEANUP SUCCESSFUL!');
+  /* console.log('UPLOADS CLEANUP SUCCESSFUL!'); */
 } catch (uploadErr) {
-  console.error('UPLOADS CLEANUP FAILED:', uploadErr);
+  /* console.error('UPLOADS CLEANUP FAILED:', uploadErr); */
 }

@@ -15,14 +15,14 @@ db.pragma('foreign_keys = ON');
 const schemaPath = path.join(__dirname, 'schema.sql');
 const schema = fs.readFileSync(schemaPath, 'utf8');
 
-console.log('Applying schema...');
+/* console.log('Applying schema...'); */
 db.exec(schema);
 
 // Seed basic data
-console.log('Seeding data...');
+/* console.log('Seeding data...'); */
 
 // 1. Roles
-const roles = ['sales', 'stores', 'projects', 'accounts', 'admin', 'management', 'approver', 'auditor'];
+const roles = ['sales', 'stores', 'projects', 'accounts', 'admin', 'management', 'approver'];
 const insertRole = db.prepare('INSERT OR IGNORE INTO roles (name) VALUES (?)');
 const getRole = db.prepare('SELECT id FROM roles WHERE name = ?');
 roles.forEach(role => insertRole.run(role));
@@ -50,5 +50,5 @@ usersData.forEach(u => {
 
 
 
-console.log('Database initialized successfully.');
+/* console.log('Database initialized successfully.'); */
 db.close();

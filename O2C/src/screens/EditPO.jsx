@@ -188,7 +188,7 @@ export default function EditPO() {
         setAllPOs(Array.isArray(pRes.data) ? pRes.data : []);
         setProjectUsers(Array.isArray(uRes.data) ? uRes.data : []);
       } catch (err) {
-        console.error(err);
+        /* console.error(err); */
       }
     };
     fetchInitial();
@@ -210,7 +210,7 @@ export default function EditPO() {
         const headers = { Authorization: `Bearer ${token}` };
         const res = await axios.get(`/api/locations?customer_id=${val}`, { headers });
         setLocations(Array.isArray(res.data) ? res.data : []);
-      } catch (err) { console.error(err); }
+      } catch (err) { /* console.error(err); */ }
     }
   };
 
@@ -258,7 +258,7 @@ export default function EditPO() {
         setItems(JSON.parse(savedDraft));
       }
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load PO details' });
     } finally {
       setLoading(false);
@@ -442,7 +442,7 @@ export default function EditPO() {
 
         setPreviewExcelData(formatted);
       } catch (err) {
-        console.error("Preview failed", err);
+        /* console.error("Preview failed", err); */
         Swal.fire({ icon: 'error', title: 'Preview Failed', text: 'Could not preview Excel file.' });
         setPreviewPath(null);
       } finally {

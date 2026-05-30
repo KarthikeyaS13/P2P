@@ -68,7 +68,7 @@ export default function Sidebar() {
       const res = await axios.get('/api/branding');
       setBranding(res.data);
     } catch (err) {
-      console.error("Failed to fetch branding:", err);
+      /* console.error("Failed to fetch branding:", err); */
     }
   };
 
@@ -92,7 +92,7 @@ export default function Sidebar() {
       { path: '/management-dashboard', label: 'Dashboard', icon: 'dashboard' },
     ];
   } else {
-    if (['admin', 'sales', 'stores', 'accounts', 'auditor'].includes(role)) {
+    if (['admin', 'sales', 'stores', 'accounts'].includes(role)) {
       routes.push({ path: '/dashboard', label: 'Dashboard', icon: 'dashboard' });
     }
 
@@ -127,11 +127,6 @@ export default function Sidebar() {
         { path: '/invoice-approval', label: 'Invoice Approval', icon: 'receipt_long' },
         { path: '/ar-database', label: 'AR Database', icon: 'payments' },
       ]);
-    } else if (role === 'auditor') {
-      routes = routes.concat([
-        { path: '/reports', label: 'Reports', icon: 'analytics' },
-        { path: '/analytics', label: 'Audit Logs', icon: 'analytics' },
-      ]);
     }
   }
 
@@ -143,75 +138,118 @@ export default function Sidebar() {
 
   return (
     <nav className="sidebar">
-      <div className="sidebar__brand" style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '16px 24px 4px 24px', marginTop: '0px' }}>
+      <div className="sidebar__brand" style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '16px 0px 4px 0px', marginTop: '0px' }}>
         {logoSrc ? (
           <img 
             src={logoSrc} 
             alt="Company Logo" 
             style={{ 
-              maxHeight: '52px', 
-              maxWidth: '100%', 
+              width: '100%',
+              maxHeight: '64px',
               objectFit: 'contain', 
               display: 'block',
-              margin: '0 auto'
+              paddingLeft: '16px',
+              paddingRight: '16px',
+              boxSizing: 'border-box'
             }} 
           />
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '28px', color: '#2563EB' }}>bubble_chart</span>
+          <div style={{ padding: '0 24px', width: '100%', boxSizing: 'border-box' }}>
+            <div 
+              onClick={() => { if (role === 'admin') navigate('/master-address', { state: { activeSection: 'branding' } }); }}
+              style={{ 
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px', 
+                background: '#F8FAFC',
+                border: '1.5px dashed #CBD5E1',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                color: '#64748B',
+                cursor: role === 'admin' ? 'pointer' : 'default',
+                transition: 'all 0.2s ease',
+                width: '100%',
+                boxSizing: 'border-box',
+                userSelect: 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (role === 'admin') {
+                  e.currentTarget.style.borderColor = '#3B82F6';
+                  e.currentTarget.style.background = '#EFF6FF';
+                  e.currentTarget.style.color = '#1D4ED8';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (role === 'admin') {
+                  e.currentTarget.style.borderColor = '#CBD5E1';
+                  e.currentTarget.style.background = '#F8FAFC';
+                  e.currentTarget.style.color = '#64748B';
+                }
+              }}
+              title={role === 'admin' ? "Click to upload company logo" : "Upload your company logo"}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>add_photo_alternate</span>
+              <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase' }}>[ Your Logo Here ]</span>
+            </div>
           </div>
         )}
         {branding.organization_name && (
-          <h3 className="sidebar__text" style={{ fontSize: '13px', fontWeight: 700, margin: '2px 0 0 0', color: '#0F172A', lineHeight: 1.2, letterSpacing: '0.2px', textAlign: 'center', width: '100%' }}>
-            {branding.organization_name}
-          </h3>
+          <div style={{ padding: '0 24px', width: '100%', boxSizing: 'border-box' }}>
+            <h3 className="sidebar__text" style={{ fontSize: '13px', fontWeight: 700, margin: '2px 0 0 0', color: '#0F172A', lineHeight: 1.2, letterSpacing: '0.2px', textAlign: 'center', width: '100%' }}>
+              {branding.organization_name}
+            </h3>
+          </div>
         )}
 
         {/* Compact User profile section */}
-        <div
-          className="header__user"
-          onClick={() => { if (role === 'admin') navigate('/master-address'); }}
-          style={{
-            marginTop: '8px',
-            marginBottom: '0px',
-            marginLeft: '-8px',
-            marginRight: '-8px',
-            textAlign: 'left',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: role === 'admin' ? 'pointer' : 'default',
-            padding: '4px 8px',
-            borderRadius: '8px',
-            transition: 'all 0.2s',
-            border: '1px solid transparent'
-          }}
-          onMouseEnter={(e) => { 
-            if (role === 'admin') {
-              e.currentTarget.style.background = '#F1F5F9'; 
-              e.currentTarget.style.borderColor = '#E2E8F0';
-            } 
-          }}
-          onMouseLeave={(e) => { 
-            if (role === 'admin') {
-              e.currentTarget.style.background = 'transparent'; 
-              e.currentTarget.style.borderColor = 'transparent';
-            } 
-          }}
-          data-tooltip={user && role === 'admin' ? 'View My Profile' : (user ? `${user.full_name} (${user.role})` : 'User Profile')}
-        >
-          <div className="avatar-initials avatar-initials--primary" style={{ width: '28px', height: '28px', fontSize: '0.7rem' }}>
-            {user ? user.full_name?.charAt(0).toUpperCase() : 'U'}
-          </div>
-          <div className="header__user-info sidebar__text" style={{ textAlign: 'left' }}>
-            {user ? (
-              <>
-                <span className="user-name" style={{ fontWeight: 600, fontSize: '0.85rem', lineHeight: 1.1 }}>{user.full_name}</span>
-                <span className="user-role" style={{ fontSize: '0.72rem', color: '#6B7280', lineHeight: 1.1 }}>{user.role}</span>
-              </>
-            ) : (
-              <span className="user-name">User Name</span>
-            )}
+        <div style={{ padding: '0 24px', width: '100%', boxSizing: 'border-box' }}>
+          <div
+            className="header__user"
+            onClick={() => { if (role === 'admin') navigate('/master-address'); }}
+            style={{
+              marginTop: '8px',
+              marginBottom: '0px',
+              marginLeft: '-8px',
+              marginRight: '-8px',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: role === 'admin' ? 'pointer' : 'default',
+              padding: '4px 8px',
+              borderRadius: '8px',
+              transition: 'all 0.2s',
+              border: '1px solid transparent'
+            }}
+            onMouseEnter={(e) => { 
+              if (role === 'admin') {
+                e.currentTarget.style.background = '#F1F5F9'; 
+                e.currentTarget.style.borderColor = '#E2E8F0';
+              } 
+            }}
+            onMouseLeave={(e) => { 
+              if (role === 'admin') {
+                e.currentTarget.style.background = 'transparent'; 
+                e.currentTarget.style.borderColor = 'transparent';
+              } 
+            }}
+            data-tooltip={user && role === 'admin' ? 'View My Profile' : (user ? `${user.full_name} (${user.role})` : 'User Profile')}
+          >
+            <div className="avatar-initials avatar-initials--primary" style={{ width: '28px', height: '28px', fontSize: '0.7rem' }}>
+              {user ? user.full_name?.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="header__user-info sidebar__text" style={{ textAlign: 'left' }}>
+              {user ? (
+                <>
+                  <span className="user-name" style={{ fontWeight: 600, fontSize: '0.85rem', lineHeight: 1.1 }}>{user.full_name}</span>
+                  <span className="user-role" style={{ fontSize: '0.72rem', color: '#6B7280', lineHeight: 1.1 }}>{user.role}</span>
+                </>
+              ) : (
+                <span className="user-name">User Name</span>
+              )}
+            </div>
           </div>
         </div>
       </div>

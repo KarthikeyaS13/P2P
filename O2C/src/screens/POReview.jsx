@@ -49,7 +49,7 @@ export default function POReview() {
       const res = await axios.get('/api/dc-requests?status=pending_review', { headers });
       setPendingCDCs(res.data);
     } catch (err) {
-      console.error('Error loading pending CDCs:', err);
+      /* console.error('Error loading pending CDCs:', err); */
     }
   };
 
@@ -65,7 +65,7 @@ export default function POReview() {
       const res = await axios.get(`/api/dc-requests/${cdc.id}`, { headers });
       setCdcDetails(res.data);
     } catch (err) {
-      console.error('Error fetching CDC details:', err);
+      /* console.error('Error fetching CDC details:', err); */
       Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load CDC details' });
     } finally {
       setLoadingCdcDetails(false);
@@ -91,7 +91,7 @@ export default function POReview() {
       setCdcDetails(null);
       loadPendingCDCs();
     } catch (err) {
-      console.error('Error updating CDC status:', err);
+      /* console.error('Error updating CDC status:', err); */
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.error || 'Failed to update CDC status' });
     } finally {
       setActionLoading(false);
@@ -118,7 +118,7 @@ export default function POReview() {
       const res = await axios.get('/api/pos', { headers });
       setPendingPOs(res.data);
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
     } finally {
       setLoadingList(false);
       setLoading(false);
@@ -163,7 +163,7 @@ export default function POReview() {
         });
       }));
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
     } finally {
       setLoadingDetails(false);
     }
@@ -183,7 +183,7 @@ export default function POReview() {
       Swal.fire({ icon: 'success', title: 'Success', text: `PO successfully ${status}`, timer: 2000, showConfirmButton: false });
       navigate('/po-review');
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       Swal.fire({ icon: 'error', title: 'Error', text: 'Error updating PO status' });
     } finally {
       setActionLoading(false);

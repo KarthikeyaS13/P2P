@@ -19,7 +19,7 @@ export default function POManagement() {
         const data = Array.isArray(res.data) ? res.data : [];
         setPOs(data);
       })
-      .catch(err => console.error(err))
+      .catch(err => {})
       .finally(() => setLoading(false));
   }, []);
 

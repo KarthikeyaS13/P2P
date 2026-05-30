@@ -55,7 +55,7 @@ export default function CustomerForm() {
           }
         })
         .catch(err => {
-          console.error(err);
+          /* console.error(err); */
           Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load customer details' });
           navigate('/customers');
         })

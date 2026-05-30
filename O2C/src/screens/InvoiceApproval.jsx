@@ -83,16 +83,16 @@ export default function InvoiceApproval() {
 
   const fetchGlobalSignature = async () => {
     try {
-      console.log('Fetching global signature from /api/global-settings/authorized_signature...');
+      /* console.log('Fetching global signature from /api/global-settings/authorized_signature...'); */
       const res = await axios.get('/api/global-settings/authorized_signature');
-      console.log('Global signature fetch response:', res.data);
+      /* console.log('Global signature fetch response:', res.data); */
       if (res.data && res.data.value) {
         setGlobalSig(res.data.value);
       } else {
         setGlobalSig(null);
       }
     } catch (err) {
-      console.error('Failed to fetch signature:', err);
+      /* console.error('Failed to fetch signature:', err); */
     }
   };
 
@@ -130,7 +130,7 @@ export default function InvoiceApproval() {
       const res = await axios.get('/api/invoices', { headers });
       setInvoices(res.data);
     } catch (err) {
-      console.error('Fetch error:', err);
+      /* console.error('Fetch error:', err); */
     } finally {
       setLoading(false);
     }
@@ -154,7 +154,7 @@ export default function InvoiceApproval() {
       }
       setDraftNotes(res.data.notes || '');
     } catch (err) {
-      console.error('Invoice detail error:', err);
+      /* console.error('Invoice detail error:', err); */
       navigate('/invoice-approval');
     }
   };
@@ -250,7 +250,7 @@ export default function InvoiceApproval() {
       link.click();
       document.body.removeChild(link);
     } catch (err) {
-      console.error('Server PDF Generation/Download failed, falling back to client-side canvas rendering:', err);
+      /* console.error('Server PDF Generation/Download failed, falling back to client-side canvas rendering:', err); */
 
       const elementId = targetInv ? 'silent-invoice-printable' : 'tax-invoice-printable';
       const element = document.getElementById(elementId);
@@ -277,7 +277,7 @@ export default function InvoiceApproval() {
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
         pdf.save(inv.invoice_number ? `${inv.invoice_number.replace(/\//g, '_')}.pdf` : `Invoice_Draft_${inv.id}.pdf`);
       } catch (clientErr) {
-        console.error('Client PDF Generation Error:', clientErr);
+        /* console.error('Client PDF Generation Error:', clientErr); */
       }
     }
   };
@@ -297,7 +297,7 @@ export default function InvoiceApproval() {
         setIsDownloadingSilent(false);
       }, 100);
     } catch (err) {
-      console.error(err);
+      /* console.error(err); */
       setIsDownloadingSilent(false);
       Swal.fire({ icon: 'error', title: 'Download Failed', text: 'Could not retrieve PDF from server' });
     }

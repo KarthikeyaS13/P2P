@@ -127,7 +127,7 @@ function App() {
               <Route path="/master-address" element={<MasterAddress />} />
               <Route path="/project-users" element={<RoleGate allowedRoles={['admin']}><ProjectUsers /></RoleGate>} />
               <Route path="/po-flow" element={<RoleGate allowedRoles={['admin']}><POFlowManagement /></RoleGate>} />
-              <Route path="/reports" element={<RoleGate allowedRoles={['sales', 'auditor']}><Reports /></RoleGate>} />
+              <Route path="/reports" element={<RoleGate allowedRoles={['sales']}><Reports /></RoleGate>} />
               
               {/* Management Dashboard Route */}
               <Route path="/management-dashboard" element={<RoleGate allowedRoles={['management']}><ManagementDashboard /></RoleGate>} />
@@ -166,9 +166,9 @@ function App() {
               {/* Projects */}
               <Route path="/projects" element={<RoleGate allowedRoles={['projects']}><ProjectsModule /></RoleGate>} />
 
-              {/* Management / Auditor */}
+              {/* Management */}
               <Route path="/analytics" element={
-                <RoleGate allowedRoles={['management', 'auditor']}>
+                <RoleGate allowedRoles={['management']}>
                   <div className="screen-enter">
                     <div className="page-header">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>

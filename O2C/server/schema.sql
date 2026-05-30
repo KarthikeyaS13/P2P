@@ -102,6 +102,9 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   remarks TEXT,
   is_temp_po BOOLEAN DEFAULT 0,
   parent_po_id INTEGER NULL,
+  original_po_id INTEGER NULL,
+  version_number INTEGER DEFAULT 1,
+  is_original BOOLEAN DEFAULT 1,
   uploaded_file_path TEXT,
   created_by INTEGER,
   approved_by INTEGER,
@@ -125,6 +128,7 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   FOREIGN KEY (customer_id) REFERENCES customers(id),
   FOREIGN KEY (location_id) REFERENCES customer_locations(id),
   FOREIGN KEY (parent_po_id) REFERENCES purchase_orders(id),
+  FOREIGN KEY (original_po_id) REFERENCES purchase_orders(id),
   FOREIGN KEY (linked_po_id) REFERENCES purchase_orders(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
   FOREIGN KEY (approved_by) REFERENCES users(id)

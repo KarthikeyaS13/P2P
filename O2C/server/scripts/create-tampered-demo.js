@@ -41,7 +41,7 @@ async function generate() {
   const customer = db.prepare("SELECT * FROM customers WHERE id = ?").get(invoice.customer_id);
 
   // 2. Generate and Sign Original PDF
-  console.log('Generating original PDF...');
+  /* console.log('Generating original PDF...'); */
   const originalPdfDoc = await generateInvoicePDFBuffer(invoice, invoice.items, customer);
   const signResult = await signInvoicePDF(originalPdfDoc, invoice.id, invoice.invoice_number);
   const signedPdfBytes = fs.readFileSync(signResult.absolutePath);
@@ -54,7 +54,7 @@ async function generate() {
 
   // 3. Generate Tampered (Unsigned) PDF
   // We change the invoice object values to simulate visual editing (total changed to 12,500.00)
-  console.log('Generating tampered (visual edit) PDF...');
+  /* console.log('Generating tampered (visual edit) PDF...'); */
   const tamperedInvoice = { ...invoice, grand_total: 12500.00, subtotal: 10000.00, gst_total: 2500.00 };
   const tamperedItems = [{ ...invoice.items[0], rate: 1000.00, taxable_value: 10000.00, total_value: 12500.00 }];
   
@@ -82,9 +82,9 @@ async function generate() {
   fs.writeFileSync(originalPath, signedPdfBytes);
   fs.writeFileSync(tamperedPath, tamperedPdfBytes);
 
-  console.log(`Demo files generated successfully!`);
-  console.log(`Original: ${originalPath}`);
-  console.log(`Tampered: ${tamperedPath}`);
+  /* console.log(`Demo files generated successfully!`); */
+  /* console.log(`Original: ${originalPath}`); */
+  /* console.log(`Tampered: ${tamperedPath}`); */
   
   db.close();
 }
