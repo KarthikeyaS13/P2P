@@ -43,6 +43,14 @@ try {
   db.prepare("ALTER TABLE purchase_orders ADD COLUMN is_original BOOLEAN DEFAULT 1").run();
   /* console.log("Added is_original column to purchase_orders."); */
 } catch (e) { }
+try {
+  db.prepare("ALTER TABLE delivery_challans ADD COLUMN email_to_project TEXT").run();
+  /* console.log("Added email_to_project column to delivery_challans."); */
+} catch (e) { }
+try {
+  db.prepare("ALTER TABLE invoices ADD COLUMN dc_id INTEGER REFERENCES delivery_challans(id)").run();
+  /* console.log("Added dc_id column to invoices."); */
+} catch (e) { }
 
 // Backfill existing data to maintain correct lineage
 try {
