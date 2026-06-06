@@ -45,15 +45,49 @@ export default function InvoiceRequest() {
     try {
       const token = sessionStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const [invRes, dcRes] = await Promise.all([
+      const [invRes, dcRes, scrRes] = await Promise.all([
         axios.get('/api/invoices', { headers }),
-        axios.get('/api/dc', { headers })
+        axios.get('/api/dc', { headers }),
+        axios.get('/api/scr', { headers })
       ]);
       setInvoices(invRes.data);
-      setPendingDCs(dcRes.data.filter(d =>
+
+      const approvalRequests = invRes.data.filter(i => i.status === 'sales_pending').map(i => ({
+        id: i.id,
+        type: i.scr_id ? 'Service (SCR Approval)' : 'Supply (DC Approval)',
+        source_no: i.invoice_number,
+        po_no: i.po_no || i.po_number,
+        customer_name: i.customer_name,
+        date: i.created_at,
+        isPendingApproval: true,
+        status: i.status
+      }));
+
+      const billableDcs = dcRes.data.filter(d =>
         (d.status === 'delivery_confirmed' || d.status === 'partially_invoiced') &&
         d.invoicing_status !== 'fully_invoiced'
-      ));
+      ).map(d => ({
+        id: d.id,
+        type: 'Supply (DC)',
+        source_no: d.dc_number,
+        po_no: d.po_no || d.po_number,
+        customer_name: d.customer_name,
+        date: d.dispatch_date || d.created_at,
+      }));
+
+      const billableScrs = scrRes.data.filter(s =>
+        s.status === 'approved' &&
+        s.invoicing_status !== 'fully_invoiced'
+      ).map(s => ({
+        id: s.id,
+        type: 'Service (SCR)',
+        source_no: s.scr_number,
+        po_no: s.po_no,
+        customer_name: s.customer_name,
+        date: s.expected_delivery_date || s.created_at,
+      }));
+
+      setPendingDCs([...approvalRequests, ...billableDcs, ...billableScrs]);
     } catch (err) {
       /* console.error('Fetch error:', err); */
     } finally {
@@ -82,12 +116,46 @@ export default function InvoiceRequest() {
     }
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSalesReview = async (action) => {
+    if (!selectedInvoice) return;
+    setSubmitting(true);
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.post(`/api/invoices/${selectedInvoice.id}/sales-review`, { action }, { headers });
+      
+      Swal.fire({
+        title: 'Success',
+        text: `Invoice Request successfully ${action === 'approved' ? 'approved' : 'rejected'}!`,
+        icon: 'success',
+        confirmButtonColor: 'var(--primary)'
+      });
+      setSelectedInvoice(null);
+      navigate('/invoice-request');
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        title: 'Error',
+        text: err.response?.data?.error || `Failed to ${action} the request.`,
+        icon: 'error',
+        confirmButtonColor: 'var(--primary)'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
-      'requested': { bg: '#EEF2FF', text: '#4338CA', label: 'Pending Approval' },
+      'sales_pending': { bg: '#FEF3C7', text: '#D97706', label: 'Pending Sales Approval' },
+      'requested': { bg: '#EEF2FF', text: '#4338CA', label: 'Pending Accounts Approval' },
       'raised': { bg: '#E0F2FE', text: '#0369A1', label: 'Approved & Issued' },
       'sent': { bg: '#FEF3C7', text: '#92400E', label: 'Dispatched' },
-      'paid': { bg: '#DCFCE7', text: '#166534', label: 'Payment Received' }
+      'paid': { bg: '#DCFCE7', text: '#166534', label: 'Payment Received' },
+      'rejected': { bg: '#FEE2E2', text: '#991B1B', label: 'Rejected' }
     };
     return colors[status] || { bg: '#F3F4F6', text: '#374151', label: status };
   };
@@ -100,8 +168,11 @@ export default function InvoiceRequest() {
         </span>
       )
     },
-    { header: 'Customer', accessorKey: 'customer_name' },
-    { header: 'Amount', accessorKey: 'grand_total', cell: ({ getValue }) => `₹${getValue()?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+    { header: 'Sales Order Number', accessorKey: 'po_no' },
+    { header: 'Customer Name', accessorKey: 'customer_name' },
+    { header: 'Requested Quantity', accessorKey: 'total_quantity', cell: ({ getValue }) => getValue() !== null ? getValue() : 0 },
+    { header: 'Raised By', accessorKey: 'raised_by_name', cell: ({ getValue }) => getValue() || 'Project User' },
+    { header: 'Raised Date', accessorKey: 'created_at', cell: ({ getValue }) => getValue() ? new Date(getValue()).toLocaleDateString('en-IN') : '-' },
     {
       header: 'Status', accessorKey: 'status', cell: ({ getValue }) => {
         const cfg = getStatusColor(getValue());
@@ -118,30 +189,47 @@ export default function InvoiceRequest() {
   ], [navigate]);
 
   const pendingColumns = useMemo(() => [
+    { header: 'Billing Type', accessorKey: 'type' },
+    { header: 'Source Ref', accessorKey: 'source_no' },
     { header: 'Sales Order Number', accessorKey: 'po_no' },
     { header: 'Customer', accessorKey: 'customer_name' },
-    { header: 'Delivered On', accessorKey: 'dispatch_date', cell: ({ getValue }) => new Date(getValue()).toLocaleDateString('en-IN') },
+    { header: 'Approved/Dispatch Date', accessorKey: 'date', cell: ({ getValue }) => getValue() ? new Date(getValue()).toLocaleDateString('en-IN') : 'NA' },
     {
       header: 'Action', id: 'action', cell: ({ row }) => (
-        <button className="btn btn-primary btn-sm" onClick={() => navigate(`/new-invoice?po=${row.original.po_no}`)}>Request Invoice</button>
+        row.original.isPendingApproval ? (
+          <button className="btn btn-primary btn-sm" style={{ background: '#D97706', border: 'none', color: 'white' }} onClick={() => navigate(`/invoice-request/${row.original.id}`)}>Review Request</button>
+        ) : (
+          <button className="btn btn-primary btn-sm" onClick={() => navigate(`/new-invoice?po=${row.original.po_no}`)}>Request Invoice</button>
+        )
       )
     }
   ], [navigate]);
 
   const tableData = useMemo(() => {
-    if (activeTab === 'pending') return pendingDCs;
-    if (statusFilter === 'all') return invoices;
-    return invoices.filter(inv => inv.status === statusFilter);
-  }, [invoices, pendingDCs, activeTab, statusFilter]);
+    const nonPendingInvoices = invoices.filter(inv => inv.status !== 'sales_pending');
+    if (statusFilter === 'all') return nonPendingInvoices;
+    return nonPendingInvoices.filter(inv => inv.status === statusFilter);
+  }, [invoices, statusFilter]);
 
-  const table = useReactTable({
-    data: tableData,
-    columns: activeTab === 'database' ? invoiceColumns : pendingColumns,
+  const pendingTable = useReactTable({
+    data: pendingDCs,
+    columns: pendingColumns,
     state: { globalFilter },
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
   });
+
+  const databaseTable = useReactTable({
+    data: tableData,
+    columns: invoiceColumns,
+    state: { globalFilter },
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  const table = activeTab === 'database' ? databaseTable : pendingTable;
 
   if (loading && !selectedInvoice) return <div className="screen-enter"><p>Loading Requests...</p></div>;
 
@@ -175,16 +263,33 @@ export default function InvoiceRequest() {
                   <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>{inv.po_no}</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Delivery Challan Number</span>
-                  <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>{inv.dc_no}</span>
+                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                    {inv.scr_no ? 'Site Clearance Number' : 'Delivery Challan Number'}
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>{inv.scr_no || inv.dc_no || '-'}</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Dispatch Date</span>
-                  <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>{new Date(inv.dispatch_date).toLocaleDateString('en-IN')}</span>
+                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                    {inv.scr_no ? 'Clearance Date' : 'Dispatch Date'}
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>
+                    {inv.scr_no 
+                      ? (inv.scr_date ? new Date(inv.scr_date).toLocaleDateString('en-IN') : 'NA')
+                      : (inv.dispatch_date ? new Date(inv.dispatch_date).toLocaleDateString('en-IN') : 'NA')
+                    }
+                  </span>
                 </div>
                 <div>
                   <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Place of Supply</span>
                   <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>{inv.place_of_supply}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Raised By</span>
+                  <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>{inv.raised_by_name || 'Project User'}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Raised Date</span>
+                  <span style={{ fontSize: '12px', color: '#1E293B', fontWeight: 600 }}>{inv.created_at ? new Date(inv.created_at).toLocaleDateString('en-IN') : 'NA'}</span>
                 </div>
               </div>
 
@@ -244,6 +349,29 @@ export default function InvoiceRequest() {
                 <strong>Departmental Note:</strong> This is a billing request. Official tax invoice and payment terms will be finalized by the Accounts Department after verification.
               </div>
             </div>
+
+            {inv.status === 'sales_pending' && (
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #E5E7EB', paddingTop: '12px' }}>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => handleSalesReview('rejected')}
+                  disabled={submitting}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700', height: '32px', padding: '0 16px', fontSize: '12px' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                  Reject Request
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => handleSalesReview('approved')}
+                  disabled={submitting}
+                  style={{ background: '#10B981', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', color: 'white', fontWeight: '700', height: '32px', padding: '0 16px', fontSize: '12px' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
+                  Approve Request
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -282,7 +410,7 @@ export default function InvoiceRequest() {
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
         <button className={`tab-link ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')}>
-          Pending Delivery Challans
+          Pending Billing Items
           <span style={{ background: activeTab === 'pending' ? '#1186d4ff' : '#E2E8F0', color: activeTab === 'pending' ? '#ffffff' : '#475569', padding: '1px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, marginLeft: '6px' }}>
             {pendingDCs.length}
           </span>
@@ -290,7 +418,7 @@ export default function InvoiceRequest() {
         <button className={`tab-link ${activeTab === 'database' ? 'active' : ''}`} onClick={() => setActiveTab('database')}>
           My Requests
           <span style={{ background: activeTab === 'database' ? '#1186d4ff' : '#E2E8F0', color: activeTab === 'database' ? '#ffffff' : '#475569', padding: '1px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, marginLeft: '6px' }}>
-            {invoices.length}
+            {invoices.filter(i => i.status !== 'sales_pending').length}
           </span>
         </button>
       </div>
@@ -346,10 +474,12 @@ export default function InvoiceRequest() {
               }}
             >
               <option value="all">All Statuses</option>
-              <option value="requested">Pending Approval</option>
+              <option value="sales_pending">Pending Sales Approval</option>
+              <option value="requested">Pending Accounts Approval</option>
               <option value="raised">Approved & Issued</option>
               <option value="sent">Dispatched</option>
               <option value="paid">Payment Received</option>
+              <option value="rejected">Rejected</option>
             </select>
           )}
         </div>

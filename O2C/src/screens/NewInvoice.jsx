@@ -12,10 +12,15 @@ export default function NewInvoice() {
   const queryParams = new URLSearchParams(location.search);
   const filterPO = queryParams.get('po');
 
+  const [billingSource, setBillingSource] = useState('dc'); // 'dc' or 'scr'
   const [dcs, setDcs] = useState([]);
   const [allDcs, setAllDcs] = useState([]); // Store all billable DCs
   const [selectedDC, setSelectedDC] = useState('');
   const [dcDetails, setDcDetails] = useState(null);
+
+  const [scrs, setScrs] = useState([]);
+  const [selectedSCR, setSelectedSCR] = useState('');
+  const [scrDetails, setScrDetails] = useState(null);
 
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
@@ -33,7 +38,7 @@ export default function NewInvoice() {
   const isAccounts = user?.role === 'accounts' || user?.role === 'admin';
 
   useEffect(() => {
-    fetchDCs();
+    Promise.all([fetchDCs(), fetchSCRs()]).finally(() => setLoading(false));
   }, []);
 
   const fetchDCs = async () => {
@@ -49,8 +54,22 @@ export default function NewInvoice() {
       setAllDcs(billable);
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchSCRs = async () => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get('/api/scr', { headers });
+      // Only show approved SCRs that are not fully invoiced
+      const billable = res.data.filter(s =>
+        s.status === 'approved' &&
+        s.invoicing_status !== 'fully_invoiced'
+      );
+      setScrs(billable);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -62,6 +81,16 @@ export default function NewInvoice() {
       setDcs(allDcs);
     }
   }, [allDcs, filterPO]);
+
+  const handleSourceChange = (source) => {
+    setBillingSource(source);
+    setSelectedDC('');
+    setDcDetails(null);
+    setSelectedSCR('');
+    setScrDetails(null);
+    setBillingAddress('');
+    setShippingAddress('');
+  };
 
   const handleSelectDC = async (e) => {
     const id = e.target.value;
@@ -124,9 +153,72 @@ export default function NewInvoice() {
     }
   };
 
+  const handleSelectSCR = async (e) => {
+    const id = e.target.value;
+    setSelectedSCR(id);
+    if (!id) {
+      setScrDetails(null);
+      return;
+    }
+
+    try {
+      const token = sessionStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(`/api/scr/${id}`, { headers });
+      const data = res.data;
+
+      // Auto-populate addresses
+      setBillingAddress(`${data.customer_legal_name || data.customer_name}\n${data.customer_addr1}\n${data.customer_addr2 || ''}\n${data.customer_city} - ${data.customer_pin}\nGSTIN: ${data.customer_gstin}`);
+      setShippingAddress(`${data.location_label || data.location_name}\n${data.location_address || data.loc_addr1}\n${data.location_city || data.loc_city} - ${data.location_state || data.loc_state}`);
+
+      // We need PO details to get rates and GST. Let's fetch the PO.
+      const poRes = await axios.get(`/api/pos/${data.po_id}`, { headers });
+      const poData = poRes.data;
+
+      // Map SCR items to include financial details from PO line items
+      const enrichedItems = (data.items || []).map(si => {
+        const pi = poData.items.find(p => p.id === si.po_line_item_id) || {};
+        const rate = pi.service_rate || 0;
+        const gstPct = pi.service_gst_rate || 18;
+
+        const targetQty = parseFloat(si.invoice_qty) || 0;
+        const alreadyInvoiced = parseFloat(si.invoiced_qty) || 0;
+        const remaining = Math.max(0, targetQty - alreadyInvoiced);
+
+        // Default to invoicing full remaining qty
+        const taxable = remaining * rate;
+        const gst = taxable * (gstPct / 100);
+        const total = taxable + gst;
+
+        return {
+          ...si,
+          scr_line_item_id: si.id,
+          po_line_item_id: si.po_line_item_id,
+          package_name: pi.package_name || si.package_name || '-',
+          item_name: pi.item_name || si.item_name || 'Item',
+          description: pi.item_description || si.description || '',
+          quantity: remaining, // Qty being invoiced NOW
+          delivered_qty: targetQty,
+          already_invoiced_qty: alreadyInvoiced,
+          remaining_qty: remaining,
+          rate_per_unit: rate,
+          gst_percent: gstPct,
+          taxable_value: taxable,
+          gst_amount: gst,
+          total_value: total
+        };
+      });
+
+      setScrDetails({ ...data, enrichedItems });
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const handleQtyChange = (idx, value) => {
     const qty = parseFloat(value) || 0;
-    const items = [...dcDetails.enrichedItems];
+    const details = billingSource === 'dc' ? dcDetails : scrDetails;
+    const items = [...details.enrichedItems];
     const item = items[idx];
 
     // Validate against remaining qty
@@ -144,22 +236,32 @@ export default function NewInvoice() {
       total_value: total
     };
 
-    setDcDetails({ ...dcDetails, enrichedItems: items });
+    if (billingSource === 'dc') {
+      setDcDetails({ ...dcDetails, enrichedItems: items });
+    } else {
+      setScrDetails({ ...scrDetails, enrichedItems: items });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedDC || !dcDetails) {
+    if (billingSource === 'dc' && (!selectedDC || !dcDetails)) {
       Swal.fire({ icon: 'warning', title: 'Selection Required', text: 'Please select a DC' });
+      return;
+    }
+    if (billingSource === 'scr' && (!selectedSCR || !scrDetails)) {
+      Swal.fire({ icon: 'warning', title: 'Selection Required', text: 'Please select an SCR' });
       return;
     }
 
     setSubmitting(true);
     try {
+      const details = billingSource === 'dc' ? dcDetails : scrDetails;
       const payload = {
-        po_id: dcDetails.po_id,
-        dc_id: dcDetails.id,
-        customer_id: dcDetails.customer_id,
+        po_id: details.po_id,
+        dc_id: billingSource === 'dc' ? details.id : null,
+        scr_id: billingSource === 'scr' ? details.id : null,
+        customer_id: details.customer_id,
         invoice_date: invoiceDate,
         due_date: dueDate,
         notes,
@@ -167,10 +269,10 @@ export default function NewInvoice() {
         payment_terms: 'Net 30 Days',
         billing_address: billingAddress,
         shipping_address: shippingAddress,
-        subtotal: dcDetails.enrichedItems.reduce((acc, it) => acc + it.taxable_value, 0),
-        gst_total: dcDetails.enrichedItems.reduce((acc, it) => acc + it.gst_amount, 0),
-        grand_total: dcDetails.enrichedItems.reduce((acc, it) => acc + it.total_value, 0),
-        items: dcDetails.enrichedItems
+        subtotal: details.enrichedItems.reduce((acc, it) => acc + it.taxable_value, 0),
+        gst_total: details.enrichedItems.reduce((acc, it) => acc + it.gst_amount, 0),
+        grand_total: details.enrichedItems.reduce((acc, it) => acc + it.total_value, 0),
+        items: details.enrichedItems
       };
 
       const token = sessionStorage.getItem('token');
@@ -203,8 +305,9 @@ export default function NewInvoice() {
 
   if (loading) return <div className="screen-enter"><p>Loading...</p></div>;
 
-  const subtotal = dcDetails?.enrichedItems?.reduce((acc, it) => acc + (it.taxable_value || 0), 0) || 0;
-  const gstTotal = dcDetails?.enrichedItems?.reduce((acc, it) => acc + (it.gst_amount || 0), 0) || 0;
+  const currentDetails = billingSource === 'dc' ? dcDetails : scrDetails;
+  const subtotal = currentDetails?.enrichedItems?.reduce((acc, it) => acc + (it.taxable_value || 0), 0) || 0;
+  const gstTotal = currentDetails?.enrichedItems?.reduce((acc, it) => acc + (it.gst_amount || 0), 0) || 0;
   const grandTotal = subtotal + gstTotal;
 
   return (
@@ -272,13 +375,54 @@ export default function NewInvoice() {
         <form onSubmit={handleSubmit} className="new-invoice-compact-form">
           <div className="grid-2">
             <div className="form-group">
-              <label className="form-label">Select Delivery Challan</label>
-              <select className="form-select" value={selectedDC} onChange={handleSelectDC} required>
-                <option value="">-- Choose DC --</option>
-                {dcs.map(d => (
-                  <option key={d.id} value={d.id}>{d.dc_number} - {d.customer_name} (PO: {d.po_no || d.po_number})</option>
-                ))}
-              </select>
+              <label className="form-label">Billing Source Type</label>
+              <div style={{ display: 'flex', gap: '16px', height: '32px', alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', margin: 0 }}>
+                  <input
+                    type="radio"
+                    name="billingSource"
+                    value="dc"
+                    checked={billingSource === 'dc'}
+                    onChange={() => handleSourceChange('dc')}
+                    style={{ accentColor: 'var(--primary)' }}
+                  />
+                  Supply (Delivery Challan)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', margin: 0 }}>
+                  <input
+                    type="radio"
+                    name="billingSource"
+                    value="scr"
+                    checked={billingSource === 'scr'}
+                    onChange={() => handleSourceChange('scr')}
+                    style={{ accentColor: 'var(--primary)' }}
+                  />
+                  Service (Site Clearance)
+                </label>
+              </div>
+            </div>
+            <div className="form-group">
+              {billingSource === 'dc' ? (
+                <>
+                  <label className="form-label">Select Delivery Challan</label>
+                  <select className="form-select" value={selectedDC} onChange={handleSelectDC} required>
+                    <option value="">-- Choose DC --</option>
+                    {dcs.map(d => (
+                      <option key={d.id} value={d.id}>{d.dc_number} - {d.customer_name} (PO: {d.po_no || d.po_number})</option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <label className="form-label">Select Site Clearance Request (SCR)</label>
+                  <select className="form-select" value={selectedSCR} onChange={handleSelectSCR} required>
+                    <option value="">-- Choose SCR --</option>
+                    {scrs.map(s => (
+                      <option key={s.id} value={s.id}>{s.scr_number} - {s.customer_name} (PO: {s.po_no})</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">Place of Supply</label>
@@ -314,7 +458,7 @@ export default function NewInvoice() {
             </div>
           </div>
 
-          {dcDetails && (
+          {currentDetails && (
             <>
               <div className="grid-2" style={{ marginTop: '24px' }}>
                 <div className="form-group">
@@ -330,7 +474,7 @@ export default function NewInvoice() {
               <div style={{ marginTop: '24px' }}>
                 <h3 className="text-h3" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>inventory_2</span>
-                  Billable Items (Based on Site-Received Qty)
+                  {billingSource === 'dc' ? 'Billable Items (Based on Site-Received Qty)' : 'Billable Items (Based on Site Clearance Qty)'}
                 </h3>
                 <style>{`
                   .new-invoice-table.data-table th {
@@ -375,7 +519,7 @@ export default function NewInvoice() {
                         <th style={{ textAlign: 'left', width: '100px' }}>Package</th>
                         <th style={{ textAlign: 'left', width: '150px' }}>Item Name</th>
                         <th style={{ textAlign: 'left' }}>Description</th>
-                        <th className="text-right" style={{ width: '80px' }}>Received</th>
+                        <th className="text-right" style={{ width: '80px' }}>{billingSource === 'dc' ? 'Received' : 'Cleared'}</th>
                         <th className="text-right" style={{ width: '80px' }}>Invoiced</th>
                         <th className="text-right" style={{ width: '80px' }}>Billable</th>
                         <th className="text-right" style={{ width: '80px' }}>Invoice Qty</th>
@@ -387,7 +531,7 @@ export default function NewInvoice() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dcDetails.enrichedItems.map((it, i) => (
+                      {currentDetails.enrichedItems.map((it, i) => (
                         <tr key={i} style={{ opacity: it.remaining_qty === 0 ? 0.6 : 1 }}>
                           <td>
                             <div style={{ fontWeight: 600, color: '#475569', fontSize: '11px' }}>{it.package_name}</div>
@@ -464,7 +608,7 @@ export default function NewInvoice() {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
             <button type="button" className="btn btn-outline" onClick={() => navigate(-1)} style={{ height: '30px', padding: '0 14px', fontSize: '12px' }}>Discard</button>
-            <button type="submit" className="btn btn-primary" disabled={submitting || !dcDetails || subtotal === 0} style={{ height: '30px', padding: '0 18px', fontSize: '12px' }}>
+            <button type="submit" className="btn btn-primary" disabled={submitting || !currentDetails || subtotal === 0} style={{ height: '30px', padding: '0 18px', fontSize: '12px' }}>
               {submitting
                 ? (isAccounts ? 'Generating...' : 'Sending Request...')
                 : (isAccounts ? 'Issue & Generate Official Invoice' : 'Send Invoice Request to Accounts')}

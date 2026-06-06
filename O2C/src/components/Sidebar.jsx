@@ -101,18 +101,20 @@ export default function Sidebar() {
         { path: '/customers', label: 'Customers', icon: 'group' },
         { path: '/po-flow', label: 'Status of Sales Order', icon: 'account_tree' },
         { path: '/project-users', label: 'User Management', icon: 'manage_accounts' },
+        { path: '/scr', label: 'SCR', icon: 'assignment_turned_in' },
       ]);
     } else if (role === 'sales') {
       routes = routes.concat([
         { path: '/new-po', label: 'New Sales Order', icon: 'add_shopping_cart' },
         { path: '/new-nt-po', label: 'New NT Sales Order', icon: 'post_add' },
         { path: '/edit-po', label: 'Edit Sales Order', icon: 'edit_document' },
-        { path: '/invoice-request', label: 'Invoice Req', icon: 'receipt_long' },
+        { path: '/invoice-request', label: 'Sales Invoice Request', icon: 'receipt_long' },
         { path: '/reports', label: 'Reports', icon: 'analytics' },
       ]);
     } else if (role === 'projects') {
       routes = routes.concat([
         { path: '/projects', label: 'Project Site', icon: 'location_on' },
+        { path: '/scr', label: 'SCR', icon: 'assignment_turned_in' },
       ]);
     } else if (role === 'stores') {
       routes = routes.concat([

@@ -52,6 +52,280 @@ try {
   /* console.log("Added dc_id column to invoices."); */
 } catch (e) { }
 
+try {
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS scr_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scr_number TEXT UNIQUE,
+      po_id INTEGER,
+      location_id INTEGER,
+      expected_delivery_date DATE,
+      pm_name TEXT,
+      pm_phone TEXT,
+      civil_completed BOOLEAN DEFAULT 0,
+      power_available BOOLEAN DEFAULT 0,
+      storage_secured BOOLEAN DEFAULT 0,
+      access_cleared BOOLEAN DEFAULT 0,
+      safety_equipment BOOLEAN DEFAULT 0,
+      status TEXT DEFAULT 'pending',
+      remarks TEXT,
+      file_path TEXT,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (po_id) REFERENCES purchase_orders(id),
+      FOREIGN KEY (location_id) REFERENCES customer_locations(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    )
+  `).run();
+} catch (e) { }
+
+try {
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS scr_line_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scr_id INTEGER,
+      po_line_item_id INTEGER,
+      service_qty REAL,
+      invoice_qty REAL,
+      invoiced_qty REAL DEFAULT 0,
+      FOREIGN KEY (scr_id) REFERENCES scr_requests(id),
+      FOREIGN KEY (po_line_item_id) REFERENCES po_line_items(id)
+    )
+  `).run();
+} catch (e) { }
+
+try {
+  db.prepare("ALTER TABLE invoices ADD COLUMN scr_id INTEGER REFERENCES scr_requests(id)").run();
+} catch (e) { }
+
+try {
+  db.prepare("ALTER TABLE scr_requests ADD COLUMN invoicing_status TEXT DEFAULT 'pending'").run();
+} catch (e) { }
+
+try {
+  db.prepare("ALTER TABLE scr_requests ADD COLUMN package_name TEXT").run();
+} catch (e) { }
+
+try {
+  db.prepare("ALTER TABLE invoice_items ADD COLUMN scr_line_item_id INTEGER REFERENCES scr_line_items(id)").run();
+} catch (e) { }
+
+try {
+  db.prepare("ALTER TABLE invoice_line_items ADD COLUMN scr_line_item_id INTEGER REFERENCES scr_line_items(id)").run();
+} catch (e) { }
+
+try {
+  db.prepare("ALTER TABLE scr_line_items ADD COLUMN status TEXT DEFAULT 'pending'").run();
+} catch (e) { }
+
+
+
+function generateEmailSummaryHtml(items) {
+  // Group Supply items
+  const supplyGrouped = {};
+  let hasSupply = false;
+  let supplyTaxableTotal = 0;
+  let supplyGstTotal = 0;
+  let supplyInvoiceTotal = 0;
+
+  // Group Service items
+  const serviceGrouped = {};
+  let hasService = false;
+  let serviceTaxableTotal = 0;
+  let serviceGstTotal = 0;
+  let serviceInvoiceTotal = 0;
+
+  (items || []).forEach(it => {
+    const pkg = (it.package_name || '').trim() || 'General';
+    
+    const taxableSupply = parseFloat(it.taxable_supply) || 0;
+    const gstSupply = parseFloat(it.gst_supply) || 0;
+    const totalSupply = parseFloat(it.total_supply) || 0;
+
+    const taxableService = parseFloat(it.taxable_service) || 0;
+    const gstService = parseFloat(it.gst_service) || 0;
+    const totalService = parseFloat(it.total_service) || 0;
+
+    if (totalSupply > 0 || taxableSupply > 0) {
+      if (!supplyGrouped[pkg]) {
+        supplyGrouped[pkg] = { package_name: pkg, taxable: 0, gst: 0, invoice: 0 };
+      }
+      supplyGrouped[pkg].taxable += taxableSupply;
+      supplyGrouped[pkg].gst += gstSupply;
+      supplyGrouped[pkg].invoice += totalSupply;
+      
+      supplyTaxableTotal += taxableSupply;
+      supplyGstTotal += gstSupply;
+      supplyInvoiceTotal += totalSupply;
+      hasSupply = true;
+    }
+
+    if (totalService > 0 || taxableService > 0) {
+      if (!serviceGrouped[pkg]) {
+        serviceGrouped[pkg] = { package_name: pkg, taxable: 0, gst: 0, invoice: 0 };
+      }
+      serviceGrouped[pkg].taxable += taxableService;
+      serviceGrouped[pkg].gst += gstService;
+      serviceGrouped[pkg].invoice += totalService;
+
+      serviceTaxableTotal += taxableService;
+      serviceGstTotal += gstService;
+      serviceInvoiceTotal += totalService;
+      hasService = true;
+    }
+  });
+
+  const formatCurrency = (val) => {
+    return '₹' + (val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  let html = '<div style="margin: 20px 0;">';
+
+  // Render Supply Summary Table
+  if (hasSupply) {
+    html += `
+      <div style="margin-bottom: 20px;">
+        <h4 style="font-size: 13px; font-weight: 700; color: #0F766E; margin: 0 0 8px 0; display: flex; align-items: center; gap: 6px;">
+          🚚 Supply Summary
+        </h4>
+        <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background-color: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+                <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em;">Package Name</th>
+                <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 22%;">Taxable Value</th>
+                <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 22%;">GST Value</th>
+                <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 28%;">Grand Total Invoice Value</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+
+    Object.values(supplyGrouped).forEach(row => {
+      html += `
+        <tr style="border-bottom: 1px solid #E2E8F0;">
+          <td style="padding: 8px 12px; text-align: left; font-weight: 600; color: #1E293B;">${row.package_name}</td>
+          <td style="padding: 8px 12px; text-align: right; color: #334155;">${formatCurrency(row.taxable)}</td>
+          <td style="padding: 8px 12px; text-align: right; color: #334155;">${formatCurrency(row.gst)}</td>
+          <td style="padding: 8px 12px; text-align: right; font-weight: 600; color: #0F766E;">${formatCurrency(row.invoice)}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+            </tbody>
+            <tfoot>
+              <tr style="background-color: #F0FDFA; font-weight: 700; color: #0F766E; border-top: 2px solid #0F766E;">
+                <td style="padding: 8px 12px; text-align: left;">Supply Total</td>
+                <td style="padding: 8px 12px; text-align: right;">${formatCurrency(supplyTaxableTotal)}</td>
+                <td style="padding: 8px 12px; text-align: right;">${formatCurrency(supplyGstTotal)}</td>
+                <td style="padding: 8px 12px; text-align: right; font-size: 13px;">${formatCurrency(supplyInvoiceTotal)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  // Render Service Summary Table
+  if (hasService) {
+    html += `
+      <div style="margin-bottom: 20px;">
+        <h4 style="font-size: 13px; font-weight: 700; color: #1E3A8A; margin: 0 0 8px 0; display: flex; align-items: center; gap: 6px;">
+          ⚙️ Service Summary
+        </h4>
+        <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background-color: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+                <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em;">Package Name</th>
+                <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 22%;">Taxable Value</th>
+                <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 22%;">GST Value</th>
+                <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 28%;">Grand Total Invoice Value</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+
+    Object.values(serviceGrouped).forEach(row => {
+      html += `
+        <tr style="border-bottom: 1px solid #E2E8F0;">
+          <td style="padding: 8px 12px; text-align: left; font-weight: 600; color: #1E293B;">${row.package_name}</td>
+          <td style="padding: 8px 12px; text-align: right; color: #334155;">${formatCurrency(row.taxable)}</td>
+          <td style="padding: 8px 12px; text-align: right; color: #334155;">${formatCurrency(row.gst)}</td>
+          <td style="padding: 8px 12px; text-align: right; font-weight: 600; color: #1E3A8A;">${formatCurrency(row.invoice)}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+            </tbody>
+            <tfoot>
+              <tr style="background-color: #EFF6FF; font-weight: 700; color: #1E3A8A; border-top: 2px solid #1E3A8A;">
+                <td style="padding: 8px 12px; text-align: left;">Service Total</td>
+                <td style="padding: 8px 12px; text-align: right;">${formatCurrency(serviceTaxableTotal)}</td>
+                <td style="padding: 8px 12px; text-align: right;">${formatCurrency(serviceGstTotal)}</td>
+                <td style="padding: 8px 12px; text-align: right; font-size: 13px;">${formatCurrency(serviceInvoiceTotal)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function generateInvoiceEmailItemsHtml(items) {
+  let itemsHtml = '';
+  (items || []).forEach((it, idx) => {
+    const pkg = it.package_name || '-';
+    const desc = it.description ? `<br/><span style="font-size: 11px; color: #64748B;">${it.description}</span>` : '';
+    itemsHtml += `
+      <tr style="border-bottom: 1px solid #E2E8F0;">
+        <td style="padding: 10px 12px; text-align: left; color: #334155; vertical-align: top;">${idx + 1}</td>
+        <td style="padding: 10px 12px; text-align: left; color: #1E293B; font-weight: 500; vertical-align: top;">
+          <strong>${it.item_name}</strong>
+          <span style="font-size: 11px; color: #64748B; display: block; margin-top: 2px;">Package: ${pkg}</span>
+          ${desc}
+        </td>
+        <td style="padding: 10px 12px; text-align: right; color: #334155; vertical-align: top;">${it.quantity}</td>
+        <td style="padding: 10px 12px; text-align: right; color: #334155; vertical-align: top;">₹${(it.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+        <td style="padding: 10px 12px; text-align: right; color: #334155; vertical-align: top;">${it.gst_percent}%</td>
+        <td style="padding: 10px 12px; text-align: right; color: #1E293B; font-weight: 600; vertical-align: top;">₹${(it.total_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+      </tr>
+    `;
+  });
+
+  return `
+    <div style="margin: 20px 0;">
+      <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #7C3AED; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Billed Items Summary</h3>
+      <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead>
+            <tr style="background-color: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+              <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 6%;">#</th>
+              <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em;">Item details</th>
+              <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 10%;">Qty</th>
+              <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 18%;">Rate</th>
+              <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 10%;">GST %</th>
+              <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 22%;">Total Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+
 // Backfill existing data to maintain correct lineage
 try {
   db.prepare(`
@@ -1288,8 +1562,14 @@ app.get('/api/dashboard', authenticate, (req, res) => {
         : db.prepare(`SELECT COUNT(*) as c FROM invoices WHERE status IN ('draft','raised')`).get().c,
 
       pending_invoice_requests: isSales
-        ? db.prepare(`SELECT COUNT(*) as c FROM delivery_challans dc JOIN purchase_orders po ON dc.po_id = po.id WHERE dc.status IN ('delivery_confirmed', 'partially_invoiced') AND (dc.invoicing_status IS NULL OR dc.invoicing_status != 'fully_invoiced') AND po.created_by = ?`).get(userId).c
-        : db.prepare(`SELECT COUNT(*) as c FROM delivery_challans WHERE status IN ('delivery_confirmed', 'partially_invoiced') AND (invoicing_status IS NULL OR invoicing_status != 'fully_invoiced')`).get().c,
+        ? (
+          db.prepare(`SELECT COUNT(*) as c FROM delivery_challans dc JOIN purchase_orders po ON dc.po_id = po.id WHERE dc.status IN ('delivery_confirmed', 'partially_invoiced') AND (dc.invoicing_status IS NULL OR dc.invoicing_status != 'fully_invoiced') AND po.created_by = ?`).get(userId).c +
+          db.prepare(`SELECT COUNT(*) as c FROM scr_requests scr JOIN purchase_orders po ON scr.po_id = po.id WHERE scr.status = 'approved' AND (scr.invoicing_status IS NULL OR scr.invoicing_status != 'fully_invoiced') AND po.created_by = ?`).get(userId).c
+        )
+        : (
+          db.prepare(`SELECT COUNT(*) as c FROM delivery_challans WHERE status IN ('delivery_confirmed', 'partially_invoiced') AND (invoicing_status IS NULL OR invoicing_status != 'fully_invoiced')`).get().c +
+          db.prepare(`SELECT COUNT(*) as c FROM scr_requests WHERE status = 'approved' AND (invoicing_status IS NULL OR invoicing_status != 'fully_invoiced')`).get().c
+        ),
 
       pending_ar: isSales
         ? db.prepare(`SELECT COUNT(*) as c FROM ar_entries ar JOIN purchase_orders po ON ar.po_id = po.id WHERE ar.status IN ('pending','partial') AND po.created_by = ?`).get(userId).c
@@ -1977,136 +2257,8 @@ app.post('/api/pos', authenticate, (req, res) => {
 
     db.exec('COMMIT');
 
-    // Trigger asynchronous email alert to Project SPOC
-    if (finalSpocEmail && finalSpocEmail.trim()) {
-      (async () => {
-        try {
-          const customer = db.prepare('SELECT name FROM customers WHERE id = ?').get(customer_id);
-          const customerName = customer ? customer.name : 'N/A';
+    // Email dispatch deferred until order is approved by accounts
 
-          // Format items table rows
-          let itemsHtml = '';
-          (items || []).forEach((it, idx) => {
-            const qty = parseFloat(it.supply_qty) || 0;
-            const rate = parseFloat(it.supply_rate) || 0;
-            const total = parseFloat(it.total_invoice) || 0;
-            itemsHtml += `
-              <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${idx + 1}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${it.item_name || 'Item'}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${it.uom || ''}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">${qty}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">₹${rate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">${it.supply_gst_rate || 0}%</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0; font-weight: 600;">₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-              </tr>
-            `;
-          });
-
-          const isNt = safeIsNtPo ? 'Non-Tender (NT)' : 'Tender';
-          const subject = `🚀 New PO Notification: ${finalPONumber} - ${customerName}`;
-
-          const htmlContent = `
-            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-              <!-- Header -->
-              <div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
-                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">New Purchase Order Created</h1>
-                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Enterprise O2C Workflow Alert</p>
-              </div>
-
-              <!-- Main Greeting -->
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${finalSpocName || 'Project SPOC'}</strong>,</p>
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">A new <strong>${isNt}</strong> Sales Order has been successfully created in the Enterprise O2C Portal. Please review the details below:</p>
-
-              <!-- Order Summary Card -->
-              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Order Summary</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>PO/WO Number:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;"><strong>${finalPONumber}</strong></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Customer:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${customerName}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Order Type:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;"><span style="background-color: ${safeIsNtPo ? '#FEF3C7' : '#DBEAFE'}; color: ${safeIsNtPo ? '#92400E' : '#1E40AF'}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${isNt}</span></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Sales Order Date:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${po_date || 'N/A'}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Internal Order ID:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; font-family: monospace; font-size: 12px;">${order_id}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <!-- Financial Summary Card -->
-              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">💰 Financial Summary</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Subtotal:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>GST Total:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(gst_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                  <tr style="border-top: 1px dashed #CBD5E1; font-size: 15px;">
-                    <td style="padding: 8px 0 0 0; color: #1E293B;"><strong>Grand Total:</strong></td>
-                    <td style="padding: 8px 0 0 0; color: #10B981; text-align: right; font-weight: 700;">₹${(grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <!-- Line Items Table -->
-              <div style="margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Line Items</h3>
-                <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0;">
-                  <thead>
-                    <tr style="background-color: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">#</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Item Name</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">UOM</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Qty</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Rate</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">GST %</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemsHtml}
-                  </tbody>
-                </table>
-              </div>
-
-              <!-- Footer Contact Info -->
-              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748B; margin-top: 24px;">
-                <p style="margin: 0 0 4px 0;"><strong>Project SPOC Contact Information:</strong></p>
-                <p style="margin: 0;">Name: ${finalSpocName} | Email: ${finalSpocEmail} | Phone: ${finalSpocPhone}</p>
-              </div>
-
-              <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
-              <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
-            </div>
-          `;
-
-          await sendEmail({
-            to: finalSpocEmail,
-            subject,
-            html: htmlContent
-          });
-          console.log(`✉️ Automated PO creation notification sent to Project SPOC at: ${finalSpocEmail}`);
-        } catch (mailErr) {
-          console.error('❌ Failed to send automated PO creation email alert:', mailErr);
-        }
-      })();
-    }
 
     res.json({ success: true, order_id, po_id: poId });
   } catch (err) {
@@ -2116,18 +2268,251 @@ app.post('/api/pos', authenticate, (req, res) => {
   }
 });
 
+const generateSCRsForPO = db.transaction((poId, userId) => {
+  const existingSCRCount = db.prepare('SELECT COUNT(*) as count FROM scr_requests WHERE po_id = ?').get(poId).count;
+  if (existingSCRCount > 0) return;
+
+  const po = db.prepare('SELECT location_id, end_date, project_spoc_name, project_spoc_phone FROM purchase_orders WHERE id = ?').get(poId);
+  if (!po) return;
+
+  const serviceItems = db.prepare('SELECT id, package_name, service_qty FROM po_line_items WHERE po_id = ? AND service_qty > 0').all(poId);
+  if (serviceItems.length === 0) return;
+
+  const uniquePkgs = [...new Set(serviceItems.map(it => it.package_name || 'General'))];
+  const combinedPackageName = uniquePkgs.join(', ');
+
+  const lastSCR = db.prepare("SELECT scr_number FROM scr_requests WHERE scr_number LIKE 'SCR/%' ORDER BY id DESC LIMIT 1").get();
+  let nextNum = 1;
+  if (lastSCR && lastSCR.scr_number && lastSCR.scr_number.startsWith('SCR/')) {
+    const parts = lastSCR.scr_number.split('/');
+    nextNum = parseInt(parts[parts.length - 1]) + 1;
+  }
+  const scr_number = `SCR/2026/${String(nextNum).padStart(3, '0')}`;
+
+  const scrInsert = db.prepare(`
+    INSERT INTO scr_requests (
+      scr_number, po_id, location_id, expected_delivery_date, pm_name, pm_phone,
+      status, remarks, created_by, package_name, civil_completed, power_available,
+      storage_secured, access_cleared, safety_equipment, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', 'Automatically generated upon PO approval.', ?, ?, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  `).run(
+    scr_number,
+    poId,
+    po.location_id,
+    po.end_date || null,
+    po.project_spoc_name || null,
+    po.project_spoc_phone || null,
+    userId || 1,
+    combinedPackageName
+  );
+  const scrId = scrInsert.lastInsertRowid;
+
+  const lineStmt = db.prepare(`
+    INSERT INTO scr_line_items (scr_id, po_line_item_id, service_qty, invoice_qty, invoiced_qty)
+    VALUES (?, ?, ?, ?, 0)
+  `);
+  serviceItems.forEach(it => {
+    lineStmt.run(scrId, it.id, it.service_qty, it.service_qty);
+  });
+});
+
 app.put('/api/pos/:id/status', authenticate, (req, res) => {
   try {
     const { status } = req.body;
-    const valid = ['pending', 'nt_created', 'accepted', 'rejected',
+    const valid = ['pending', 'nt_created', 'accepted', 'approved', 'rejected',
       'dc_raised', 'invoice_raised', 'closed'];
-    const statusToUpdate = status === 'approved' ? 'accepted' : status;
+    const statusToUpdate = (status === 'approved' || status === 'accepted') ? 'approved' : status;
     if (!valid.includes(statusToUpdate)) {
       return res.status(400).json({ error: 'Invalid status: ' + status });
     }
+
+    const oldPO = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);
+    if (!oldPO) {
+      return res.status(404).json({ error: 'Purchase Order not found' });
+    }
+
     db.prepare(
       'UPDATE purchase_orders SET status = ? WHERE id = ?'
     ).run(statusToUpdate, req.params.id);
+
+    if (statusToUpdate === 'approved') {
+      generateSCRsForPO(req.params.id, req.user?.id);
+
+      if (oldPO.status !== 'approved') {
+        // Trigger asynchronous email alert to Project SPOC
+        if (oldPO.project_spoc_email && oldPO.project_spoc_email.trim()) {
+          (async () => {
+            try {
+              const customer = db.prepare('SELECT name FROM customers WHERE id = ?').get(oldPO.customer_id);
+              const customerName = customer ? customer.name : 'N/A';
+              const items = db.prepare('SELECT * FROM po_line_items WHERE po_id = ?').all(oldPO.id);
+
+              const summaryTablesHtml = generateEmailSummaryHtml(items);
+              const isNt = oldPO.is_nt_po ? 'Non-Tender (NT)' : 'Tender';
+
+              let subject, htmlContent;
+              if (oldPO.version_number > 1) {
+                subject = `🔄 SO Revised Notification: ${oldPO.po_number} - ${customerName}`;
+                htmlContent = `
+                  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                    <!-- Header -->
+                    <div style="background: linear-gradient(135deg, #0F766E 0%, #14B8A6 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
+                      <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Sales Order Revised</h1>
+                      <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Enterprise O2C Workflow Alert</p>
+                    </div>
+
+                    <!-- Main Greeting -->
+                    <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${oldPO.project_spoc_name || 'Project SPOC'}</strong>,</p>
+                    <p style="font-size: 14px; color: #334155; line-height: 1.5;">We would like to inform you that your <strong>${isNt}</strong> Sales Order has been successfully revised to a new version in the Enterprise O2C Portal. Please review the updated details below:</p>
+
+                    <!-- Order Summary Card -->
+                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                      <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Order Summary</h3>
+                      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>SO Number:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B;"><strong>${oldPO.po_number}</strong></td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>Customer:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B;">${customerName}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>Order Type:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B;"><span style="background-color: ${oldPO.is_nt_po ? '#FEF3C7' : '#DBEAFE'}; color: ${oldPO.is_nt_po ? '#92400E' : '#1E40AF'}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${isNt}</span></td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>Sales Order Date:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B;">${oldPO.po_date || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>Internal Order ID:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B; font-family: monospace; font-size: 12px;">${oldPO.order_id}</td>
+                        </tr>
+                      </table>
+                    </div>
+
+                    <!-- Financial Summary Card -->
+                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                      <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">💰 Financial Summary</h3>
+                      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Subtotal:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(oldPO.subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>GST Total:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(oldPO.gst_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                        <tr style="border-top: 1px dashed #CBD5E1; font-size: 15px;">
+                          <td style="padding: 8px 0 0 0; color: #1E293B;"><strong>Grand Total:</strong></td>
+                          <td style="padding: 8px 0 0 0; color: #0D9488; text-align: right; font-weight: 700;">₹${(oldPO.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      </table>
+                    </div>
+
+                    <!-- Line Items Summaries -->
+                    ${summaryTablesHtml}
+
+                    <!-- Footer Contact Info -->
+                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748B; margin-top: 24px;">
+                      <p style="margin: 0 0 4px 0;"><strong>Project SPOC Contact Information:</strong></p>
+                      <p style="margin: 0;">Name: ${oldPO.project_spoc_name || 'N/A'} | Email: ${oldPO.project_spoc_email} | Phone: ${oldPO.project_spoc_phone || 'N/A'}</p>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
+                    <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
+                  </div>
+                `;
+              } else {
+                subject = `🚀 New SO Notification: ${oldPO.po_number} - ${customerName}`;
+                htmlContent = `
+                  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                    <!-- Header -->
+                    <div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
+                      <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">New Sales Order Created</h1>
+                      <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Enterprise O2C Workflow Alert</p>
+                    </div>
+
+                    <!-- Main Greeting -->
+                    <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${oldPO.project_spoc_name || 'Project SPOC'}</strong>,</p>
+                    <p style="font-size: 14px; color: #334155; line-height: 1.5;">A new <strong>${isNt}</strong> Sales Order has been successfully created in the Enterprise O2C Portal. Please review the details below:</p>
+
+                    <!-- Order Summary Card -->
+                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                      <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Order Summary</h3>
+                      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>SO Number:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B;"><strong>${oldPO.po_number}</strong></td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>Customer:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B;">${customerName}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>Order Type:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B;"><span style="background-color: ${oldPO.is_nt_po ? '#FEF3C7' : '#DBEAFE'}; color: ${oldPO.is_nt_po ? '#92400E' : '#1E40AF'}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${isNt}</span></td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>Sales Order Date:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B;">${oldPO.po_date || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>Internal Order ID:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B; font-family: monospace; font-size: 12px;">${oldPO.order_id}</td>
+                        </tr>
+                      </table>
+                    </div>
+
+                    <!-- Financial Summary Card -->
+                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                      <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">💰 Financial Summary</h3>
+                      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Subtotal:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(oldPO.subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 4px 0; color: #64748B;"><strong>GST Total:</strong></td>
+                          <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(oldPO.gst_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                        <tr style="border-top: 1px dashed #CBD5E1; font-size: 15px;">
+                          <td style="padding: 8px 0 0 0; color: #1E293B;"><strong>Grand Total:</strong></td>
+                          <td style="padding: 8px 0 0 0; color: #10B981; text-align: right; font-weight: 700;">₹${(oldPO.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      </table>
+                    </div>
+
+                    <!-- Line Items Summaries -->
+                    ${summaryTablesHtml}
+
+                    <!-- Footer Contact Info -->
+                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748B; margin-top: 24px;">
+                      <p style="margin: 0 0 4px 0;"><strong>Project SPOC Contact Information:</strong></p>
+                      <p style="margin: 0;">Name: ${oldPO.project_spoc_name || 'N/A'} | Email: ${oldPO.project_spoc_email} | Phone: ${oldPO.project_spoc_phone || 'N/A'}</p>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
+                    <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
+                  </div>
+                `;
+              }
+
+              await sendEmail({
+                to: oldPO.project_spoc_email,
+                subject,
+                html: htmlContent
+              });
+              console.log(`✉️ Automated PO approval notification sent to Project SPOC at: ${oldPO.project_spoc_email}`);
+            } catch (mailErr) {
+              console.error('❌ Failed to send automated PO approval email alert:', mailErr);
+            }
+          })();
+        }
+      }
+    }
+
     res.json({ success: true, status: statusToUpdate });
   } catch (err) {
     /* console.error('ERROR:', err); */
@@ -2307,137 +2692,8 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
 
     db.exec('COMMIT');
 
-    // Trigger asynchronous email alert to Project SPOC when PO is updated
-    (async () => {
-      try {
-        const updatedPO = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(newPoId);
-        if (updatedPO && updatedPO.project_spoc_email && updatedPO.project_spoc_email.trim()) {
-          const customer = db.prepare('SELECT name FROM customers WHERE id = ?').get(updatedPO.customer_id);
-          const customerName = customer ? customer.name : 'N/A';
-          const updatedItems = db.prepare('SELECT * FROM po_line_items WHERE po_id = ?').all(newPoId);
+    // Email dispatch deferred until order is approved by accounts
 
-          let itemsHtml = '';
-          (updatedItems || []).forEach((it, idx) => {
-            const qty = parseFloat(it.supply_qty) || 0;
-            const rate = parseFloat(it.supply_rate) || 0;
-            const total = parseFloat(it.total_invoice) || 0;
-            itemsHtml += `
-              <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${idx + 1}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${it.item_name || 'Item'}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${it.uom || ''}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">${qty}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">₹${rate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0;">${it.supply_gst_rate || 0}%</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0; font-weight: 600;">₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-              </tr>
-            `;
-          });
-
-          const isNt = updatedPO.is_nt_po ? 'Non-Tender (NT)' : 'Tender';
-          const subject = `🔄 PO Revised Notification: ${updatedPO.po_number} - ${customerName}`;
-
-          const htmlContent = `
-            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-              <!-- Header -->
-              <div style="background: linear-gradient(135deg, #0F766E 0%, #14B8A6 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
-                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Purchase Order Revised</h1>
-                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Enterprise O2C Workflow Alert</p>
-              </div>
-
-              <!-- Main Greeting -->
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${updatedPO.project_spoc_name || 'Project SPOC'}</strong>,</p>
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We would like to inform you that your <strong>${isNt}</strong> Purchase Order has been successfully revised to a new version in the Enterprise O2C Portal. Please review the updated details below:</p>
-
-              <!-- Order Summary Card -->
-              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Order Summary</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>PO/WO Number:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;"><strong>${updatedPO.po_number}</strong></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Customer:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${customerName}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Order Type:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;"><span style="background-color: ${updatedPO.is_nt_po ? '#FEF3C7' : '#DBEAFE'}; color: ${updatedPO.is_nt_po ? '#92400E' : '#1E40AF'}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${isNt}</span></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Sales Order Date:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${updatedPO.po_date || 'N/A'}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Internal Order ID:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; font-family: monospace; font-size: 12px;">${updatedPO.order_id}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <!-- Financial Summary Card -->
-              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">💰 Financial Summary</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Subtotal:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(updatedPO.subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>GST Total:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(updatedPO.gst_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                  <tr style="border-top: 1px dashed #CBD5E1; font-size: 15px;">
-                    <td style="padding: 8px 0 0 0; color: #1E293B;"><strong>Grand Total:</strong></td>
-                    <td style="padding: 8px 0 0 0; color: #0D9488; text-align: right; font-weight: 700;">₹${(updatedPO.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <!-- Line Items Table -->
-              <div style="margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Line Items</h3>
-                <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0;">
-                  <thead>
-                    <tr style="background-color: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">#</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Item Name</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">UOM</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Qty</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Rate</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">GST %</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemsHtml}
-                  </tbody>
-                </table>
-              </div>
-
-              <!-- Footer Contact Info -->
-              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748B; margin-top: 24px;">
-                <p style="margin: 0 0 4px 0;"><strong>Project SPOC Contact Information:</strong></p>
-                <p style="margin: 0;">Name: ${updatedPO.project_spoc_name || 'N/A'} | Email: ${updatedPO.project_spoc_email} | Phone: ${updatedPO.project_spoc_phone || 'N/A'}</p>
-              </div>
-
-              <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
-              <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
-            </div>
-          `;
-
-          await sendEmail({
-            to: updatedPO.project_spoc_email,
-            subject,
-            html: htmlContent
-          });
-          console.log(`✉️ Automated PO revised notification sent to Project SPOC at: ${updatedPO.project_spoc_email}`);
-        }
-      } catch (mailErr) {
-        console.error('❌ Failed to send automated PO revised email alert:', mailErr);
-      }
-    })();
 
     res.json({ success: true, id: newPoId, po_number: revisedPONumber });
   } catch (err) {
@@ -2530,7 +2786,7 @@ app.post('/api/parse-po-excel', requireRole(['sales', 'admin']), upload.single('
 app.post('/api/invoices', authenticate, (req, res) => {
   try {
     const {
-      po_id, dc_id, customer_id, invoice_date, due_date, notes,
+      po_id, dc_id, scr_id, customer_id, invoice_date, due_date, notes,
       subtotal, gst_total, grand_total,
       place_of_supply, payment_terms, billing_address, shipping_address,
       items
@@ -2555,9 +2811,27 @@ app.post('/api/invoices', authenticate, (req, res) => {
       invoice_number = `INV/2026/${String(nextNum).padStart(4, '0')}`;
       initialStatus = 'raised';
     } else {
-      // Generate REQ number
-      invoice_number = 'REQ/' + new Date().getFullYear() + '/' + String(Date.now()).slice(-4);
-      initialStatus = 'requested';
+      let scr = null;
+      if (scr_id) {
+        scr = db.prepare('SELECT * FROM scr_requests WHERE id = ?').get(scr_id);
+      }
+      if (scr) {
+        let baseNumber = scr.scr_number;
+        invoice_number = baseNumber;
+        let suffix = 0;
+        while (
+          db.prepare("SELECT id FROM invoices WHERE invoice_number = ?").get(invoice_number) ||
+          db.prepare("SELECT id FROM invoice_requests WHERE request_number = ?").get(invoice_number)
+        ) {
+          suffix++;
+          invoice_number = `${baseNumber}-${suffix}`;
+        }
+        initialStatus = 'sales_pending';
+      } else {
+        // Generate REQ number
+        invoice_number = 'REQ/' + new Date().getFullYear() + '/' + String(Date.now()).slice(-4);
+        initialStatus = 'requested';
+      }
     }
 
     // Filter to only include items with quantity > 0
@@ -2579,6 +2853,17 @@ app.post('/api/invoices', authenticate, (req, res) => {
           }
         }
       }
+      if (it.scr_line_item_id) {
+        const scrItem = db.prepare('SELECT invoice_qty, invoiced_qty FROM scr_line_items WHERE id = ?').get(it.scr_line_item_id);
+        if (scrItem) {
+          const targetQty = parseFloat(scrItem.invoice_qty) || 0;
+          const invoiced = parseFloat(scrItem.invoiced_qty) || 0;
+          const remaining = Math.max(0, targetQty - invoiced);
+          if (it.quantity > remaining) {
+            return res.status(400).json({ error: `Invoice quantity (${it.quantity}) exceeds remaining billable quantity (${remaining}) for item ${it.item_name}` });
+          }
+        }
+      }
     }
 
     const docUuid = crypto.randomUUID();
@@ -2586,14 +2871,14 @@ app.post('/api/invoices', authenticate, (req, res) => {
     db.exec('BEGIN');
     const invResult = db.prepare(`
       INSERT INTO invoices (
-        invoice_number, po_id, dc_id, customer_id,
+        invoice_number, po_id, dc_id, scr_id, customer_id,
         status, invoice_date, due_date, notes,
         subtotal, gst_total, grand_total, 
         place_of_supply, payment_terms, billing_address, shipping_address,
         created_by, internal_document_uuid
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
-      invoice_number, po_id, dc_id, customer_id,
+      invoice_number, po_id, dc_id || null, scr_id || null, customer_id,
       initialStatus, invoice_date, due_date || null, notes || '',
       subtotal || 0, gst_total || 0, grand_total || 0,
       place_of_supply || '', payment_terms || '', billing_address || '', shipping_address || '',
@@ -2602,13 +2887,22 @@ app.post('/api/invoices', authenticate, (req, res) => {
 
     const invoiceId = invResult.lastInsertRowid;
 
-    // Persist Invoice Items and Update DC Item Tracking
+    if (initialStatus === 'sales_pending') {
+      try {
+        db.prepare(`
+          INSERT INTO invoice_requests (request_number, po_id, status, requested_by)
+          VALUES (?, ?, ?, ?)
+        `).run(invoice_number, po_id, 'sales_pending', req.user.id);
+      } catch (e) { }
+    }
+
+    // Persist Invoice Items and Update DC/SCR Item Tracking
     const itemStmt = db.prepare(`
       INSERT INTO invoice_items (
-        invoice_id, po_line_item_id, dc_line_item_id, 
+        invoice_id, po_line_item_id, dc_line_item_id, scr_line_item_id,
         package_name, item_name, description, quantity, rate, gst_percent, 
         taxable_value, gst_amount, total_value
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
     `);
 
     const updateDCItemStmt = db.prepare(`
@@ -2617,9 +2911,15 @@ app.post('/api/invoices', authenticate, (req, res) => {
       WHERE id = ?
     `);
 
+    const updateSCRItemStmt = db.prepare(`
+      UPDATE scr_line_items 
+      SET invoiced_qty = IFNULL(invoiced_qty, 0) + ? 
+      WHERE id = ?
+    `);
+
     (validItems).forEach(it => {
       itemStmt.run(
-        invoiceId, it.po_line_item_id, it.dc_line_item_id,
+        invoiceId, it.po_line_item_id, it.dc_line_item_id || null, it.scr_line_item_id || null,
         it.package_name || '-', it.item_name, it.description || '',
         it.quantity, it.rate_per_unit, it.gst_percent,
         it.taxable_value, it.gst_amount, it.total_value
@@ -2627,6 +2927,21 @@ app.post('/api/invoices', authenticate, (req, res) => {
 
       if (it.dc_line_item_id) {
         updateDCItemStmt.run(it.quantity, it.dc_line_item_id);
+      }
+      if (it.scr_line_item_id) {
+        updateSCRItemStmt.run(it.quantity, it.scr_line_item_id);
+        db.prepare(`
+          UPDATE scr_line_items 
+          SET status = CASE WHEN IFNULL(invoiced_qty, 0) >= service_qty THEN 'Fully Raised' ELSE 'pending' END
+          WHERE id = ?
+        `).run(it.scr_line_item_id);
+      }
+      if (it.po_line_item_id) {
+        db.prepare(`
+          UPDATE po_line_items 
+          SET qty_invoiced = IFNULL(qty_invoiced, 0) + ? 
+          WHERE id = ?
+        `).run(it.quantity, it.po_line_item_id);
       }
     });
 
@@ -2647,6 +2962,23 @@ app.post('/api/invoices', authenticate, (req, res) => {
       `).run(isFullyInvoiced ? 'fully_invoiced' : 'partially_invoiced', invStatus, dc_id);
     }
 
+    // Check SCR Invoicing Status
+    if (scr_id) {
+      const scrItems = db.prepare('SELECT service_qty, invoiced_qty FROM scr_line_items WHERE scr_id = ?').all(scr_id);
+      const isFullyInvoiced = scrItems.every(item => (parseFloat(item.invoiced_qty) || 0) >= (parseFloat(item.service_qty) || 0));
+      const isPartiallyInvoiced = scrItems.some(item => (parseFloat(item.invoiced_qty) || 0) > 0);
+
+      let invStatus = 'pending';
+      if (isFullyInvoiced) invStatus = 'fully_invoiced';
+      else if (isPartiallyInvoiced) invStatus = 'partially_invoiced';
+
+      db.prepare(`
+        UPDATE scr_requests 
+        SET invoicing_status = ?
+        WHERE id = ?
+      `).run(invStatus, scr_id);
+    }
+
     if (initialStatus === 'raised') {
       db.prepare(`
         INSERT INTO ar_entries (
@@ -2665,7 +2997,6 @@ app.post('/api/invoices', authenticate, (req, res) => {
     res.json({ success: true, invoice_number, id: invoiceId });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
-    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2676,27 +3007,34 @@ app.get('/api/invoices', authenticate, (req, res) => {
       SELECT 
         i.*,
         c.name as customer_name,
-        p.po_number,
+        p.po_number as po_no,
         d.dc_number,
+        scr.scr_number,
         ar.amount_received,
         ar.balance,
-        ar.status as ar_status
+        ar.status as ar_status,
+        u.full_name as raised_by_name,
+        (SELECT GROUP_CONCAT(package_name, ', ') FROM invoice_items WHERE invoice_id = i.id) as package_names,
+        (SELECT SUM(quantity) FROM invoice_items WHERE invoice_id = i.id) as total_quantity
       FROM invoices i
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN purchase_orders p ON i.po_id = p.id
       LEFT JOIN delivery_challans d ON i.dc_id = d.id
+      LEFT JOIN scr_requests scr ON i.scr_id = scr.id
       LEFT JOIN ar_entries ar ON i.id = ar.invoice_id
+      LEFT JOIN users u ON i.created_by = u.id
     `;
     const params = [];
     if (req.user.role?.toLowerCase() === 'sales') {
-      sql += ` WHERE p.created_by = ? `;
+      sql += ` WHERE (p.created_by = ? OR i.status = 'sales_pending' OR i.scr_id IS NOT NULL) `;
       params.push(req.user.id);
+    } else if (req.user.role?.toLowerCase() === 'accounts') {
+      sql += ` WHERE i.status != 'sales_pending' `;
     }
     sql += ` ORDER BY i.created_at DESC `;
     const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
-    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2710,21 +3048,26 @@ app.get('/api/invoices/:id', authenticate, (req, res) => {
         c.pan as customer_pan,
         p.po_number as po_no, p.po_date,
         d.dc_number as dc_no, d.dispatch_date,
-        ar.amount_received, ar.balance, ar.status as ar_status
+        scr.scr_number as scr_no, scr.expected_delivery_date as scr_date,
+        ar.amount_received, ar.balance, ar.status as ar_status,
+        u.full_name as raised_by_name
       FROM invoices i
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN purchase_orders p ON i.po_id = p.id
       LEFT JOIN delivery_challans d ON i.dc_id = d.id
+      LEFT JOIN scr_requests scr ON i.scr_id = scr.id
       LEFT JOIN ar_entries ar ON i.id = ar.invoice_id
+      LEFT JOIN users u ON i.created_by = u.id
       WHERE i.id = ?
     `).get(req.params.id);
 
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
     const items = db.prepare(`
-      SELECT ii.*, COALESCE(dcli.hsn, '') as hsn
+      SELECT ii.*, COALESCE(dcli.hsn, '') as hsn, COALESCE(scli.service_qty, '') as service_qty
       FROM invoice_items ii
       LEFT JOIN dc_line_items dcli ON ii.dc_line_item_id = dcli.id
+      LEFT JOIN scr_line_items scli ON ii.scr_line_item_id = scli.id
       LEFT JOIN po_line_items poli ON ii.po_line_item_id = poli.id
       WHERE ii.invoice_id = ?
     `).all(req.params.id);
@@ -2741,7 +3084,6 @@ app.get('/api/invoices/:id', authenticate, (req, res) => {
 
     res.json({ ...invoice, items, payments, is_tampered });
   } catch (err) {
-    /* console.error('ERROR:', err); */
     res.status(500).json({ error: err.message });
   }
 });
@@ -2850,6 +3192,7 @@ app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
   const { id } = req.params;
   try {
     db.exec('BEGIN');
+    const oldInvoice = db.prepare("SELECT invoice_number FROM invoices WHERE id = ?").get(id);
     // Robust Next Number Logic
     const allInvs = db.prepare("SELECT invoice_number FROM invoices WHERE invoice_number LIKE 'INV/%'").all();
     let maxNum = 0;
@@ -2877,6 +3220,17 @@ app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
     } catch (e) { }
 
     db.prepare("UPDATE invoices SET invoice_number = ?, status = 'raised', signature_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(invoice_number, globalSig, id);
+
+    if (oldInvoice) {
+      try {
+        db.prepare("UPDATE invoice_requests SET status = 'approved', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE request_number = ?").run(req.user.id, oldInvoice.invoice_number);
+      } catch (e) { }
+    }
+
+    const invRow = db.prepare("SELECT scr_id FROM invoices WHERE id = ?").get(id);
+    if (invRow && invRow.scr_id) {
+      db.prepare("UPDATE scr_requests SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(invRow.scr_id);
+    }
 
     // Phase 3: Hashing for integrity
     const invoiceFull = db.prepare(`
@@ -2917,9 +3271,200 @@ app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
 app.post('/api/invoices/:id/reject', authenticate, (req, res) => {
   const { id } = req.params;
   try {
+    db.exec('BEGIN');
+
+    // Get invoice details
+    const inv = db.prepare("SELECT * FROM invoices WHERE id = ?").get(id);
+    if (!inv) {
+      db.exec('ROLLBACK');
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    if (inv.status !== 'requested') {
+      db.exec('ROLLBACK');
+      return res.status(400).json({ error: 'Only pending invoice requests can be rejected.' });
+    }
+
+    // Get items of the invoice request
+    const items = db.prepare("SELECT * FROM invoice_items WHERE invoice_id = ?").all(id);
+
+    // Restore quantities
+    for (const it of items) {
+      if (it.scr_line_item_id) {
+        db.prepare('UPDATE scr_line_items SET invoiced_qty = MAX(0, IFNULL(invoiced_qty, 0) - ?) WHERE id = ?').run(it.quantity, it.scr_line_item_id);
+        db.prepare(`
+          UPDATE scr_line_items 
+          SET status = CASE WHEN IFNULL(invoiced_qty, 0) >= service_qty THEN 'Fully Raised' ELSE 'pending' END
+          WHERE id = ?
+        `).run(it.scr_line_item_id);
+      }
+      if (it.dc_line_item_id) {
+        db.prepare('UPDATE dc_line_items SET invoiced_qty = MAX(0, IFNULL(invoiced_qty, 0) - ?) WHERE id = ?').run(it.quantity, it.dc_line_item_id);
+      }
+      if (it.po_line_item_id) {
+        db.prepare('UPDATE po_line_items SET qty_invoiced = MAX(0, IFNULL(qty_invoiced, 0) - ?) WHERE id = ?').run(it.quantity, it.po_line_item_id);
+      }
+    }
+
+    // Update invoice status to rejected
     db.prepare("UPDATE invoices SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id);
+
+    // If there is a corresponding invoice_requests record
+    try {
+      db.prepare("UPDATE invoice_requests SET status = 'rejected', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE request_number = ?").run(req.user.id, inv.invoice_number);
+    } catch (e) { }
+
+    // If it's an SCR invoice, update the SCR request's invoicing status
+    if (inv.scr_id) {
+      db.prepare("UPDATE scr_requests SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(inv.scr_id);
+
+      const scrItems = db.prepare('SELECT service_qty, invoiced_qty FROM scr_line_items WHERE scr_id = ?').all(inv.scr_id);
+      const isFullyInvoiced = scrItems.every(item => (parseFloat(item.invoiced_qty) || 0) >= (parseFloat(item.service_qty) || 0));
+      const isPartiallyInvoiced = scrItems.some(item => (parseFloat(item.invoiced_qty) || 0) > 0);
+
+      let invStatus = 'pending';
+      if (isFullyInvoiced) invStatus = 'fully_invoiced';
+      else if (isPartiallyInvoiced) invStatus = 'partially_invoiced';
+
+      db.prepare(`
+        UPDATE scr_requests 
+        SET invoicing_status = ?
+        WHERE id = ?
+      `).run(invStatus, inv.scr_id);
+    }
+
+    // If it's a DC invoice, update the DC's invoicing status
+    if (inv.dc_id) {
+      const dcItems = db.prepare('SELECT quantity_dispatched, received_qty, invoiced_qty FROM dc_line_items WHERE dc_id = ?').all(inv.dc_id);
+      const isFullyInvoiced = dcItems.every(item => (parseFloat(item.invoiced_qty) || 0) >= (parseFloat(item.received_qty ?? item.quantity_dispatched) || 0));
+      const isPartiallyInvoiced = dcItems.some(item => (parseFloat(item.invoiced_qty) || 0) > 0);
+
+      let invStatus = 'pending';
+      if (isFullyInvoiced) invStatus = 'fully_invoiced';
+      else if (isPartiallyInvoiced) invStatus = 'partially_invoiced';
+
+      let dcStatus = 'delivery_confirmed';
+      if (isFullyInvoiced) dcStatus = 'fully_invoiced';
+      else if (isPartiallyInvoiced) dcStatus = 'partially_invoiced';
+
+      db.prepare(`
+        UPDATE delivery_challans 
+        SET status = ?, invoicing_status = ?
+        WHERE id = ?
+      `).run(dcStatus, invStatus, inv.dc_id);
+    }
+
+    db.exec('COMMIT');
     res.json({ success: true });
   } catch (err) {
+    if (db.inTransaction) db.exec('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/invoices/:id/sales-review', authenticate, requireRole(['sales', 'admin']), (req, res) => {
+  const { id } = req.params;
+  const { action } = req.body;
+  if (!['approved', 'rejected'].includes(action)) {
+    return res.status(400).json({ error: 'Invalid action' });
+  }
+
+  try {
+    db.exec('BEGIN');
+
+    const inv = db.prepare("SELECT * FROM invoices WHERE id = ?").get(id);
+    if (!inv) {
+      db.exec('ROLLBACK');
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    if (inv.status !== 'sales_pending') {
+      db.exec('ROLLBACK');
+      return res.status(400).json({ error: 'Only pending sales invoice requests can be reviewed.' });
+    }
+
+    if (action === 'approved') {
+      // Transition status to requested (Accounts approval pending)
+      db.prepare("UPDATE invoices SET status = 'requested', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id);
+
+      try {
+        db.prepare("UPDATE invoice_requests SET status = 'pending', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE request_number = ?").run(req.user.id, inv.invoice_number);
+      } catch (e) { }
+
+    } else {
+      // Rejection: Revert quantities and set status to rejected
+      const items = db.prepare("SELECT * FROM invoice_items WHERE invoice_id = ?").all(id);
+
+      // Restore quantities
+      for (const it of items) {
+        if (it.scr_line_item_id) {
+          db.prepare('UPDATE scr_line_items SET invoiced_qty = MAX(0, IFNULL(invoiced_qty, 0) - ?) WHERE id = ?').run(it.quantity, it.scr_line_item_id);
+          db.prepare(`
+            UPDATE scr_line_items 
+            SET status = CASE WHEN IFNULL(invoiced_qty, 0) >= service_qty THEN 'Fully Raised' ELSE 'pending' END
+            WHERE id = ?
+          `).run(it.scr_line_item_id);
+        }
+        if (it.dc_line_item_id) {
+          db.prepare('UPDATE dc_line_items SET invoiced_qty = MAX(0, IFNULL(invoiced_qty, 0) - ?) WHERE id = ?').run(it.quantity, it.dc_line_item_id);
+        }
+        if (it.po_line_item_id) {
+          db.prepare('UPDATE po_line_items SET qty_invoiced = MAX(0, IFNULL(qty_invoiced, 0) - ?) WHERE id = ?').run(it.quantity, it.po_line_item_id);
+        }
+      }
+
+      db.prepare("UPDATE invoices SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(id);
+
+      try {
+        db.prepare("UPDATE invoice_requests SET status = 'rejected', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE request_number = ?").run(req.user.id, inv.invoice_number);
+      } catch (e) { }
+
+      if (inv.scr_id) {
+        db.prepare("UPDATE scr_requests SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(inv.scr_id);
+
+        const scrItems = db.prepare('SELECT service_qty, invoiced_qty FROM scr_line_items WHERE scr_id = ?').all(inv.scr_id);
+        const isFullyInvoiced = scrItems.every(item => (parseFloat(item.invoiced_qty) || 0) >= (parseFloat(item.service_qty) || 0));
+        const isPartiallyInvoiced = scrItems.some(item => (parseFloat(item.invoiced_qty) || 0) > 0);
+
+        let invStatus = 'pending';
+        if (isFullyInvoiced) invStatus = 'fully_invoiced';
+        else if (isPartiallyInvoiced) invStatus = 'partially_invoiced';
+
+        db.prepare(`
+          UPDATE scr_requests 
+          SET invoicing_status = ?
+          WHERE id = ?
+        `).run(invStatus, inv.scr_id);
+      }
+
+      if (inv.dc_id) {
+        const dcItems = db.prepare('SELECT quantity_dispatched, received_qty, invoiced_qty FROM dc_line_items WHERE dc_id = ?').all(inv.dc_id);
+        const isFullyInvoiced = dcItems.every(item => (parseFloat(item.invoiced_qty) || 0) >= (parseFloat(item.received_qty ?? item.quantity_dispatched) || 0));
+        const isPartiallyInvoiced = dcItems.some(item => (parseFloat(item.invoiced_qty) || 0) > 0);
+
+        let invStatus = 'pending';
+        if (isFullyInvoiced) invStatus = 'fully_invoiced';
+        else if (isPartiallyInvoiced) invStatus = 'partially_invoiced';
+
+        let dcStatus = 'delivery_confirmed';
+        if (isFullyInvoiced) dcStatus = 'fully_invoiced';
+        else if (isPartiallyInvoiced) dcStatus = 'partially_invoiced';
+
+        db.prepare(`
+          UPDATE delivery_challans 
+          SET status = ?, invoicing_status = ?
+          WHERE id = ?
+        `).run(dcStatus, invStatus, inv.dc_id);
+      }
+    }
+
+    db.exec('COMMIT');
+    try {
+      auditLog(req.user.username, `SALES_REVIEW_${action.toUpperCase()}`, 'Invoices', id, null, { action });
+    } catch (e) { }
+    res.json({ success: true });
+  } catch (err) {
+    if (db.inTransaction) db.exec('ROLLBACK');
     res.status(500).json({ error: err.message });
   }
 });
@@ -3152,11 +3697,11 @@ app.post('/api/dc', authenticate, (req, res) => {
             }
             itemsHtml += `
               <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${idx + 1}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${itemName}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${hsn}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${uom}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #1E3A8A;">${qty}</td>
+                <td style="padding: 8px 12px; font-weight: 600; color: #64748B;">${idx + 1}</td>
+                <td style="padding: 8px 12px; font-weight: 600; color: #1E293B;">${itemName}</td>
+                <td style="padding: 8px 12px; color: #334155;">${hsn || '-'}</td>
+                <td style="padding: 8px 12px; color: #334155;">${uom || '-'}</td>
+                <td style="padding: 8px 12px; text-align: right; font-weight: 600; color: #059669;">${qty}</td>
               </tr>
             `;
           });
@@ -3170,7 +3715,7 @@ app.post('/api/dc', authenticate, (req, res) => {
           const location = db.prepare('SELECT label, address_line1, address_line2, city, pincode FROM customer_locations WHERE id = ?').get(location_id || po.location_id);
           const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
 
-          const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | PO ${po.po_number}`;
+          const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | SO ${po.po_number}`;
           const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
 
           const htmlContent = `
@@ -3183,7 +3728,7 @@ app.post('/api/dc', authenticate, (req, res) => {
 
               <!-- Main Greeting -->
               <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${recipientName}</strong>,</p>
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We are pleased to inform you that the shipment containing items under Purchase Order <strong>${po.po_number}</strong> has been dispatched. Below are the transit details and the item dispatch summary:</p>
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We are pleased to inform you that the shipment containing items under Sales Order <strong>${po.po_number}</strong> has been dispatched. Below are the transit details and the item dispatch summary:</p>
 
               <!-- Logistics and Dispatch Summary Card -->
               <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
@@ -3194,7 +3739,7 @@ app.post('/api/dc', authenticate, (req, res) => {
                     <td style="padding: 4px 0; color: #1E293B;"><strong>${dc_number}</strong></td>
                   </tr>
                   <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>PO/WO Number:</strong></td>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>SO Number:</strong></td>
                     <td style="padding: 4px 0; color: #1E293B;">${po.po_number}</td>
                   </tr>
                   <tr>
@@ -3231,20 +3776,22 @@ app.post('/api/dc', authenticate, (req, res) => {
               <!-- Line Items Dispatched Table -->
               <div style="margin: 20px 0;">
                 <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Dispatch Material Summary</h3>
-                <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0;">
-                  <thead>
-                    <tr style="background-color: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">#</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Item Name</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">HSN Code</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">UOM</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Qty Dispatched</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemsHtml}
-                  </tbody>
-                </table>
+                <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                      <tr style="background-color: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 8%;">#</th>
+                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em;">Item Name</th>
+                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 20%;">HSN Code</th>
+                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 15%;">UOM</th>
+                        <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 22%;">Qty Dispatched</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${itemsHtml}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <!-- Next Steps Card -->
@@ -3564,7 +4111,7 @@ app.get('/api/dc-requests/pos', authenticate, (req, res) => {
       FROM purchase_orders p
       LEFT JOIN customers c ON p.customer_id = c.id
       LEFT JOIN customer_locations cl ON p.location_id = cl.id
-      WHERE p.status IN ('accepted', 'dc_raised')
+      WHERE p.status IN ('accepted', 'approved', 'dc_raised')
       AND (
         SELECT SUM(MAX(0, pli.supply_qty - pli.qty_delivered))
         FROM po_line_items pli
@@ -4029,11 +4576,11 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
             const hsn = itemHSNs ? (itemHSNs[it.line_item_id] || '') : '';
             itemsHtml += `
               <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${idx + 1}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${itemName}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${hsn}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; border-bottom: 1px solid #E2E8F0;">${uom}</td>
-                <td style="padding: 8px; font-size: 12px; color: #334155; text-align: right; border-bottom: 1px solid #E2E8F0; font-weight: 600; color: #1E3A8A;">${it.qty}</td>
+                <td style="padding: 8px 12px; font-weight: 600; color: #64748B;">${idx + 1}</td>
+                <td style="padding: 8px 12px; font-weight: 600; color: #1E293B;">${itemName}</td>
+                <td style="padding: 8px 12px; color: #334155;">${hsn || '-'}</td>
+                <td style="padding: 8px 12px; color: #334155;">${uom || '-'}</td>
+                <td style="padding: 8px 12px; text-align: right; font-weight: 600; color: #059669;">${it.qty}</td>
               </tr>
             `;
           });
@@ -4052,7 +4599,7 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
           const location = db.prepare('SELECT label, address_line1, address_line2, city, pincode FROM customer_locations WHERE id = ?').get(po.location_id);
           const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
 
-          const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | PO ${po.po_number}`;
+          const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | SO ${po.po_number}`;
           const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
 
           const htmlContent = `
@@ -4065,7 +4612,7 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
 
               <!-- Main Greeting -->
               <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${recipientName}</strong>,</p>
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We are pleased to inform you that the shipment containing items under Purchase Order <strong>${po.po_number}</strong> has been dispatched. Below are the transit details and the item dispatch summary:</p>
+              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We are pleased to inform you that the shipment containing items under Sales Order <strong>${po.po_number}</strong> has been dispatched. Below are the transit details and the item dispatch summary:</p>
 
               <!-- Logistics and Dispatch Summary Card -->
               <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
@@ -4076,7 +4623,7 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
                     <td style="padding: 4px 0; color: #1E293B;"><strong>${dc_number}</strong></td>
                   </tr>
                   <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>PO/WO Number:</strong></td>
+                    <td style="padding: 4px 0; color: #64748B;"><strong>SO Number:</strong></td>
                     <td style="padding: 4px 0; color: #1E293B;">${po.po_number}</td>
                   </tr>
                   <tr>
@@ -4117,20 +4664,22 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
               <!-- Line Items Dispatched Table -->
               <div style="margin: 20px 0;">
                 <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Dispatch Material Summary</h3>
-                <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0;">
-                  <thead>
-                    <tr style="background-color: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">#</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Item Name</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">HSN Code</th>
-                      <th style="padding: 8px; text-align: left; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">UOM</th>
-                      <th style="padding: 8px; text-align: right; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #CBD5E1;">Qty Dispatched</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemsHtml}
-                  </tbody>
-                </table>
+                <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                      <tr style="background-color: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 8%;">#</th>
+                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em;">Item Name</th>
+                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 20%;">HSN Code</th>
+                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 15%;">UOM</th>
+                        <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 22%;">Qty Dispatched</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${itemsHtml}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <!-- Next Steps Card -->
@@ -4646,6 +5195,397 @@ app.get('/api/management/so/:id/summary', requireRole(['admin', 'management']), 
   }
 });
 
+// --- SCR (Site Clearance Request) Endpoints ---
+app.get('/api/scr', authenticate, (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT 
+        s.*,
+        p.po_number as po_no,
+        p.po_number,
+        c.name as customer_name,
+        cl.label as location_label,
+        cl.address_line1 as location_address,
+        cl.city as location_city,
+        cl.state as location_state,
+        u.full_name as creator_name,
+        IFNULL((SELECT SUM(service_qty) FROM scr_line_items WHERE scr_id = s.id), 0) as total_qty,
+        IFNULL((SELECT SUM(sli.service_qty * pli.service_rate * (1 + IFNULL(pli.service_gst_rate, 18)/100)) FROM scr_line_items sli JOIN po_line_items pli ON sli.po_line_item_id = pli.id WHERE sli.scr_id = s.id), 0) as total_value
+      FROM scr_requests s
+      LEFT JOIN purchase_orders p ON s.po_id = p.id
+      LEFT JOIN customers c ON p.customer_id = c.id
+      LEFT JOIN customer_locations cl ON s.location_id = cl.id
+      LEFT JOIN users u ON s.created_by = u.id
+      ORDER BY s.created_at DESC
+    `).all();
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/scr', authenticate, upload.single('file'), (req, res) => {
+  try {
+    const {
+      po_id, location_id, expected_delivery_date, pm_name, pm_phone,
+      civil_completed, power_available, storage_secured, access_cleared, safety_equipment,
+      remarks, items
+    } = req.body;
+
+    if (!po_id || !location_id) {
+      return res.status(400).json({ error: 'Missing required fields: PO or Location' });
+    }
+
+    const lastSCR = db.prepare("SELECT scr_number FROM scr_requests WHERE scr_number LIKE 'SCR/%' ORDER BY id DESC LIMIT 1").get();
+    let nextNum = 1;
+    if (lastSCR && lastSCR.scr_number && lastSCR.scr_number.startsWith('SCR/')) {
+      const parts = lastSCR.scr_number.split('/');
+      nextNum = parseInt(parts[parts.length - 1]) + 1;
+    }
+    const scr_number = `SCR/2026/${String(nextNum).padStart(3, '0')}`;
+    const filePath = req.file ? `/uploads/${req.file.filename}` : null;
+
+    db.exec('BEGIN');
+
+    const result = db.prepare(`
+      INSERT INTO scr_requests (
+        scr_number, po_id, location_id, expected_delivery_date, pm_name, pm_phone,
+        civil_completed, power_available, storage_secured, access_cleared, safety_equipment,
+        status, remarks, file_path, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).run(
+      scr_number,
+      po_id,
+      location_id,
+      expected_delivery_date || null,
+      pm_name || null,
+      pm_phone || null,
+      civil_completed === 'true' || civil_completed === 1 || civil_completed === '1' ? 1 : 0,
+      power_available === 'true' || power_available === 1 || power_available === '1' ? 1 : 0,
+      storage_secured === 'true' || storage_secured === 1 || storage_secured === '1' ? 1 : 0,
+      access_cleared === 'true' || access_cleared === 1 || access_cleared === '1' ? 1 : 0,
+      safety_equipment === 'true' || safety_equipment === 1 || safety_equipment === '1' ? 1 : 0,
+      remarks || null,
+      filePath,
+      req.user.id
+    );
+
+    const scrId = result.lastInsertRowid;
+
+    // Handle service line items
+    let parsedItems = [];
+    if (items) {
+      try {
+        parsedItems = JSON.parse(items);
+      } catch (e) {
+        parsedItems = [];
+      }
+    }
+
+    if (parsedItems && parsedItems.length > 0) {
+      const itemStmt = db.prepare(`
+        INSERT INTO scr_line_items (scr_id, po_line_item_id, service_qty, invoice_qty, invoiced_qty)
+        VALUES (?, ?, ?, ?, 0)
+      `);
+      parsedItems.forEach(it => {
+        itemStmt.run(scrId, it.po_line_item_id, it.service_qty || 0, it.invoice_qty || 0);
+      });
+    }
+
+    db.exec('COMMIT');
+
+    auditLog(req.user.username, 'CREATE_SCR', 'scr_requests', scrId, null, { scr_number, status: 'pending' });
+
+    res.json({ success: true, id: scrId, scr_number });
+  } catch (err) {
+    try { db.exec('ROLLBACK'); } catch (e) { }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/scr/:id', authenticate, (req, res) => {
+  try {
+    const { id } = req.params;
+    const scr = db.prepare(`
+      SELECT 
+        s.*,
+        p.po_number as po_no,
+        p.po_number,
+        p.customer_id,
+        c.name as customer_name,
+        c.legal_name as customer_legal_name,
+        c.gstin as customer_gstin,
+        c.address_line1 as customer_addr1,
+        c.address_line2 as customer_addr2,
+        c.city as customer_city,
+        c.state as customer_state,
+        c.pincode as customer_pin,
+        cl.label as location_label,
+        cl.address_line1 as location_address,
+        cl.city as location_city,
+        cl.state as location_state,
+        cl.pincode as location_pincode,
+        u.full_name as creator_name
+      FROM scr_requests s
+      LEFT JOIN purchase_orders p ON s.po_id = p.id
+      LEFT JOIN customers c ON p.customer_id = c.id
+      LEFT JOIN customer_locations cl ON s.location_id = cl.id
+      LEFT JOIN users u ON s.created_by = u.id
+      WHERE s.id = ?
+    `).get(id);
+
+    if (!scr) {
+      return res.status(404).json({ error: 'SCR not found' });
+    }
+
+    const items = db.prepare(`
+      SELECT 
+        si.*,
+        pi.package_name,
+        pi.item_name,
+        pi.description,
+        pi.uom,
+        pi.service_qty as po_service_qty,
+        pi.service_rate as po_service_rate,
+        pi.service_gst_rate as po_service_gst_rate
+      FROM scr_line_items si
+      LEFT JOIN po_line_items pi ON si.po_line_item_id = pi.id
+      WHERE si.scr_id = ?
+    `).all(id);
+
+    res.json({ ...scr, items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/scr/:id/raise-invoice-request', authenticate, (req, res) => {
+  const { id } = req.params;
+  const { items } = req.body;
+
+  try {
+    const scr = db.prepare('SELECT * FROM scr_requests WHERE id = ?').get(id);
+    if (!scr) {
+      return res.status(404).json({ error: 'SCR not found' });
+    }
+
+    const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(scr.po_id);
+    if (!po) {
+      return res.status(404).json({ error: 'Linked Purchase Order not found' });
+    }
+
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(po.customer_id);
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const location = db.prepare('SELECT * FROM customer_locations WHERE id = ?').get(scr.location_id);
+
+    const billingAddress = `${customer.legal_name || customer.name}\n${customer.addr_line1 || ''}\n${customer.addr_line2 || ''}\n${customer.city || ''} - ${customer.pincode || ''}\nGSTIN: ${customer.gstin || ''}`;
+    const shippingAddress = location
+      ? `${location.label || location.name || ''}\n${location.address_line1 || ''}\n${location.city || ''} - ${location.state || ''}`
+      : '';
+    const placeOfSupply = location ? location.state : (customer.state || 'Hyderabad');
+    const paymentTerms = po.payment_terms || 'Net 30 Days';
+
+    let invoice_number = scr.scr_number;
+    const baseNumber = scr.scr_number;
+    let suffix = 0;
+    while (
+      db.prepare("SELECT id FROM invoices WHERE invoice_number = ?").get(invoice_number) ||
+      db.prepare("SELECT id FROM invoice_requests WHERE request_number = ?").get(invoice_number)
+    ) {
+      suffix++;
+      invoice_number = `${baseNumber}-${suffix}`;
+    }
+    const needSalesApproval = true;
+
+    let subtotal = 0;
+    let gst_total = 0;
+    let grand_total = 0;
+    const enrichedItems = [];
+
+    for (const item of items) {
+      const { scr_line_item_id, qty_to_raise } = item;
+      const qty = parseFloat(qty_to_raise);
+      if (isNaN(qty) || qty <= 0) continue;
+
+      const scrLineItem = db.prepare('SELECT * FROM scr_line_items WHERE id = ? AND scr_id = ?').get(scr_line_item_id, id);
+      if (!scrLineItem) {
+        return res.status(400).json({ error: `SCR Line Item ${scr_line_item_id} not found` });
+      }
+
+      const poLineItem = db.prepare('SELECT * FROM po_line_items WHERE id = ?').get(scrLineItem.po_line_item_id);
+      if (!poLineItem) {
+        return res.status(400).json({ error: `Linked PO Line Item not found for SCR item ${scr_line_item_id}` });
+      }
+
+      const alreadyRaised = parseFloat(scrLineItem.invoiced_qty) || 0;
+      const totalServiceQty = parseFloat(scrLineItem.service_qty) || 0;
+      const remaining = Math.max(0, totalServiceQty - alreadyRaised);
+
+      if (qty > remaining) {
+        return res.status(400).json({ error: `Quantity to raise (${qty}) exceeds remaining balance (${remaining}) for item ${poLineItem.item_name}` });
+      }
+
+      const rate = parseFloat(poLineItem.service_rate) || 0;
+      const gstPct = parseFloat(poLineItem.service_gst_rate) || 18;
+      const taxable = qty * rate;
+      const gst = taxable * (gstPct / 100);
+      const total = taxable + gst;
+
+      subtotal += taxable;
+      gst_total += gst;
+      grand_total += total;
+
+      enrichedItems.push({
+        scrLineItem,
+        poLineItem,
+        qty,
+        rate,
+        gstPct,
+        taxable,
+        gst,
+        total
+      });
+    }
+
+    if (enrichedItems.length === 0) {
+      return res.status(400).json({ error: 'No items with positive quantity to raise specified.' });
+    }
+
+    db.exec('BEGIN');
+    try {
+      const docUuid = crypto.randomUUID();
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+      const dueDateStr = dueDate.toISOString().split('T')[0];
+      const invoiceDateStr = new Date().toISOString().split('T')[0];
+
+      // Insert into invoices
+      const invResult = db.prepare(`
+        INSERT INTO invoices (
+          invoice_number, po_id, dc_id, scr_id, customer_id,
+          status, invoice_date, due_date, notes,
+          subtotal, gst_total, grand_total, 
+          place_of_supply, payment_terms, billing_address, shipping_address,
+          created_by, internal_document_uuid
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      `).run(
+        invoice_number, scr.po_id, null, id, po.customer_id,
+        needSalesApproval ? 'sales_pending' : 'requested', invoiceDateStr, dueDateStr, 'Service Invoice Request raised by Projects.',
+        subtotal, gst_total, grand_total,
+        placeOfSupply, paymentTerms, billingAddress, shippingAddress,
+        req.user.id, docUuid
+      );
+
+      const invoiceId = invResult.lastInsertRowid;
+
+      // Insert into invoice_requests
+      try {
+        db.prepare(`
+          INSERT INTO invoice_requests (request_number, po_id, status, requested_by)
+          VALUES (?, ?, ?, ?)
+        `).run(invoice_number, scr.po_id, needSalesApproval ? 'sales_pending' : 'pending', req.user.id);
+      } catch (e) { }
+
+      // Insert invoice items and update scr_line_items tracking quantities
+      const itemStmt = db.prepare(`
+        INSERT INTO invoice_items (
+          invoice_id, po_line_item_id, dc_line_item_id, scr_line_item_id,
+          package_name, item_name, description, quantity, rate, gst_percent, 
+          taxable_value, gst_amount, total_value
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+      `);
+
+      const updateSCRItemStmt = db.prepare(`
+        UPDATE scr_line_items 
+        SET invoiced_qty = IFNULL(invoiced_qty, 0) + ? 
+        WHERE id = ?
+      `);
+
+      const updatePOLineItemStmt = db.prepare(`
+        UPDATE po_line_items 
+        SET qty_invoiced = IFNULL(qty_invoiced, 0) + ? 
+        WHERE id = ?
+      `);
+
+      for (const item of enrichedItems) {
+        itemStmt.run(
+          invoiceId, item.poLineItem.id, null, item.scrLineItem.id,
+          item.poLineItem.package_name || '-', item.poLineItem.item_name, item.poLineItem.description || '',
+          item.qty, item.rate, item.gstPct,
+          item.taxable, item.gst, item.total
+        );
+
+        updateSCRItemStmt.run(item.qty, item.scrLineItem.id);
+        updatePOLineItemStmt.run(item.qty, item.poLineItem.id);
+
+        db.prepare(`
+          UPDATE scr_line_items 
+          SET status = CASE WHEN IFNULL(invoiced_qty, 0) >= service_qty THEN 'Fully Raised' ELSE 'pending' END
+          WHERE id = ?
+        `).run(item.scrLineItem.id);
+      }
+
+      // Re-calculate invoicing status of the SCR
+      const scrItems = db.prepare('SELECT service_qty, invoiced_qty FROM scr_line_items WHERE scr_id = ?').all(id);
+      const isFullyInvoiced = scrItems.every(item => (parseFloat(item.invoiced_qty) || 0) >= (parseFloat(item.service_qty) || 0));
+      const isPartiallyInvoiced = scrItems.some(item => (parseFloat(item.invoiced_qty) || 0) > 0);
+
+      let invStatus = 'pending';
+      if (isFullyInvoiced) invStatus = 'fully_invoiced';
+      else if (isPartiallyInvoiced) invStatus = 'partially_invoiced';
+
+      db.prepare(`
+        UPDATE scr_requests 
+        SET invoicing_status = ?
+        WHERE id = ?
+      `).run(invStatus, id);
+
+      db.exec('COMMIT');
+
+      auditLog(req.user.username, 'RAISE_SERVICE_INVOICE_REQUEST', 'scr_requests', id, null, { invoice_number, status: 'requested' });
+
+      res.json({ success: true, invoice_id: invoiceId, invoice_number });
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/scr/:id/status', requireRole(['admin', 'accounts']), (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, remarks } = req.body;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const current = db.prepare('SELECT * FROM scr_requests WHERE id = ?').get(id);
+    if (!current) {
+      return res.status(404).json({ error: 'SCR not found' });
+    }
+
+    db.prepare(`
+      UPDATE scr_requests 
+      SET status = ?, remarks = COALESCE(?, remarks), updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(status, remarks || null, id);
+
+    const updated = db.prepare('SELECT * FROM scr_requests WHERE id = ?').get(id);
+    auditLog(req.user.username, 'UPDATE_SCR_STATUS', 'scr_requests', id, current, updated);
+
+    res.json({ success: true, status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {});
+app.listen(PORT, () => { });

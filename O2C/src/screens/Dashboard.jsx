@@ -38,8 +38,33 @@ export default function Dashboard() {
         res = await axios.get('/api/dc-requests?status=dc_requested', { headers });
         setSummaryData(res.data);
       } else if (type === 'pending_invoice_requests') {
-        res = await axios.get('/api/dc', { headers });
-        setSummaryData(res.data.filter(d => d.delivery_status === 'delivery_confirmed'));
+        const [dcRes, scrRes] = await Promise.all([
+          axios.get('/api/dc', { headers }),
+          axios.get('/api/scr', { headers })
+        ]);
+        const dcs = dcRes.data.filter(d => 
+          (d.status === 'delivery_confirmed' || d.delivery_status === 'delivery_confirmed' || d.status === 'partially_invoiced') && 
+          d.invoicing_status !== 'fully_invoiced'
+        ).map(d => ({
+          ...d,
+          type: 'Supply (DC)',
+          source_no: d.dc_number,
+          date: d.dispatch_date || d.created_at,
+          total_qty: d.total_qty || 0,
+          total_value: d.total_value || 0
+        }));
+        const scrs = scrRes.data.filter(s => 
+          s.status === 'approved' && 
+          s.invoicing_status !== 'fully_invoiced'
+        ).map(s => ({
+          ...s,
+          type: 'Service (SCR)',
+          source_no: s.scr_number,
+          date: s.expected_delivery_date || s.created_at,
+          total_qty: s.total_qty || 0,
+          total_value: s.total_value || 0
+        }));
+        setSummaryData([...dcs, ...scrs]);
       } else if (type === 'pending_regular_pos') {
         res = await axios.get('/api/pos', { headers });
         setSummaryData(res.data.filter(p => p.is_nt_po === 0 && ['pending', 'rejected'].includes(p.status)));
@@ -100,10 +125,10 @@ export default function Dashboard() {
                     )}
                     {summaryConfig.type === 'pending_invoice_requests' && (
                       <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Dispatch Date</th>
-                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Delivery Challan Number</th>
-                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Manual DC</th>
-                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Vehicle No</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Date</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Source Ref Number</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Billing Type</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Customer Name</th>
                         <th style={{ textAlign: 'left', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Status</th>
                         <th className="text-right" style={{ textAlign: 'right', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Qty</th>
                         <th className="text-right" style={{ textAlign: 'right', padding: '6px 10px', fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 700 }}>Value</th>
@@ -159,21 +184,21 @@ export default function Dashboard() {
                         )}
                         {summaryConfig.type === 'pending_invoice_requests' && (
                           <>
-                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.dispatch_date ? new Date(item.dispatch_date).toLocaleDateString('en-IN') : '-'}</td>
-                            <td style={{ fontWeight: 700, color: '#0369a1', padding: '6px 10px', fontSize: '12px' }}>{item.dc_number}</td>
-                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.manual_dc_number || '-'}</td>
-                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.vehicle_no || item.vehicle_number || '-'}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.date ? new Date(item.date).toLocaleDateString('en-IN') : '-'}</td>
+                            <td style={{ fontWeight: 700, color: '#0369a1', padding: '6px 10px', fontSize: '12px' }}>{item.source_no}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.type}</td>
+                            <td style={{ padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.customer_name || '-'}</td>
                             <td style={{ padding: '6px 10px', fontSize: '12px' }}>
                               <span style={{
                                 fontSize: '9px',
                                 fontWeight: 700,
-                                background: item.status === 'delivered' || item.delivery_status === 'delivered' || item.delivery_status === 'delivery_confirmed' ? '#dcfce7' : '#fef9c3',
-                                color: item.status === 'delivered' || item.delivery_status === 'delivered' || item.delivery_status === 'delivery_confirmed' ? '#166534' : '#854d0e',
+                                background: item.status === 'delivered' || item.delivery_status === 'delivered' || item.delivery_status === 'delivery_confirmed' || item.status === 'approved' ? '#dcfce7' : '#fef9c3',
+                                color: item.status === 'delivered' || item.delivery_status === 'delivered' || item.delivery_status === 'delivery_confirmed' || item.status === 'approved' ? '#166534' : '#854d0e',
                                 padding: '1px 6px',
                                 borderRadius: '12px',
                                 textTransform: 'uppercase'
                               }}>
-                                {item.delivery_status || item.status}
+                                {item.status === 'approved' ? 'Approved' : (item.delivery_status || item.status)}
                               </span>
                             </td>
                             <td className="text-right" style={{ fontWeight: 600, textAlign: 'right', padding: '6px 10px', fontSize: '12px', color: '#334155' }}>{item.total_qty}</td>

@@ -48,6 +48,7 @@
 html {
   font-size: 10.5px;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-x: none;
 }
 
 body {
@@ -55,6 +56,7 @@ body {
   color: var(--on-surface);
   background: #F8F9FA;
   line-height: 1.4;
+  overscroll-behavior-x: none;
 }
 
 h1,
@@ -126,6 +128,7 @@ table {
   display: flex;
   min-height: 100vh;
   background: #f8fafc;
+  overscroll-behavior-x: none;
 }
 
 .app-header {

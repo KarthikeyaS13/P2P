@@ -768,6 +768,7 @@ export default function EditPO() {
                 <thead style={{ position: 'sticky', top: 0, zIndex: 40, background: '#F9FAFB' }}>
                   <tr style={{ height: '36px', whiteSpace: 'nowrap' }}>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#1E3A8A', color: 'white', fontSize: '11px', fontWeight: 800, height: '36px', position: 'sticky', left: 0, zIndex: 50 }}>Sl no</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px' }}>Type</th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px' }}>Ref No</th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px' }}>Package</th>
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px' }}>Heading</th>
@@ -777,95 +778,87 @@ export default function EditPO() {
                     <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, height: '36px' }}>UOM</th>
 
                     {/* Original Headers (Blue) */}
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original Supply Qty</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '120px' }}>Original Supply Rate</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original Supply GST</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original Service Qty</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '120px' }}>Original Service Rate</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original Service GST</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original Qty</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '120px' }}>Original Rate</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#3B82F6', color: 'white', fontSize: '11px', fontWeight: 700, height: '36px', minWidth: '110px' }}>Original GST</th>
 
                     {/* Edit Headers (Yellow) */}
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New Supply Qty</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '120px' }}>New Supply Rate</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New Supply GST</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New Service Qty</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '120px' }}>New Service Rate</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New Service GST</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New Qty</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '120px' }}>New Rate</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>New GST Rate</th>
 
                     {/* Revised Headers (Cyan) */}
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '130px' }}>Revised Taxable Supply</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '120px' }}>Revised GST Supply</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '120px' }}>Revised Total Supply</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '130px' }}>Revised Taxable Service</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '120px' }}>Revised GST Service</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '120px' }}>Revised Total Service</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>Grand Taxable</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 800, height: '36px', minWidth: '110px' }}>Grand GST</th>
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 900, height: '36px', minWidth: '110px' }}>Grand Total</th>
-
-                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#F87171', color: 'white', fontSize: '11px', fontWeight: 800, height: '36px', width: '50px' }}>Actions</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '130px' }}>Revised Taxable Value</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#ECFEFF', fontSize: '11px', height: '36px', minWidth: '120px' }}>Revised GST</th>
+                    <th style={{ padding: '0 8px', border: '1px solid #E5E7EB', background: '#CFFAFE', fontSize: '11px', fontWeight: 900, height: '36px', minWidth: '110px' }}>Revised Grand Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((it, idx) => (
-                    <tr key={it.id || idx} style={{ height: '32px', whiteSpace: 'nowrap' }}>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', background: '#F1F5F9', fontWeight: 800, position: 'sticky', left: 0, zIndex: 10, height: '32px', fontSize: '0.75rem' }}>{idx + 1}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.ref_no}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.package_name}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.heading}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.sub_heading}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', fontWeight: 600, height: '32px', fontSize: '0.75rem' }}>{it.item_name}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', minWidth: '150px', maxWidth: '200px', height: '32px', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }} onClick={() => Swal.fire({ title: 'Item Description', text: it.description, icon: 'info' })}>{it.description}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', height: '32px', fontSize: '0.75rem' }}>{it.uom}</td>
+                  {items.map((it, idx) => {
+                    const rowType = it.item_type || ((parseFloat(it.supply_qty) || 0) > 0 || (parseFloat(it.supply_rate) || 0) > 0 ? 'supply' : 'service');
+                    const origQty = rowType === 'service' ? (it.service_qty || 0) : (it.supply_qty || 0);
+                    const origRate = rowType === 'service' ? (it.service_rate || 0) : (it.supply_rate || 0);
+                    const origGstRate = rowType === 'service' ? (it.service_gst_rate || 0) : (it.supply_gst_rate || 0);
 
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>{it.supply_qty}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.supply_rate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', height: '32px', fontSize: '0.75rem' }}>{it.supply_gst_rate}%</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>{it.service_qty}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.service_rate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', height: '32px', fontSize: '0.75rem' }}>{it.service_gst_rate}%</td>
+                    const editQty = rowType === 'service' ? (it.edit_service_qty ?? '') : (it.edit_supply_qty ?? '');
+                    const editRate = rowType === 'service' ? (it.edit_service_rate ?? '') : (it.edit_supply_rate ?? '');
+                    const editGstRate = rowType === 'service' ? (it.edit_service_gst_rate ?? '') : (it.edit_supply_gst_rate ?? '');
 
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="text" value={it.edit_supply_qty ?? ''} onChange={e => updateItem(idx, 'edit_supply_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '0 8px', textAlign: 'right', background: 'transparent', height: '32px', fontSize: '0.75rem' }} />
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="text" value={it.edit_supply_rate ?? ''} onChange={e => updateItem(idx, 'edit_supply_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '0 8px', textAlign: 'right', background: 'transparent', height: '32px', fontSize: '0.75rem' }} />
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <select value={it.edit_supply_gst_rate ?? ''} onChange={e => updateItem(idx, 'edit_supply_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '0 8px', fontSize: '0.75rem', background: 'transparent', cursor: 'pointer', height: '32px' }}>
-                          <option value="">GST</option>
-                          <option value="5">5%</option>
-                          <option value="12">12%</option>
-                          <option value="18">18%</option>
-                        </select>
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="text" value={it.edit_service_qty ?? ''} onChange={e => updateItem(idx, 'edit_service_qty', e.target.value)} style={{ width: '80px', border: 'none', padding: '0 8px', textAlign: 'right', background: 'transparent', height: '32px', fontSize: '0.75rem' }} />
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <input type="text" value={it.edit_service_rate ?? ''} onChange={e => updateItem(idx, 'edit_service_rate', e.target.value)} style={{ width: '90px', border: 'none', padding: '0 8px', textAlign: 'right', background: 'transparent', height: '32px', fontSize: '0.75rem' }} />
-                      </td>
-                      <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
-                        <select value={it.edit_service_gst_rate ?? ''} onChange={e => updateItem(idx, 'edit_service_gst_rate', e.target.value)} style={{ width: '60px', border: 'none', padding: '0 8px', fontSize: '0.75rem', background: 'transparent', cursor: 'pointer', height: '32px' }}>
-                          <option value="">GST</option>
-                          <option value="5">5%</option>
-                          <option value="12">12%</option>
-                          <option value="18">18%</option>
-                        </select>
-                      </td>
+                    return (
+                      <tr key={it.id || idx} style={{ height: '32px', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', background: '#F1F5F9', fontWeight: 800, position: 'sticky', left: 0, zIndex: 10, height: '32px', fontSize: '0.75rem' }}>{idx + 1}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem', textTransform: 'capitalize', fontWeight: 600 }}>{rowType}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.ref_no}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.package_name}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.heading}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', height: '32px', fontSize: '0.75rem' }}>{it.sub_heading}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', fontWeight: 600, height: '32px', fontSize: '0.75rem' }}>{it.item_name}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', minWidth: '150px', maxWidth: '200px', height: '32px', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }} onClick={() => Swal.fire({ title: 'Item Description', text: it.description, icon: 'info' })}>{it.description}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', height: '32px', fontSize: '0.75rem' }}>{it.uom}</td>
 
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_taxable_supply.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_gst_supply.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_total_supply.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_taxable_service.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_gst_service.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_total_service.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, height: '32px', fontSize: '0.75rem' }}>₹{it.rev_total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600, height: '32px', fontSize: '0.75rem' }}>₹{it.rev_total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, color: '#1E40AF', background: '#F0F9FF', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', height: '32px' }}><button onClick={() => deleteRow(idx)} style={{ color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}><span className="material-symbols-outlined" style={{ fontSize: '14px' }}>delete</span></button></td>
-                    </tr>
-                  ))}
+                        {/* Original Values */}
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>{origQty}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{origRate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'center', height: '32px', fontSize: '0.75rem' }}>{origGstRate}%</td>
+
+                        {/* Edit Values */}
+                        <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                          <input
+                            type="text"
+                            value={editQty}
+                            onChange={e => updateItem(idx, rowType === 'service' ? 'edit_service_qty' : 'edit_supply_qty', e.target.value)}
+                            style={{ width: '80px', border: 'none', padding: '0 8px', textAlign: 'right', background: 'transparent', height: '32px', fontSize: '0.75rem' }}
+                          />
+                        </td>
+                        <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                          <input
+                            type="text"
+                            value={editRate}
+                            onChange={e => updateItem(idx, rowType === 'service' ? 'edit_service_rate' : 'edit_supply_rate', e.target.value)}
+                            style={{ width: '90px', border: 'none', padding: '0 8px', textAlign: 'right', background: 'transparent', height: '32px', fontSize: '0.75rem' }}
+                          />
+                        </td>
+                        <td style={{ padding: 0, border: '1px solid #E5E7EB', background: '#FFFBEB' }}>
+                          <select
+                            value={editGstRate}
+                            onChange={e => updateItem(idx, rowType === 'service' ? 'edit_service_gst_rate' : 'edit_supply_gst_rate', e.target.value)}
+                            style={{ width: '80px', border: 'none', padding: '0 8px', fontSize: '0.75rem', background: 'transparent', cursor: 'pointer', height: '32px' }}
+                          >
+                            <option value="">GST</option>
+                            <option value="0">0%</option>
+                            <option value="5">5%</option>
+                            <option value="12">12%</option>
+                            <option value="18">18%</option>
+                          </select>
+                        </td>
+
+                        {/* Revised Values */}
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '0 8px', border: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, color: '#1E40AF', background: '#F0F9FF', height: '32px', fontSize: '0.75rem' }}>₹{it.rev_total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

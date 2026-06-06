@@ -543,3 +543,27 @@ CREATE TABLE IF NOT EXISTS audit_log (
 -- Indices for query optimization
 CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_cust_code ON customers(cust_code);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_gstin ON customers(gstin);
+
+CREATE TABLE IF NOT EXISTS scr_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  scr_number TEXT UNIQUE,
+  po_id INTEGER,
+  location_id INTEGER,
+  expected_delivery_date DATE,
+  pm_name TEXT,
+  pm_phone TEXT,
+  civil_completed BOOLEAN DEFAULT 0,
+  power_available BOOLEAN DEFAULT 0,
+  storage_secured BOOLEAN DEFAULT 0,
+  access_cleared BOOLEAN DEFAULT 0,
+  safety_equipment BOOLEAN DEFAULT 0,
+  status TEXT DEFAULT 'pending',
+  remarks TEXT,
+  file_path TEXT,
+  created_by INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (po_id) REFERENCES purchase_orders(id),
+  FOREIGN KEY (location_id) REFERENCES customer_locations(id),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);

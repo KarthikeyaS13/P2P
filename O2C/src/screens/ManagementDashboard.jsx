@@ -314,7 +314,7 @@ export default function ManagementDashboard() {
         {currentScreen === 'screen1' && (
           <>
             <div style={styles.header}>
-              <h2 style={styles.headerTitle}>Sudha Analytics</h2>
+              <h2 style={styles.headerTitle}>Sudha Analyticals</h2>
               <p style={styles.headerSub}>O2C Live Performance Summary</p>
             </div>
 
@@ -382,15 +382,15 @@ export default function ManagementDashboard() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-              <button 
-                onClick={() => setCurrentScreen('screen2')} 
+              <button
+                onClick={() => setCurrentScreen('screen2')}
                 style={styles.primaryBtn}
               >
                 Click here for Specific PO
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
               </button>
-              
-              <button 
+
+              <button
                 onClick={() => {
                   sessionStorage.removeItem('token');
                   window.location.reload();
@@ -430,7 +430,7 @@ export default function ManagementDashboard() {
               </div>
 
               {/* GO Button for Customer */}
-              <button 
+              <button
                 onClick={handleGoCustomer}
                 disabled={!selectedCustomerId}
                 style={{
@@ -468,7 +468,7 @@ export default function ManagementDashboard() {
               </div>
 
               {/* GO Button for SO */}
-              <button 
+              <button
                 onClick={handleGoSo}
                 disabled={!selectedSoId}
                 style={{
@@ -483,8 +483,8 @@ export default function ManagementDashboard() {
             </div>
 
             <div style={styles.bottomNav}>
-              <button 
-                onClick={() => setCurrentScreen('screen1')} 
+              <button
+                onClick={() => setCurrentScreen('screen1')}
                 style={styles.navBtn}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
@@ -502,8 +502,8 @@ export default function ManagementDashboard() {
                 {selectionType === 'customer' ? 'Customer Level Summary' : 'Sales Order Summary'}
               </h2>
               <p style={{ ...styles.headerSub, fontWeight: '700', color: '#0F172A', marginTop: '4px' }}>
-                {selectionType === 'customer' 
-                  ? customers.find(c => String(c.customer_id) === String(selectedCustomerId))?.customer_name 
+                {selectionType === 'customer'
+                  ? customers.find(c => String(c.customer_id) === String(selectedCustomerId))?.customer_name
                   : customerOrders.find(so => String(so.po_id) === String(selectedSoId))?.po_number}
               </p>
             </div>
@@ -630,8 +630,8 @@ export default function ManagementDashboard() {
 
             <div style={styles.bottomNav}>
               {/* Back to Previous Screen */}
-              <button 
-                onClick={() => setCurrentScreen('screen2')} 
+              <button
+                onClick={() => setCurrentScreen('screen2')}
                 style={styles.navBtn}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
@@ -639,8 +639,8 @@ export default function ManagementDashboard() {
               </button>
 
               {/* Back to Dashboard */}
-              <button 
-                onClick={() => setCurrentScreen('screen1')} 
+              <button
+                onClick={() => setCurrentScreen('screen1')}
                 style={{ ...styles.navBtn, border: '1.5px solid #2563EB', color: '#2563EB' }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>dashboard</span>

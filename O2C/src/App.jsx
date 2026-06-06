@@ -30,6 +30,7 @@ import POFlowManagement from './screens/POFlowManagement';
 import VerifyDocument from './screens/VerifyDocument';
 import Reports from './screens/Reports';
 import ManagementDashboard from './screens/ManagementDashboard';
+import SCR from './screens/SCR';
 
 import { useAuth } from './context/AuthContext';
 
@@ -165,6 +166,7 @@ function App() {
 
               {/* Projects */}
               <Route path="/projects" element={<RoleGate allowedRoles={['projects']}><ProjectsModule /></RoleGate>} />
+              <Route path="/scr" element={<RoleGate allowedRoles={['projects', 'accounts']}><SCR /></RoleGate>} />
 
               {/* Management */}
               <Route path="/analytics" element={

@@ -134,12 +134,13 @@ export default function PODetails() {
       pending: { background: '#FEF3C7', color: '#92400E', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
       nt_created: { background: '#FEF3C7', color: '#92400E', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
       accepted: { background: '#D1FAE5', color: '#065F46', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
+      approved: { background: '#D1FAE5', color: '#065F46', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
       rejected: { background: '#FEE2E2', color: '#991B1B', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
       dc_raised: { background: '#FED7AA', color: '#92400E', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 },
       invoice_raised: { background: '#EDE9FE', color: '#5B21B6', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 }
     };
     const style = styles[status] || { background: '#F3F4F6', color: '#374151', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: 600 };
-    const text = status === 'nt_created' ? 'PENDING' : status.replace('_', ' ').toUpperCase();
+    const text = status === 'nt_created' ? 'PENDING' : (status || 'PENDING').replace('_', ' ').toUpperCase();
     return <span style={style}>{text}</span>;
   };
 
@@ -147,9 +148,9 @@ export default function PODetails() {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     setActionLoading(true);
-    axios.put(`/api/pos/${id}/status`, { status: 'accepted' }, { headers })
+    axios.put(`/api/pos/${id}/status`, { status: 'approved' }, { headers })
       .then(() => {
-        Swal.fire({ icon: 'success', title: 'PO Accepted', text: 'PO Accepted successfully', timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'PO Approved', text: 'PO Approved successfully', timer: 2000, showConfirmButton: false });
         navigate('/purchase-orders');
       })
       .catch(err => Swal.fire({ icon: 'error', title: 'Failed', text: (err.response?.data?.error || err.message) }))

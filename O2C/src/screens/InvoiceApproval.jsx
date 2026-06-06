@@ -459,7 +459,7 @@ export default function InvoiceApproval() {
 
   const tableData = useMemo(() => {
     if (activeTab === 'database') {
-      return invoices.filter(i => i.status !== 'requested');
+      return invoices.filter(i => i.status !== 'requested' && i.status !== 'sales_pending' && i.status !== 'rejected');
     }
     return invoices.filter(i => i.status === 'requested');
   }, [invoices, activeTab]);
@@ -667,9 +667,16 @@ export default function InvoiceApproval() {
                     <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(inv.po_date).toLocaleDateString('en-IN')}</div>
                   </div>
                   <div style={{ background: '#F8FAFC', padding: '10px' }}>
-                    <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Delivery Challan</div>
-                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{inv.dc_no}</div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(inv.dispatch_date).toLocaleDateString('en-IN')}</div>
+                    <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>
+                      {inv.scr_no ? 'Site Clearance Request' : 'Delivery Challan'}
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{inv.scr_no || inv.dc_no || '-'}</div>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>
+                      {inv.scr_no
+                        ? (inv.scr_date ? new Date(inv.scr_date).toLocaleDateString('en-IN') : 'NA')
+                        : (inv.dispatch_date ? new Date(inv.dispatch_date).toLocaleDateString('en-IN') : 'NA')
+                      }
+                    </div>
                   </div>
                   <div style={{ background: '#F8FAFC', padding: '10px' }}>
                     <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Place of Supply</div>
@@ -1045,7 +1052,7 @@ export default function InvoiceApproval() {
       </div>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
         <button className={`tab-link ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')} style={{ padding: '6px 12px', fontSize: '13px' }}>Requests from Sales <span className="badge badge--warn">{invoices.filter(i => i.status === 'requested').length}</span></button>
-        <button className={`tab-link ${activeTab === 'database' ? 'active' : ''}`} onClick={() => setActiveTab('database')} style={{ padding: '6px 12px', fontSize: '13px' }}>Issued Invoices <span className="badge">{invoices.filter(i => i.status !== 'requested').length}</span></button>
+        <button className={`tab-link ${activeTab === 'database' ? 'active' : ''}`} onClick={() => setActiveTab('database')} style={{ padding: '6px 12px', fontSize: '13px' }}>Issued Invoices <span className="badge">{invoices.filter(i => i.status !== 'requested' && i.status !== 'sales_pending' && i.status !== 'rejected').length}</span></button>
       </div>
 
       <div className="card data-table-wrapper">
@@ -1121,9 +1128,16 @@ export default function InvoiceApproval() {
                 <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenInvoice.po_date).toLocaleDateString('en-IN')}</div>
               </div>
               <div style={{ background: '#F8FAFC', padding: '16px' }}>
-                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Delivery Challan</div>
-                <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenInvoice.dc_no}</div>
-                <div style={{ fontSize: '11px', color: '#64748B' }}>{new Date(hiddenInvoice.dispatch_date).toLocaleDateString('en-IN')}</div>
+                <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>
+                  {hiddenInvoice.scr_no ? 'Site Clearance Request' : 'Delivery Challan'}
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 700 }}>{hiddenInvoice.scr_no || hiddenInvoice.dc_no || '-'}</div>
+                <div style={{ fontSize: '11px', color: '#64748B' }}>
+                  {hiddenInvoice.scr_no
+                    ? (hiddenInvoice.scr_date ? new Date(hiddenInvoice.scr_date).toLocaleDateString('en-IN') : 'NA')
+                    : (hiddenInvoice.dispatch_date ? new Date(hiddenInvoice.dispatch_date).toLocaleDateString('en-IN') : 'NA')
+                  }
+                </div>
               </div>
               <div style={{ background: '#F8FAFC', padding: '16px' }}>
                 <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 900, textTransform: 'uppercase', marginBottom: '4px' }}>Place of Supply</div>

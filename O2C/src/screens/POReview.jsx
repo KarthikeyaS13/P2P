@@ -226,6 +226,7 @@ export default function POReview() {
       pending: { background: '#FEF3C7', color: '#92400E', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
       nt_created: { background: '#FEF3C7', color: '#92400E', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
       accepted: { background: '#D1FAE5', color: '#065F46', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
+      approved: { background: '#D1FAE5', color: '#065F46', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
       rejected: { background: '#FEE2E2', color: '#991B1B', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
       dc_raised: { background: '#FED7AA', color: '#92400E', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 },
       invoice_raised: { background: '#EDE9FE', color: '#5B21B6', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }
@@ -684,7 +685,7 @@ export default function POReview() {
                           <button
                             className="btn btn-success"
                             style={{ flex: 1, height: '36px', fontWeight: 700, fontSize: '13px' }}
-                            onClick={() => updatePOStatus('accepted')}
+                            onClick={() => updatePOStatus('approved')}
                             disabled={actionLoading}
                           >
                             Approve
@@ -1014,137 +1015,169 @@ function ClickableDescription({ text }) {
 
 // --- Helper Component: Summary Table ---
 function SummaryTable({ data }) {
-  const summarizedData = React.useMemo(() => {
+  // 1. Group & filter Supply items
+  const supplyData = React.useMemo(() => {
+    if (!data) return [];
     const summary = data.reduce((acc, it) => {
       const pkg = it.package_name || 'General';
-      if (!acc[pkg]) {
-        acc[pkg] = {
-          package_name: pkg,
-          supply_taxable: 0,
-          supply_gst: 0,
-          service_taxable: 0,
-          service_gst: 0,
-          total_taxable: 0,
-          total_gst: 0,
-          total_invoice: 0
-        };
+      const taxable = it.taxable_supply || 0;
+      const gst = it.gst_supply || 0;
+      const invoice = it.total_supply || 0;
+      
+      if (taxable > 0 || invoice > 0) {
+        if (!acc[pkg]) {
+          acc[pkg] = {
+            package_name: pkg,
+            taxable: 0,
+            gst: 0,
+            invoice: 0
+          };
+        }
+        acc[pkg].taxable += taxable;
+        acc[pkg].gst += gst;
+        acc[pkg].invoice += invoice;
       }
-      acc[pkg].supply_taxable += (it.taxable_supply || 0);
-      acc[pkg].supply_gst += (it.gst_supply || 0);
-      acc[pkg].service_taxable += (it.taxable_service || 0);
-      acc[pkg].service_gst += (it.gst_service || 0);
-      acc[pkg].total_taxable += (it.total_taxable || 0);
-      acc[pkg].total_gst += (it.total_gst || 0);
-      acc[pkg].total_invoice += (it.total_invoice || 0);
       return acc;
     }, {});
     return Object.values(summary);
   }, [data]);
 
-  const columns = React.useMemo(() => [
-    {
-      header: 'Package Name',
-      accessorKey: 'package_name',
-      cell: info => <span style={{ fontWeight: 600, color: '#111827' }}>{info.getValue()}</span>,
-    },
-    {
-      header: 'Supply Tax Value',
-      accessorKey: 'supply_taxable',
-      cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    },
-    {
-      header: 'Supply GST',
-      accessorKey: 'supply_gst',
-      cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    },
-    {
-      header: 'Service Tax Value',
-      accessorKey: 'service_taxable',
-      cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    },
-    {
-      header: 'Service GST',
-      accessorKey: 'service_gst',
-      cell: info => `₹${info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    },
-    {
-      header: 'Total Tax Value',
-      accessorKey: 'total_taxable',
-      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>,
-    },
-    {
-      header: 'Total GST',
-      accessorKey: 'total_gst',
-      cell: info => <span style={{ fontWeight: 600 }}>₹{info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>,
-    },
-    {
-      header: 'Total Invoice',
-      accessorKey: 'total_invoice',
-      cell: info => <span style={{ fontWeight: 700, color: '#2563EB' }}>₹{info.getValue().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>,
-    }
-  ], []);
+  // 2. Group & filter Service items
+  const serviceData = React.useMemo(() => {
+    if (!data) return [];
+    const summary = data.reduce((acc, it) => {
+      const pkg = it.package_name || 'General';
+      const taxable = it.taxable_service || 0;
+      const gst = it.gst_service || 0;
+      const invoice = it.total_service || 0;
+      
+      if (taxable > 0 || invoice > 0) {
+        if (!acc[pkg]) {
+          acc[pkg] = {
+            package_name: pkg,
+            taxable: 0,
+            gst: 0,
+            invoice: 0
+          };
+        }
+        acc[pkg].taxable += taxable;
+        acc[pkg].gst += gst;
+        acc[pkg].invoice += invoice;
+      }
+      return acc;
+    }, {});
+    return Object.values(summary);
+  }, [data]);
 
-  const table = useReactTable({
-    data: summarizedData,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
+  // 3. Compute Totals
+  const supplyTotals = React.useMemo(() => {
+    return supplyData.reduce((acc, row) => ({
+      taxable: acc.taxable + row.taxable,
+      gst: acc.gst + row.gst,
+      invoice: acc.invoice + row.invoice
+    }), { taxable: 0, gst: 0, invoice: 0 });
+  }, [supplyData]);
 
-  const grandTotals = summarizedData.reduce((acc, row) => ({
-    supply_taxable: acc.supply_taxable + row.supply_taxable,
-    supply_gst: acc.supply_gst + row.supply_gst,
-    service_taxable: acc.service_taxable + row.service_taxable,
-    service_gst: acc.service_gst + row.service_gst,
-    total_taxable: acc.total_taxable + row.total_taxable,
-    total_gst: acc.total_gst + row.total_gst,
-    total_invoice: acc.total_invoice + row.total_invoice
-  }), { supply_taxable: 0, supply_gst: 0, service_taxable: 0, service_gst: 0, total_taxable: 0, total_gst: 0, total_invoice: 0 });
+  const serviceTotals = React.useMemo(() => {
+    return serviceData.reduce((acc, row) => ({
+      taxable: acc.taxable + row.taxable,
+      gst: acc.gst + row.gst,
+      invoice: acc.invoice + row.invoice
+    }), { taxable: 0, gst: 0, invoice: 0 });
+  }, [serviceData]);
+
+  const formatCurrency = (val) => {
+    return '₹' + (val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const overallInvoiceTotal = supplyTotals.invoice + serviceTotals.invoice;
 
   return (
-    <div style={{ marginBottom: '24px' }}>
-      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0', overflow: 'hidden', marginBottom: '16px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
-          <thead style={{ background: '#F8FAFC' }}>
-            {table.getHeaderGroups().map(headerGroup => (
-              <tr key={headerGroup.id} style={{ height: '36px' }}>
-                {headerGroup.headers.map(header => (
-                  <th key={header.id} style={{ padding: '4px 8px', textAlign: header.id === 'package_name' ? 'left' : 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', height: '36px' }}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '24px', width: '100%' }}>
+      {/* SUPPLY SUMMARY */}
+      {supplyData.length > 0 && (
+        <div>
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0F766E', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>local_shipping</span>
+            Supply Summary
+          </h4>
+          <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+              <thead style={{ background: '#F8FAFC' }}>
+                <tr style={{ height: '36px' }}>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em' }}>Package Name</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', width: '20%' }}>Taxable Value</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', width: '20%' }}>GST Value</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', width: '25%' }}>Grand Total Invoice Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {supplyData.map((row, idx) => (
+                  <tr key={idx} style={{ height: '32px' }}>
+                    <td style={{ padding: '8px 12px', textAlign: 'left', border: '1px solid #E2E8F0', fontWeight: 600, color: '#1E293B' }}>{row.package_name}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0', color: '#334155' }}>{formatCurrency(row.taxable)}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0', color: '#334155' }}>{formatCurrency(row.gst)}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0', fontWeight: 600, color: '#0F766E' }}>{formatCurrency(row.invoice)}</td>
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map(row => (
-              <tr key={row.id} style={{ height: '32px' }}>
-                {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} style={{ padding: '4px 8px', textAlign: cell.column.id === 'package_name' ? 'left' : 'right', border: '1px solid #E2E8F0', height: '32px' }}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-          <tfoot style={{ background: '#F8FAFC', fontWeight: 800, borderTop: '2px solid #E2E8F0' }}>
-            <tr style={{ height: '32px' }}>
-              <td style={{ padding: '4px 8px', textAlign: 'left', border: '1px solid #E2E8F0', height: '32px' }}>TOTAL</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.supply_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.service_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', color: '#2563EB', border: '1px solid #E2E8F0', height: '32px' }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+              </tbody>
+              <tfoot style={{ background: '#F0FDFA', fontWeight: 800, borderTop: '2px solid #0F766E' }}>
+                <tr style={{ height: '36px', color: '#0F766E' }}>
+                  <td style={{ padding: '8px 12px', textAlign: 'left', border: '1px solid #E2E8F0' }}>Supply Total</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0' }}>{formatCurrency(supplyTotals.taxable)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0' }}>{formatCurrency(supplyTotals.gst)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0', fontSize: '0.85rem' }}>{formatCurrency(supplyTotals.invoice)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      {/* SERVICE SUMMARY */}
+      {serviceData.length > 0 && (
+        <div>
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1E3A8A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>engineering</span>
+            Service Summary
+          </h4>
+          <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+              <thead style={{ background: '#F8FAFC' }}>
+                <tr style={{ height: '36px' }}>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em' }}>Package Name</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', width: '20%' }}>Taxable Value</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', width: '20%' }}>GST Value</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', color: '#475569', fontWeight: 800, border: '1px solid #E2E8F0', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.02em', width: '25%' }}>Grand Total Invoice Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {serviceData.map((row, idx) => (
+                  <tr key={idx} style={{ height: '32px' }}>
+                    <td style={{ padding: '8px 12px', textAlign: 'left', border: '1px solid #E2E8F0', fontWeight: 600, color: '#1E293B' }}>{row.package_name}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0', color: '#334155' }}>{formatCurrency(row.taxable)}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0', color: '#334155' }}>{formatCurrency(row.gst)}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0', fontWeight: 600, color: '#1E3A8A' }}>{formatCurrency(row.invoice)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot style={{ background: '#EFF6FF', fontWeight: 800, borderTop: '2px solid #1E3A8A' }}>
+                <tr style={{ height: '36px', color: '#1E3A8A' }}>
+                  <td style={{ padding: '8px 12px', textAlign: 'left', border: '1px solid #E2E8F0' }}>Service Total</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0' }}>{formatCurrency(serviceTotals.taxable)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0' }}>{formatCurrency(serviceTotals.gst)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #E2E8F0', fontSize: '0.85rem' }}>{formatCurrency(serviceTotals.invoice)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
         <div style={{ background: '#F0F9FF', padding: '12px 20px', borderRadius: '8px', border: '1px solid #BAE6FD', textAlign: 'right', minWidth: '280px' }}>
           <p style={{ margin: '0 0 2px', color: '#0369A1', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revised Grand Total</p>
-          <p style={{ margin: 0, color: '#0369A1', fontSize: '1.5rem', fontWeight: 900 }}>₹{grandTotals.total_invoice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p style={{ margin: 0, color: '#0369A1', fontSize: '1.5rem', fontWeight: 900 }}>{formatCurrency(overallInvoiceTotal)}</p>
         </div>
       </div>
     </div>
