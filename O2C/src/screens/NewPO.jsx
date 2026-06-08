@@ -220,7 +220,9 @@ export default function NewPO() {
         ...prev,
         locationId: value,
         contactName: loc ? (loc.contact_name || '') : '',
-        contactPhone: loc ? (loc.contact_phone || '') : ''
+        contactPhone: loc ? (loc.contact_phone || '') : '',
+        contactEmail: loc ? (loc.contact_email || '') : '',
+        selectedSpocIndex: '1'
       }));
     } else if (name === 'projectSpocName') {
       const user = filteredProjectUsers.find(u => u.full_name === value);
@@ -1131,6 +1133,9 @@ export default function NewPO() {
         project_spoc_name: basicDetails.projectSpocName.trim(),
         project_spoc_email: basicDetails.projectSpocEmail.trim(),
         project_spoc_phone: basicDetails.projectSpocPhone.trim(),
+        spoc_name: basicDetails.contactName ? basicDetails.contactName.trim() : null,
+        spoc_phone: basicDetails.contactPhone ? basicDetails.contactPhone.trim() : null,
+        spoc_email: basicDetails.contactEmail ? basicDetails.contactEmail.trim() : null,
         need_sales_invoice_approval: basicDetails.needSalesInvoiceApproval,
         remarks: (basicDetails.remarks || '').trim()
       };
@@ -1218,6 +1223,9 @@ export default function NewPO() {
       </div>
     );
   };
+
+  const selectedLoc = locations.find(l => String(l.id) === String(basicDetails.locationId));
+  const hasSecondSpoc = selectedLoc && selectedLoc.spoc2_name && selectedLoc.spoc2_phone;
 
   return (
     <div style={{ padding: '16px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -1459,23 +1467,49 @@ export default function NewPO() {
                       <span>Customer SPOC</span>
                       <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(Autofilled from Location)</span>
                     </div>
+
+                    {hasSecondSpoc && (
+                      <div style={{ marginBottom: '12px' }}>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Choose Contact Person</label>
+                        <select
+                          value={basicDetails.selectedSpocIndex || '1'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const name = val === '1' ? selectedLoc.contact_name : selectedLoc.spoc2_name;
+                            const phone = val === '1' ? selectedLoc.contact_phone : selectedLoc.spoc2_phone;
+                            const email = val === '1' ? selectedLoc.contact_email : selectedLoc.spoc2_email;
+                            setBasicDetails(prev => ({
+                              ...prev,
+                              selectedSpocIndex: val,
+                              contactName: name || '',
+                              contactPhone: phone || '',
+                              contactEmail: email || ''
+                            }));
+                          }}
+                          style={{ width: '100%', maxWidth: '240px', height: '28px', padding: '0 8px', borderRadius: '4px', border: '1px solid #CBD5E1', fontSize: '12px', background: 'white', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="1">{selectedLoc.contact_name || 'Primary SPOC'} (SPOC 1)</option>
+                          <option value="2">{selectedLoc.spoc2_name || 'Secondary SPOC'} (SPOC 2)</option>
+                        </select>
+                      </div>
+                    )}
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Name <span style={{ color: 'red' }}>*</span></label>
-                        <input name="contactName" value={basicDetails.contactName} onChange={handleBasicChange} placeholder="Primary Contact Name" className="compact-form-input-text" readOnly style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }} />
+                        <input name="contactName" value={basicDetails.contactName || ''} readOnly placeholder="Primary Contact Name" className="compact-form-input-text" style={{ background: '#E2E8F0', color: '#64748b', cursor: 'not-allowed' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: isCustomerPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Phone <span style={{ color: 'red' }}>*</span></label>
                         <input
                           name="contactPhone"
-                          value={basicDetails.contactPhone}
-                          onChange={handleBasicChange}
+                          value={basicDetails.contactPhone || ''}
                           placeholder="Primary Phone"
                           className="compact-form-input-text"
                           readOnly
                           style={{
                             background: isCustomerPhoneInvalid ? '#FEF2F2' : '#E2E8F0',
-                            color: isCustomerPhoneInvalid ? '#DC2626' : '#64748B',
+                            color: isCustomerPhoneInvalid ? '#DC2626' : '#64748b',
                             border: isCustomerPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1',
                             cursor: 'not-allowed'
                           }}

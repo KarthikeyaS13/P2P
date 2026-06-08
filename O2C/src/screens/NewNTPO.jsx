@@ -130,6 +130,12 @@ export default function NewNTPO() {
   const [remarks, setRemarks] = useState(draft.remarks || '');
   const [needSalesInvoiceApproval, setNeedSalesInvoiceApproval] = useState(draft.needSalesInvoiceApproval || 'yes');
 
+  // Customer SPOC details state
+  const [customerSpocName, setCustomerSpocName] = useState(draft.customerSpocName || '');
+  const [customerSpocPhone, setCustomerSpocPhone] = useState(draft.customerSpocPhone || '');
+  const [customerSpocEmail, setCustomerSpocEmail] = useState(draft.customerSpocEmail || '');
+  const [selectedSpocIndex, setSelectedSpocIndex] = useState(draft.selectedSpocIndex || '1');
+
   // Attachments State
   const [attachments, setAttachments] = useState({
     po_copy: null, // Customer Approval
@@ -153,6 +159,7 @@ export default function NewNTPO() {
   const [poError, setPoError] = useState('');
 
   const isProjectPhoneInvalid = projectSpocName ? (!projectSpocPhone || !/^[0-9]{10}$/.test(projectSpocPhone.trim())) : false;
+  const isCustomerPhoneInvalid = customerSpocPhone ? (!customerSpocPhone || !/^[0-9]{10}$/.test(customerSpocPhone.trim())) : false;
 
   const filteredProjectUsers = projectUsers.filter(
     user => user.assigned_role === "Projects" ||
@@ -267,10 +274,11 @@ export default function NewNTPO() {
     const newDraft = {
       step, selectedCustomer, selectedLocation, hasOriginalPO, linkedPoId,
       poNumber, isTemporary, poDate, startDate, endDate, attachmentPaths, items, entryMethod,
-      projectSpocName, projectSpocEmail, projectSpocPhone, needSalesInvoiceApproval
+      projectSpocName, projectSpocEmail, projectSpocPhone, needSalesInvoiceApproval,
+      customerSpocName, customerSpocPhone, customerSpocEmail, selectedSpocIndex
     };
     sessionStorage.setItem('new_nt_po_draft', JSON.stringify(newDraft));
-  }, [step, selectedCustomer, selectedLocation, hasOriginalPO, linkedPoId, poNumber, isTemporary, poDate, startDate, endDate, attachmentPaths, items, entryMethod, projectSpocName, projectSpocEmail, projectSpocPhone, needSalesInvoiceApproval]);
+  }, [step, selectedCustomer, selectedLocation, hasOriginalPO, linkedPoId, poNumber, isTemporary, poDate, startDate, endDate, attachmentPaths, items, entryMethod, projectSpocName, projectSpocEmail, projectSpocPhone, needSalesInvoiceApproval, customerSpocName, customerSpocPhone, customerSpocEmail, selectedSpocIndex]);
 
   useEffect(() => {
     const fetchLocations = async () => {
@@ -293,6 +301,24 @@ export default function NewNTPO() {
     setSelectedCustomer(val);
     setSelectedLocation('');
     setLocations([]);
+    setCustomerSpocName('');
+    setCustomerSpocPhone('');
+    setCustomerSpocEmail('');
+    setSelectedSpocIndex('1');
+    setOriginalPOs([]);
+    setSelectedOriginalPO(null);
+    setLinkedPoId(null);
+    setHasOriginalPO(null);
+  };
+
+  const handleLocationChange = (e) => {
+    const val = e.target.value;
+    setSelectedLocation(val);
+    const loc = locations.find(l => String(l.id) === String(val));
+    setCustomerSpocName(loc ? (loc.contact_name || '') : '');
+    setCustomerSpocPhone(loc ? (loc.contact_phone || '') : '');
+    setCustomerSpocEmail(loc ? (loc.contact_email || '') : '');
+    setSelectedSpocIndex('1');
   };
 
   const checkPoUnique = async (num) => {
@@ -327,7 +353,7 @@ export default function NewNTPO() {
       try {
         const token = sessionStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get('/api/pos?type=original', { headers });
+        const res = await axios.get(`/api/pos?type=original&customer_id=${selectedCustomer}`, { headers });
         setOriginalPOs(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         /* console.error(err); */
@@ -352,6 +378,16 @@ export default function NewNTPO() {
       setProjectSpocPhone(po.project_spoc_phone || '');
       setNeedSalesInvoiceApproval(po.need_sales_invoice_approval || 'yes');
 
+      const loc = locations.find(l => String(l.id) === String(selectedLocation));
+      setCustomerSpocName(po.spoc_name || (loc ? loc.contact_name : ''));
+      setCustomerSpocPhone(po.spoc_phone || (loc ? loc.contact_phone : ''));
+      setCustomerSpocEmail(po.spoc_email || (loc ? loc.contact_email : ''));
+      if (loc && po.spoc_name && loc.spoc2_name && po.spoc_name === loc.spoc2_name) {
+        setSelectedSpocIndex('2');
+      } else {
+        setSelectedSpocIndex('1');
+      }
+
       // Clean PO number and add sequence
       const nextIdx = (po.nt_count || 0) + 1;
       const cleanPO = (po.po_number || po.order_id).replace(/-(\d{10,})$/, '').replace(/-NT-\d+$/, '');
@@ -367,6 +403,11 @@ export default function NewNTPO() {
       setProjectSpocName('');
       setProjectSpocEmail('');
       setProjectSpocPhone('');
+      const loc = locations.find(l => String(l.id) === String(selectedLocation));
+      setCustomerSpocName(loc ? (loc.contact_name || '') : '');
+      setCustomerSpocPhone(loc ? (loc.contact_phone || '') : '');
+      setCustomerSpocEmail(loc ? (loc.contact_email || '') : '');
+      setSelectedSpocIndex('1');
     }
   };
 
@@ -1096,6 +1137,9 @@ export default function NewNTPO() {
   };
 
   const handleSubmit = async () => {
+    if (isCustomerPhoneInvalid) {
+      return Swal.fire({ icon: 'warning', title: 'Invalid Customer SPOC Phone', text: 'Customer SPOC Contact Number must be exactly 10 digits.' });
+    }
     if (isProjectPhoneInvalid) {
       return Swal.fire({ icon: 'warning', title: 'Invalid Project SPOC Phone', text: 'Project SPOC Contact Number must be exactly 10 digits.' });
     }
@@ -1128,6 +1172,9 @@ export default function NewNTPO() {
         project_spoc_name: projectSpocName ? projectSpocName.trim() : null,
         project_spoc_email: projectSpocEmail ? projectSpocEmail.trim() : null,
         project_spoc_phone: projectSpocPhone ? projectSpocPhone.trim() : null,
+        spoc_name: customerSpocName ? customerSpocName.trim() : null,
+        spoc_phone: customerSpocPhone ? customerSpocPhone.trim() : null,
+        spoc_email: customerSpocEmail ? customerSpocEmail.trim() : null,
         need_sales_invoice_approval: needSalesInvoiceApproval,
         remarks: (remarks || '').trim()
       };
@@ -1196,6 +1243,9 @@ export default function NewNTPO() {
     { id: 4, title: 'Items' },
     { id: 5, title: 'Confirm' }
   ];
+
+  const selectedLoc = locations.find(l => String(l.id) === String(selectedLocation));
+  const hasSecondSpoc = selectedLoc && selectedLoc.spoc2_name && selectedLoc.spoc2_phone;
 
   return (
     <div className="screen-enter" style={{ padding: '16px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -1274,7 +1324,7 @@ export default function NewNTPO() {
               </div>
               <div>
                 <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Location</label>
-                <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)} style={{ width: '100%', height: '36px', padding: '0 12px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', background: '#F8FAFC', outline: 'none' }} disabled={!selectedCustomer}>
+                <select value={selectedLocation} onChange={handleLocationChange} style={{ width: '100%', height: '36px', padding: '0 12px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', background: '#F8FAFC', outline: 'none' }} disabled={!selectedCustomer}>
                   <option value="">-- Select Location --</option>
                   {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.label} - {loc.city}</option>)}
                 </select>
@@ -1297,7 +1347,7 @@ export default function NewNTPO() {
                 <label style={{ fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '2px', display: 'block' }}>Select Original PO</label>
                 <select value={linkedPoId || ''} onChange={handleOriginalPOSelect} style={{ width: '100%', height: '36px', padding: '0 12px', borderRadius: '6px', border: '1px solid #CBD5E1', marginTop: '4px', fontSize: '13px', outline: 'none' }}>
                   <option value="">-- Select Original PO --</option>
-                  {originalPOs.map(po => <option key={po.id} value={po.id}>{(po.po_number || po.order_id).replace(/-(\d{10,})$/, '')} - {po.customer_name}</option>)}
+                  {originalPOs.filter(po => String(po.customer_id) === String(selectedCustomer)).map(po => <option key={po.id} value={po.id}>{(po.po_number || po.order_id).replace(/-(\d{10,})$/, '')} - {po.customer_name}</option>)}
                 </select>
                 {linkedPoId && <div style={{ background: '#D1FAE5', padding: '10px 14px', borderRadius: '6px', border: '1px solid #6EE7B7', marginTop: '12px', fontSize: '13px' }}><strong>Generated NT Sales Order:</strong> {poNumber}</div>}
                 {poError && <p style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '6px', fontWeight: 600 }}>{poError}</p>}
@@ -1428,90 +1478,154 @@ export default function NewNTPO() {
                         </>
                       )}
                     </select>
-                  </div>
                 </div>
               </div>
+            </div>
 
               {/* Right Column: Project SPOC Details */}
               <div>
                 <h3 style={{ fontSize: '14px', borderBottom: '1px solid #E5E7EB', paddingBottom: '6px', marginBottom: '12px', fontWeight: 700, color: '#334155' }}>SPOC Details</h3>
                 {hasOriginalPO !== null && (
-                  <div style={{ border: '1px solid #E2E8F0', padding: '14px', borderRadius: '8px', background: '#F8FAFC' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10B981' }}>badge</span>
-                      <span>Project SPOC</span>
-                      <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(Select from Project Users)</span>
-                    </div>
-                    <div style={{ display: 'grid', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                    {/* Customer SPOC Container */}
+                    <div style={{ border: '1px solid #E2E8F0', padding: '14px', borderRadius: '8px', background: '#F8FAFC' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#3B82F6' }}>support_agent</span>
+                        <span>Customer SPOC</span>
+                        <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(Autofilled from Location)</span>
+                      </div>
+
+                      {hasSecondSpoc && (
+                        <div style={{ marginBottom: '12px' }}>
+                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Choose Contact Person</label>
+                          <select
+                            value={selectedSpocIndex || '1'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const name = val === '1' ? selectedLoc.contact_name : selectedLoc.spoc2_name;
+                              const phone = val === '1' ? selectedLoc.contact_phone : selectedLoc.spoc2_phone;
+                              const email = val === '1' ? selectedLoc.contact_email : selectedLoc.spoc2_email;
+                              setSelectedSpocIndex(val);
+                              setCustomerSpocName(name || '');
+                              setCustomerSpocPhone(phone || '');
+                              setCustomerSpocEmail(email || '');
+                            }}
+                            style={{ width: '100%', maxWidth: '240px', height: '28px', padding: '0 8px', borderRadius: '4px', border: '1px solid #CBD5E1', fontSize: '12px', background: 'white', outline: 'none', cursor: 'pointer' }}
+                          >
+                            <option value="1">{selectedLoc.contact_name || 'Primary SPOC'} (SPOC 1)</option>
+                            <option value="2">{selectedLoc.spoc2_name || 'Secondary SPOC'} (SPOC 2)</option>
+                          </select>
+                        </div>
+                      )}
+
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                         <div>
-                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Email ID <span style={{ color: 'red' }}>*</span></label>
-                          <input
-                            type="email"
-                            value={projectSpocEmail || ''}
-                            readOnly
-                            placeholder="Project SPOC Email ID"
-                            className="compact-form-input-text"
-                            style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }}
-                          />
+                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Name <span style={{ color: 'red' }}>*</span></label>
+                          <input name="customerSpocName" value={customerSpocName || ''} readOnly placeholder="Primary Contact Name" className="compact-form-input-text" style={{ background: '#E2E8F0', color: '#64748b', cursor: 'not-allowed' }} />
                         </div>
                         <div>
-                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: isProjectPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Project SPOC Contact <span style={{ color: 'red' }}>*</span></label>
+                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: isCustomerPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Phone <span style={{ color: 'red' }}>*</span></label>
                           <input
-                            type="text"
-                            value={projectSpocPhone || ''}
-                            readOnly
-                            placeholder="Project SPOC Contact Number"
+                            name="customerSpocPhone"
+                            value={customerSpocPhone || ''}
+                            placeholder="Primary Phone"
                             className="compact-form-input-text"
+                            readOnly
                             style={{
-                              background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0',
-                              color: isProjectPhoneInvalid ? '#DC2626' : '#64748B',
-                              border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1',
+                              background: isCustomerPhoneInvalid ? '#FEF2F2' : '#E2E8F0',
+                              color: isCustomerPhoneInvalid ? '#DC2626' : '#64748b',
+                              border: isCustomerPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1',
                               cursor: 'not-allowed'
                             }}
                           />
-                          {isProjectPhoneInvalid && (
+                          {isCustomerPhoneInvalid && (
                             <p style={{ color: '#EF4444', fontSize: '10px', marginTop: '4px', fontWeight: 500 }}>
-                              Must be exactly 10 digits. Update under Project User Master.
+                              Must be exactly 10 digits. Update under Customer/Location Master.
                             </p>
                           )}
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
 
-                {/* Notes / Remarks Container */}
-                {hasOriginalPO !== null && (
-                  <div style={{ border: '1px solid #E2E8F0', padding: '14px', borderRadius: '8px', background: '#F8FAFC', marginTop: '12px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#64748B' }}>notes</span>
-                      <span>Notes</span>
-                    </div>
-                    <div>
-                      <textarea
-                        value={remarks || ''}
-                        onChange={(e) => setRemarks(e.target.value)}
-                        placeholder="Enter any additional notes or instructions for this PO..."
-                        className="compact-form-input-text"
-                        style={{
-                          width: '100%',
-                          height: '60px',
-                          padding: '8px 10px',
-                          borderRadius: '6px',
-                          border: '1px solid #CBD5E1',
-                          fontSize: '12px',
-                          background: 'white',
-                          resize: 'none',
-                          boxSizing: 'border-box'
-                        }}
-                      />
+                    {/* Project SPOC Container */}
+                    <div style={{ border: '1px solid #E2E8F0', padding: '14px', borderRadius: '8px', background: '#F8FAFC' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10B981' }}>badge</span>
+                        <span>Project SPOC</span>
+                        <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 400, textTransform: 'none' }}>(Select from Project Users)</span>
+                      </div>
+                      <div style={{ display: 'grid', gap: '12px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Project SPOC Email ID <span style={{ color: 'red' }}>*</span></label>
+                            <input
+                              type="email"
+                              value={projectSpocEmail || ''}
+                              readOnly
+                              placeholder="Project SPOC Email ID"
+                              className="compact-form-input-text"
+                              style={{ background: '#E2E8F0', color: '#64748B', cursor: 'not-allowed' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: isProjectPhoneInvalid ? '#EF4444' : '#475569', marginBottom: '4px' }}>Project SPOC Contact <span style={{ color: 'red' }}>*</span></label>
+                            <input
+                              type="text"
+                              value={projectSpocPhone || ''}
+                              readOnly
+                              placeholder="Project SPOC Contact Number"
+                              className="compact-form-input-text"
+                              style={{
+                                background: isProjectPhoneInvalid ? '#FEF2F2' : '#E2E8F0',
+                                color: isProjectPhoneInvalid ? '#DC2626' : '#64748B',
+                                border: isProjectPhoneInvalid ? '1px solid #EF4444' : '1px solid #CBD5E1',
+                                cursor: 'not-allowed'
+                              }}
+                            />
+                            {isProjectPhoneInvalid && (
+                              <p style={{ color: '#EF4444', fontSize: '10px', marginTop: '4px', fontWeight: 500 }}>
+                                Must be exactly 10 digits. Update under Project User Master.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
             </div>
+
+            {/* Notes / Remarks Container (Full Width below the grid) */}
+            {hasOriginalPO !== null && (
+              <div style={{ border: '1px solid #E2E8F0', padding: '14px', borderRadius: '8px', background: '#F8FAFC', marginTop: '0px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#64748B' }}>notes</span>
+                  <span>Notes</span>
+                </div>
+                <div>
+                  <textarea
+                    value={remarks || ''}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="Enter any additional notes or instructions for this PO..."
+                    className="compact-form-input-text"
+                    style={{
+                      width: '100%',
+                      height: '60px',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid #CBD5E1',
+                      fontSize: '12px',
+                      background: 'white',
+                      resize: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Bottom Row: Attachments */}
             <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '20px', marginTop: '8px' }}>

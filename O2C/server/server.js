@@ -2126,7 +2126,7 @@ app.delete('/api/locations/:id', requireRole(['admin']), (req, res) => {
 // --- Purchase Orders ---
 app.get('/api/pos', authenticate, (req, res) => {
   try {
-    const { status, type } = req.query;
+    const { status, type, customer_id } = req.query;
     let sql = `
       SELECT 
         p.id, p.order_id, p.po_number, p.status,
@@ -2137,6 +2137,7 @@ app.get('/api/pos', authenticate, (req, res) => {
         p.need_sales_invoice_approval,
         p.start_date, p.end_date,
         p.project_spoc_name, p.project_spoc_email, p.project_spoc_phone,
+        p.spoc_name, p.spoc_email, p.spoc_phone,
         c.name as customer_name,
         cl.label as location_name,
         cl.address_line1 as location_address,
@@ -2153,6 +2154,11 @@ app.get('/api/pos', authenticate, (req, res) => {
     `;
     const params = [];
     const conditions = [];
+
+    if (customer_id) {
+      conditions.push(`p.customer_id = ?`);
+      params.push(customer_id);
+    }
 
     if (type === 'original') {
       conditions.push(`p.parent_po_id IS NULL AND p.is_nt_po = 0 AND p.is_temporary = 0`);
@@ -2202,8 +2208,9 @@ app.get('/api/pos/:id', authenticate, (req, res) => {
           WHEN cl.gst_is_different = 1 THEN cl.gstin 
           ELSE c.gstin 
         END as location_gstin,
-        cl.contact_name as spoc_name,
-        cl.contact_phone as spoc_phone
+        COALESCE(p.spoc_name, cl.contact_name) as spoc_name,
+        COALESCE(p.spoc_phone, cl.contact_phone) as spoc_phone,
+        COALESCE(p.spoc_email, cl.contact_email) as spoc_email
       FROM purchase_orders p
       LEFT JOIN customers c ON p.customer_id = c.id
       LEFT JOIN customer_locations cl ON p.location_id = cl.id
@@ -2255,6 +2262,7 @@ app.post('/api/pos', authenticate, (req, res) => {
       linked_po_id, subtotal, gst_total, grand_total,
       po_copy_path, po_annex_path, other_attachment_path,
       items, project_spoc_name, project_spoc_email, project_spoc_phone,
+      spoc_name, spoc_email, spoc_phone,
       need_sales_invoice_approval, remarks
     } = req.body;
 
@@ -2292,18 +2300,24 @@ app.post('/api/pos', authenticate, (req, res) => {
     const order_id = 'ORD-' + Date.now();
     const status = safeIsNtPo ? 'nt_created' : 'pending';
 
-    // Inherit Project SPOC details from parent PO if this is a linked NT PO and not provided by frontend
+    // Inherit Project & Customer SPOC details from parent PO if this is a linked NT PO and not provided by frontend
     let finalSpocName = project_spoc_name;
     let finalSpocEmail = project_spoc_email;
     let finalSpocPhone = project_spoc_phone;
+    let finalCustomerSpocName = spoc_name;
+    let finalCustomerSpocEmail = spoc_email;
+    let finalCustomerSpocPhone = spoc_phone;
     let finalNeedApproval = need_sales_invoice_approval || 'yes';
 
     if (finalLinkedPoId) {
-      const parentPO = db.prepare('SELECT project_spoc_name, project_spoc_email, project_spoc_phone, need_sales_invoice_approval FROM purchase_orders WHERE id = ?').get(finalLinkedPoId);
+      const parentPO = db.prepare('SELECT project_spoc_name, project_spoc_email, project_spoc_phone, spoc_name, spoc_email, spoc_phone, need_sales_invoice_approval FROM purchase_orders WHERE id = ?').get(finalLinkedPoId);
       if (parentPO) {
         if (!finalSpocName || !finalSpocName.trim()) finalSpocName = parentPO.project_spoc_name;
         if (!finalSpocEmail || !finalSpocEmail.trim()) finalSpocEmail = parentPO.project_spoc_email;
         if (!finalSpocPhone || !finalSpocPhone.trim()) finalSpocPhone = parentPO.project_spoc_phone;
+        if (!finalCustomerSpocName || !finalCustomerSpocName.trim()) finalCustomerSpocName = parentPO.spoc_name;
+        if (!finalCustomerSpocEmail || !finalCustomerSpocEmail.trim()) finalCustomerSpocEmail = parentPO.spoc_email;
+        if (!finalCustomerSpocPhone || !finalCustomerSpocPhone.trim()) finalCustomerSpocPhone = parentPO.spoc_phone;
         if (!need_sales_invoice_approval) finalNeedApproval = parentPO.need_sales_invoice_approval || 'yes';
       }
     }
@@ -2317,8 +2331,9 @@ app.post('/api/pos', authenticate, (req, res) => {
         linked_po_id, subtotal, gst_total, grand_total,
         total_value, po_copy_path, po_annex_path, other_attachment_path,
         created_by, project_spoc_name, project_spoc_email, project_spoc_phone,
+        spoc_name, spoc_email, spoc_phone,
         need_sales_invoice_approval, remarks
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       order_id, customer_id, location_id,
       finalPONumber, po_date || null, start_date || null, end_date || null,
@@ -2326,6 +2341,7 @@ app.post('/api/pos', authenticate, (req, res) => {
       finalLinkedPoId, subtotal || 0, gst_total || 0, grand_total || 0,
       grand_total || 0, po_copy_path || null, po_annex_path || null, other_attachment_path || null,
       req.user.id, finalSpocName || null, finalSpocEmail || null, finalSpocPhone || null,
+      finalCustomerSpocName || null, finalCustomerSpocEmail || null, finalCustomerSpocPhone || null,
       finalNeedApproval, remarks || null
     );
 
@@ -2729,8 +2745,9 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
         status, version, is_temp_po, is_temporary, is_nt_po,
         parent_po_id, original_po_id, version_number, is_original, linked_po_id, po_copy_path, po_annex_path, other_attachment_path,
         created_by, project_spoc_name, project_spoc_email, project_spoc_phone,
+        spoc_name, spoc_email, spoc_phone,
         need_sales_invoice_approval, subtotal, gst_total, grand_total, total_value, nt_count, remarks
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       'ORD-' + Date.now(), oldPO.customer_id, oldPO.location_id,
       revisedPONumber, oldPO.po_date || null, oldPO.start_date || null, oldPO.end_date || null,
@@ -2740,6 +2757,7 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
       project_spoc_name !== undefined ? project_spoc_name : oldPO.project_spoc_name,
       project_spoc_email !== undefined ? project_spoc_email : oldPO.project_spoc_email,
       project_spoc_phone !== undefined ? project_spoc_phone : oldPO.project_spoc_phone,
+      oldPO.spoc_name || null, oldPO.spoc_email || null, oldPO.spoc_phone || null,
       need_sales_invoice_approval || oldPO.need_sales_invoice_approval || 'yes',
       subtotal, gst_total, subtotal + gst_total, subtotal + gst_total, oldPO.nt_count || 0,
       remarks !== undefined ? remarks : oldPO.remarks
