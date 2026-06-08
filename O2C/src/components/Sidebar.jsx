@@ -101,7 +101,6 @@ export default function Sidebar() {
         { path: '/customers', label: 'Customers', icon: 'group' },
         { path: '/po-flow', label: 'Status of Sales Order', icon: 'account_tree' },
         { path: '/project-users', label: 'User Management', icon: 'manage_accounts' },
-        { path: '/scr', label: 'SCR', icon: 'assignment_turned_in' },
       ]);
     } else if (role === 'sales') {
       routes = routes.concat([

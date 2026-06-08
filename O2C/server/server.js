@@ -52,6 +52,132 @@ try {
   /* console.log("Added dc_id column to invoices."); */
 } catch (e) { }
 
+// Self-healing migration for customers table schema (fix id INT to id INTEGER PRIMARY KEY AUTOINCREMENT)
+try {
+  const customersSchema = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='customers'").get()?.sql;
+  if (customersSchema && !customersSchema.includes('id INTEGER PRIMARY KEY AUTOINCREMENT')) {
+    /* console.log("Migrating customers table to correct schema (id INTEGER PRIMARY KEY AUTOINCREMENT)..."); */
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      // 1. Rename customers to customers_temp_backup
+      db.prepare('DROP TABLE IF EXISTS customers_temp_backup').run();
+      db.prepare('ALTER TABLE customers RENAME TO customers_temp_backup').run();
+
+      // 2. Create the new customers table
+      db.prepare(`
+        CREATE TABLE customers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          cust_code TEXT UNIQUE,
+          name TEXT NOT NULL,
+          gstin TEXT,
+          email TEXT,
+          phone TEXT,
+          gst_status TEXT DEFAULT 'pending',
+          is_active BOOLEAN DEFAULT 1,
+          created_by INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          legal_name TEXT,
+          pan TEXT,
+          address_line1 TEXT,
+          address_line2 TEXT,
+          address_line3 TEXT,
+          pincode TEXT,
+          contact_name TEXT,
+          contact_department TEXT,
+          contact_email TEXT,
+          contact_phone TEXT,
+          city TEXT,
+          state TEXT,
+          spoc2_name TEXT,
+          spoc2_department TEXT,
+          spoc2_email TEXT,
+          spoc2_phone TEXT,
+          FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+      `).run();
+
+      // 3. Migrate rows
+      const rows = db.prepare('SELECT * FROM customers_temp_backup').all();
+      const insertStmt = db.prepare(`
+        INSERT INTO customers (
+          id, cust_code, name, gstin, email, phone, gst_status, is_active,
+          created_by, created_at, updated_at, legal_name, pan,
+          address_line1, address_line2, address_line3, pincode,
+          contact_name, contact_department, contact_email, contact_phone,
+          city, state, spoc2_name, spoc2_department, spoc2_email, spoc2_phone
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const row of rows) {
+        const createdAt = row.created_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const updatedAt = row.updated_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const gstStatus = row.gst_status || 'pending';
+        insertStmt.run(
+          row.id,
+          row.cust_code,
+          row.name,
+          row.gstin,
+          row.email,
+          row.phone,
+          gstStatus,
+          row.is_active !== undefined ? row.is_active : 1,
+          row.created_by,
+          createdAt,
+          updatedAt,
+          row.legal_name,
+          row.pan,
+          row.address_line1,
+          row.address_line2,
+          row.address_line3,
+          row.pincode,
+          row.contact_name,
+          row.contact_department,
+          row.contact_email,
+          row.contact_phone,
+          row.city,
+          row.state,
+          row.spoc2_name,
+          row.spoc2_department,
+          row.spoc2_email,
+          row.spoc2_phone
+        );
+      }
+
+      // 4. Update referencing tables' foreign keys
+      const referencingTables = db.prepare(`
+        SELECT name, sql FROM sqlite_master 
+        WHERE type='table' AND sql LIKE '%customers_temp_backup%'
+      `).all();
+
+      for (const tableInfo of referencingTables) {
+        const tableName = tableInfo.name;
+        const oldSql = tableInfo.sql;
+        const tempTableName = `${tableName}_old`;
+
+        db.prepare(`DROP TABLE IF EXISTS "${tempTableName}"`).run();
+        db.prepare(`ALTER TABLE "${tableName}" RENAME TO "${tempTableName}"`).run();
+
+        const newSql = oldSql
+          .replace(/"customers_temp_backup"/g, 'customers')
+          .replace(/customers_temp_backup/g, 'customers');
+        
+        db.prepare(newSql).run();
+        db.prepare(`INSERT INTO "${tableName}" SELECT * FROM "${tempTableName}"`).run();
+        db.prepare(`DROP TABLE "${tempTableName}"`).run();
+      }
+
+      // 5. Drop the temporary backup table
+      db.prepare('DROP TABLE IF EXISTS customers_temp_backup').run();
+    })();
+    db.pragma('foreign_keys = ON');
+    /* console.log("Customers table migrated successfully on startup."); */
+  }
+} catch (migrationError) {
+  /* console.error("Auto-migration of customers table failed:", migrationError); */
+}
+
+
 try {
   db.prepare(`
     CREATE TABLE IF NOT EXISTS scr_requests (

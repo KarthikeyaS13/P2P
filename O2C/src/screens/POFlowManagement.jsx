@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 
 export default function POFlowManagement() {
   const [pos, setPos] = useState([]);
@@ -565,9 +566,50 @@ export default function POFlowManagement() {
                     {selectedPOPending.items.map((it, idx) => (
                       <tr key={idx}>
                         <td style={{ fontSize: '12px' }}>{it.package_name || '-'}</td>
-                        <td style={{ fontWeight: 600 }}>{it.item_name}</td>
-                        <td style={{ fontSize: '11px', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={it.description}>
-                          {it.description}
+                        <td 
+                          style={{ 
+                            fontWeight: 600, 
+                            maxWidth: '180px', 
+                            overflow: 'hidden', 
+                            textOverflow: 'ellipsis', 
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer',
+                            textDecoration: 'underline dotted'
+                          }}
+                          onClick={() => {
+                            Swal.fire({
+                              title: '<span style="font-size: 1.1rem; font-weight: 700; color: var(--primary);">Full Item Name</span>',
+                              html: `<div style="text-align: left; font-size: 0.95rem; line-height: 1.5; color: #334155; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; word-break: break-word;">${it.item_name}</div>`,
+                              confirmButtonText: 'Close',
+                              confirmButtonColor: '#4f46e5'
+                            });
+                          }}
+                          title="Click to view full item name"
+                        >
+                          {it.item_name}
+                        </td>
+                        <td 
+                          style={{ 
+                            fontSize: '11px', 
+                            color: '#64748b', 
+                            maxWidth: '220px', 
+                            overflow: 'hidden', 
+                            textOverflow: 'ellipsis', 
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer',
+                            textDecoration: 'underline dotted'
+                          }}
+                          onClick={() => {
+                            Swal.fire({
+                              title: '<span style="font-size: 1.1rem; font-weight: 700; color: var(--primary);">Item Description</span>',
+                              html: `<div style="text-align: left; font-size: 0.95rem; line-height: 1.5; color: #334155; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; max-height: 300px; overflow-y: auto; word-break: break-word;">${it.description || 'No description available'}</div>`,
+                              confirmButtonText: 'Close',
+                              confirmButtonColor: '#4f46e5'
+                            });
+                          }}
+                          title="Click to view full description"
+                        >
+                          {it.description || '-'}
                         </td>
                         <td className="text-right">{it.supply_qty}</td>
                         <td className="text-right" style={{ color: '#059669' }}>{it.qty_delivered}</td>
