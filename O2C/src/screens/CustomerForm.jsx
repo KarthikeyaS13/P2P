@@ -74,7 +74,7 @@ export default function CustomerForm() {
       value = value.replace(/\D/g, '').slice(0, (name === 'contact_phone' || name === 'spoc2_phone') ? 10 : 6);
     }
     if (name === 'cust_code') {
-      value = value.slice(0, 8);
+      value = value.slice(0, 10);
     }
 
     setForm(prev => ({ ...prev, [name]: value }));
@@ -85,7 +85,7 @@ export default function CustomerForm() {
 
     const errors = [];
     if (!form.cust_code?.trim()) errors.push('Customer ID required');
-    if (form.cust_code && form.cust_code.trim().length > 8) errors.push('Customer ID must not exceed 8 characters');
+    if (form.cust_code && form.cust_code.trim().length > 10) errors.push('Customer ID must not exceed 10 characters');
     if (!form.name?.trim()) errors.push('Customer name required');
     if (!form.gstin?.trim()) errors.push('GSTIN required');
     if (form.gstin?.length !== 15) errors.push('GSTIN must be 15 characters');
@@ -221,7 +221,7 @@ export default function CustomerForm() {
             <input className="custom-form-input" name="legal_name" value={form.legal_name} onChange={handleChange} placeholder="As per PAN / GST" style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Customer ID * (User Created, Max length 8 characters.)</label>
+            <label style={labelStyle}>Customer ID * (User Created, Max length 10 characters.)</label>
             <input className="custom-form-input" name="cust_code" value={form.cust_code} onChange={handleChange} style={inputStyle} placeholder="E.g. CUST001" disabled={isEdit} />
           </div>
           <div>

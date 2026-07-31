@@ -11,6 +11,7 @@ const crypto = require('crypto');
 
 // Gmail SMTP service successfully integrated.
 const { sendEmail } = require('./services/emailService');
+const { initEmailLogsTable, triggerNotification } = require('./services/notificationService');
 const { generateInvoicePDFBuffer } = require('./services/pdfGenerator');
 const { signInvoicePDF } = require('./services/pdfSigner');
 const { verifyInvoicePDF, extractWatermarkMetadata } = require('./services/pdfVerifier');
@@ -29,6 +30,9 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const db = new Database(path.join(__dirname, 'database.sqlite'));
 db.pragma('foreign_keys = ON');
+
+// Initialize notification logs table
+initEmailLogsTable(db);
 
 // Add new version tracking columns if they do not exist
 try {
@@ -2399,8 +2403,10 @@ app.post('/api/pos', authenticate, (req, res) => {
 
     db.exec('COMMIT');
 
-    // Email dispatch deferred until order is approved by accounts
-
+    triggerNotification(db, 'SO_UPLOAD', {
+      soId: poId,
+      performedBy: req.user.full_name || req.user.username
+    }).catch(err => console.error('Failed to trigger SO_UPLOAD notification:', err));
 
     res.json({ success: true, order_id, po_id: poId });
   } catch (err) {
@@ -2481,177 +2487,18 @@ app.put('/api/pos/:id/status', authenticate, (req, res) => {
       generateSCRsForPO(req.params.id, req.user?.id);
 
       if (oldPO.status !== 'approved') {
-        // Trigger asynchronous email alert to Project SPOC
-        if (oldPO.project_spoc_email && oldPO.project_spoc_email.trim()) {
-          (async () => {
-            try {
-              const customer = db.prepare('SELECT name FROM customers WHERE id = ?').get(oldPO.customer_id);
-              const customerName = customer ? customer.name : 'N/A';
-              const items = db.prepare('SELECT * FROM po_line_items WHERE po_id = ?').all(oldPO.id);
-
-              const summaryTablesHtml = generateEmailSummaryHtml(items);
-              const isNt = oldPO.is_nt_po ? 'Non-Tender (NT)' : 'Tender';
-
-              let subject, htmlContent;
-              if (oldPO.version_number > 1) {
-                subject = `🔄 SO Revised Notification: ${oldPO.po_number} - ${customerName}`;
-                htmlContent = `
-                  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                    <!-- Header -->
-                    <div style="background: linear-gradient(135deg, #0F766E 0%, #14B8A6 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
-                      <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Sales Order Revised</h1>
-                      <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Enterprise O2C Workflow Alert</p>
-                    </div>
-
-                    <!-- Main Greeting -->
-                    <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${oldPO.project_spoc_name || 'Project SPOC'}</strong>,</p>
-                    <p style="font-size: 14px; color: #334155; line-height: 1.5;">We would like to inform you that your <strong>${isNt}</strong> Sales Order has been successfully revised to a new version in the Enterprise O2C Portal. Please review the updated details below:</p>
-
-                    <!-- Order Summary Card -->
-                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                      <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Order Summary</h3>
-                      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>SO Number:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B;"><strong>${oldPO.po_number}</strong></td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>Customer:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B;">${customerName}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>Order Type:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B;"><span style="background-color: ${oldPO.is_nt_po ? '#FEF3C7' : '#DBEAFE'}; color: ${oldPO.is_nt_po ? '#92400E' : '#1E40AF'}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${isNt}</span></td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>Sales Order Date:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B;">${oldPO.po_date || 'N/A'}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>Internal Order ID:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B; font-family: monospace; font-size: 12px;">${oldPO.order_id}</td>
-                        </tr>
-                      </table>
-                    </div>
-
-                    <!-- Financial Summary Card -->
-                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                      <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #0F766E; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">💰 Financial Summary</h3>
-                      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Subtotal:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(oldPO.subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>GST Total:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(oldPO.gst_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                        <tr style="border-top: 1px dashed #CBD5E1; font-size: 15px;">
-                          <td style="padding: 8px 0 0 0; color: #1E293B;"><strong>Grand Total:</strong></td>
-                          <td style="padding: 8px 0 0 0; color: #0D9488; text-align: right; font-weight: 700;">₹${(oldPO.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                      </table>
-                    </div>
-
-                    <!-- Line Items Summaries -->
-                    ${summaryTablesHtml}
-
-                    <!-- Footer Contact Info -->
-                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748B; margin-top: 24px;">
-                      <p style="margin: 0 0 4px 0;"><strong>Project SPOC Contact Information:</strong></p>
-                      <p style="margin: 0;">Name: ${oldPO.project_spoc_name || 'N/A'} | Email: ${oldPO.project_spoc_email} | Phone: ${oldPO.project_spoc_phone || 'N/A'}</p>
-                    </div>
-
-                    <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
-                    <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
-                  </div>
-                `;
-              } else {
-                subject = `🚀 New SO Notification: ${oldPO.po_number} - ${customerName}`;
-                htmlContent = `
-                  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                    <!-- Header -->
-                    <div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
-                      <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">New Sales Order Created</h1>
-                      <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Enterprise O2C Workflow Alert</p>
-                    </div>
-
-                    <!-- Main Greeting -->
-                    <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${oldPO.project_spoc_name || 'Project SPOC'}</strong>,</p>
-                    <p style="font-size: 14px; color: #334155; line-height: 1.5;">A new <strong>${isNt}</strong> Sales Order has been successfully created in the Enterprise O2C Portal. Please review the details below:</p>
-
-                    <!-- Order Summary Card -->
-                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                      <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Order Summary</h3>
-                      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>SO Number:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B;"><strong>${oldPO.po_number}</strong></td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>Customer:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B;">${customerName}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>Order Type:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B;"><span style="background-color: ${oldPO.is_nt_po ? '#FEF3C7' : '#DBEAFE'}; color: ${oldPO.is_nt_po ? '#92400E' : '#1E40AF'}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${isNt}</span></td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>Sales Order Date:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B;">${oldPO.po_date || 'N/A'}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>Internal Order ID:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B; font-family: monospace; font-size: 12px;">${oldPO.order_id}</td>
-                        </tr>
-                      </table>
-                    </div>
-
-                    <!-- Financial Summary Card -->
-                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                      <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #1E3A8A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">💰 Financial Summary</h3>
-                      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Subtotal:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(oldPO.subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 4px 0; color: #64748B;"><strong>GST Total:</strong></td>
-                          <td style="padding: 4px 0; color: #1E293B; text-align: right;">₹${(oldPO.gst_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                        <tr style="border-top: 1px dashed #CBD5E1; font-size: 15px;">
-                          <td style="padding: 8px 0 0 0; color: #1E293B;"><strong>Grand Total:</strong></td>
-                          <td style="padding: 8px 0 0 0; color: #10B981; text-align: right; font-weight: 700;">₹${(oldPO.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                      </table>
-                    </div>
-
-                    <!-- Line Items Summaries -->
-                    ${summaryTablesHtml}
-
-                    <!-- Footer Contact Info -->
-                    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748B; margin-top: 24px;">
-                      <p style="margin: 0 0 4px 0;"><strong>Project SPOC Contact Information:</strong></p>
-                      <p style="margin: 0;">Name: ${oldPO.project_spoc_name || 'N/A'} | Email: ${oldPO.project_spoc_email} | Phone: ${oldPO.project_spoc_phone || 'N/A'}</p>
-                    </div>
-
-                    <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
-                    <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
-                  </div>
-                `;
-              }
-
-              await sendEmail({
-                to: oldPO.project_spoc_email,
-                subject,
-                html: htmlContent
-              });
-              console.log(`✉️ Automated PO approval notification sent to Project SPOC at: ${oldPO.project_spoc_email}`);
-            } catch (mailErr) {
-              console.error('❌ Failed to send automated PO approval email alert:', mailErr);
-            }
-          })();
-        }
+        const eventKey = oldPO.version_number > 1 ? 'SO_EDITED_APPROVED' : 'SO_ACCEPTED';
+        triggerNotification(db, eventKey, {
+          soId: oldPO.id,
+          performedBy: req.user.full_name || req.user.username,
+          extraDetails: {
+            'Version': oldPO.version_number,
+            'Order Date': oldPO.po_date || 'N/A',
+            'Grand Total': `₹${(oldPO.grand_total || 0).toLocaleString('en-IN')}`,
+            'Project SPOC': `${oldPO.project_spoc_name || 'N/A'} (${oldPO.project_spoc_email || 'N/A'})`
+          },
+          customCc: oldPO.project_spoc_email ? [oldPO.project_spoc_email] : []
+        }).catch(err => console.error(`Failed to trigger ${eventKey} notification:`, err));
       }
     }
 
@@ -2836,8 +2683,15 @@ app.put('/api/pos/:id', requireRole(['sales', 'admin', 'accounts', 'management']
 
     db.exec('COMMIT');
 
-    // Email dispatch deferred until order is approved by accounts
-
+    triggerNotification(db, 'SO_EDITED', {
+      soId: newPoId,
+      performedBy: req.user.full_name || req.user.username,
+      extraDetails: {
+        'Revision': `v${oldPO.version_number + 1}`,
+        'Previous Status': oldPO.status || 'N/A',
+        'Grand Total': `₹${(oldPO.grand_total || 0).toLocaleString('en-IN')}`
+      }
+    }).catch(err => console.error('Failed to trigger SO_EDITED notification:', err));
 
     res.json({ success: true, id: newPoId, po_number: revisedPONumber });
   } catch (err) {
@@ -3138,6 +2992,19 @@ app.post('/api/invoices', authenticate, (req, res) => {
 
     db.exec('COMMIT');
     auditLog(req.user.username, initialStatus === 'raised' ? 'CREATE' : 'REQUEST', 'Invoice', invoiceId, null, { invoice_number, grand_total });
+
+    if (initialStatus === 'requested' || initialStatus === 'sales_pending') {
+      triggerNotification(db, 'INVOICE_REQUESTED', {
+        soId: po_id,
+        performedBy: req.user.full_name || req.user.username,
+        extraDetails: {
+          'Request Number': invoice_number,
+          'Type': 'Sales Invoice Request',
+          'Grand Total': `₹${(grand_total || 0).toLocaleString('en-IN')}`
+        }
+      }).catch(err => console.error('Failed to trigger INVOICE_REQUESTED notification:', err));
+    }
+
     res.json({ success: true, invoice_number, id: invoiceId });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
@@ -3405,6 +3272,17 @@ app.post('/api/invoices/:id/approve', authenticate, (req, res) => {
     }
 
     db.exec('COMMIT');
+
+    triggerNotification(db, 'INVOICE_APPROVED', {
+      soId: invoiceFull.po_id,
+      performedBy: req.user.full_name || req.user.username,
+      extraDetails: {
+        'Invoice Number': invoice_number,
+        'Type': 'Invoice Approval',
+        'Grand Total': `₹${(invoiceFull.grand_total || 0).toLocaleString('en-IN')}`
+      }
+    }).catch(err => console.error('Failed to trigger INVOICE_APPROVED notification:', err));
+
     res.json({ success: true, invoice_number });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
@@ -3606,6 +3484,19 @@ app.post('/api/invoices/:id/sales-review', authenticate, requireRole(['sales', '
     try {
       auditLog(req.user.username, `SALES_REVIEW_${action.toUpperCase()}`, 'Invoices', id, null, { action });
     } catch (e) { }
+
+    if (action === 'approved') {
+      triggerNotification(db, 'INVOICE_REQUESTED', {
+        soId: inv.po_id,
+        performedBy: req.user.full_name || req.user.username,
+        extraDetails: {
+          'Request Number': inv.invoice_number,
+          'Type': 'Sales Invoice Request approved by Sales',
+          'Grand Total': `₹${(inv.grand_total || 0).toLocaleString('en-IN')}`
+        }
+      }).catch(err => console.error('Failed to trigger INVOICE_REQUESTED notification from sales review:', err));
+    }
+
     res.json({ success: true });
   } catch (err) {
     if (db.inTransaction) db.exec('ROLLBACK');
@@ -3729,6 +3620,8 @@ app.post('/api/dc', authenticate, (req, res) => {
       dc_date, vehicle_number, driver_name, notes, items, email_to_project
     } = req.body;
 
+    const dc_number = 'DC-' + Date.now();
+
     const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(po_id);
     if (!po) return res.status(404).json({ error: 'PO not found' });
 
@@ -3808,158 +3701,30 @@ app.post('/api/dc', authenticate, (req, res) => {
 
     db.exec('COMMIT');
 
-    // Trigger asynchronous email alert to Project SPOC / Selected Email Proxy
+    // Trigger centralized workflow notification
     let recipientEmail = null;
-    let recipientName = 'Project SPOC';
     if (email_to_project) {
-      const uObj = db.prepare('SELECT full_name, email FROM users WHERE email = ? OR username = ?').get(email_to_project, email_to_project);
+      const uObj = db.prepare('SELECT email FROM users WHERE email = ? OR username = ?').get(email_to_project, email_to_project);
       if (uObj && uObj.email) {
         recipientEmail = uObj.email;
-        recipientName = uObj.full_name;
       } else if (email_to_project.includes('@')) {
         recipientEmail = email_to_project;
       }
     }
     if (!recipientEmail && po.project_spoc_email) {
       recipientEmail = po.project_spoc_email;
-      recipientName = po.project_spoc_name || 'Project SPOC';
     }
 
-    if (recipientEmail && recipientEmail.trim()) {
-      (async () => {
-        try {
-          // Format items table rows
-          let itemsHtml = '';
-          (items || []).forEach((it, idx) => {
-            const itemName = it.item_name || 'Item';
-            const qty = parseFloat(it.quantity_dispatched) || 0;
-            const uom = it.uom || '';
-            let hsn = '';
-            if (it.po_line_item_id) {
-              const poLineItem = db.prepare('SELECT hsn FROM po_line_items WHERE id = ?').get(it.po_line_item_id);
-              if (poLineItem) hsn = poLineItem.hsn || '';
-            }
-            itemsHtml += `
-              <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 8px 12px; font-weight: 600; color: #64748B;">${idx + 1}</td>
-                <td style="padding: 8px 12px; font-weight: 600; color: #1E293B;">${itemName}</td>
-                <td style="padding: 8px 12px; color: #334155;">${hsn || '-'}</td>
-                <td style="padding: 8px 12px; color: #334155;">${uom || '-'}</td>
-                <td style="padding: 8px 12px; text-align: right; font-weight: 600; color: #059669;">${qty}</td>
-              </tr>
-            `;
-          });
-
-          const vehicleNo = vehicle_number || 'N/A';
-          const driverNameVal = driver_name || 'N/A';
-          const driverPhoneVal = po.project_spoc_phone || 'N/A'; // fallback if no driver phone in this schema
-          const transporterName = 'N/A';
-          const remarks = notes || 'N/A';
-
-          const location = db.prepare('SELECT label, address_line1, address_line2, city, pincode FROM customer_locations WHERE id = ?').get(location_id || po.location_id);
-          const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
-
-          const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | SO ${po.po_number}`;
-          const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
-
-          const htmlContent = `
-            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-              <!-- Header -->
-              <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
-                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Delivery Challan Dispatched</h1>
-                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Material Transit Tracking Notification</p>
-              </div>
-
-              <!-- Main Greeting -->
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${recipientName}</strong>,</p>
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We are pleased to inform you that the shipment containing items under Sales Order <strong>${po.po_number}</strong> has been dispatched. Below are the transit details and the item dispatch summary:</p>
-
-              <!-- Logistics and Dispatch Summary Card -->
-              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">🚚 Logistics & Dispatch Information</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Delivery Challan No:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;"><strong>${dc_number}</strong></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>SO Number:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${po.po_number}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Vehicle No:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; font-weight: 600;">${vehicleNo}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Driver Name:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${driverNameVal}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Driver Phone:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${driverPhoneVal}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Transporter Name:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${transporterName}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Destination Site Address:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; font-size: 12px; font-weight: 600;">${destinationAddress}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Auto-Invoice Generated:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${isAutoInvoice}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Logistics Remarks:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; font-style: italic;">${remarks}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <!-- Line Items Dispatched Table -->
-              <div style="margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Dispatch Material Summary</h3>
-                <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                  <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                    <thead>
-                      <tr style="background-color: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
-                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 8%;">#</th>
-                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em;">Item Name</th>
-                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 20%;">HSN Code</th>
-                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 15%;">UOM</th>
-                        <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 22%;">Qty Dispatched</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${itemsHtml}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- Next Steps Card -->
-              <div style="background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 14px; color: #065F46; font-size: 13px; line-height: 1.5; margin-top: 24px;">
-                <strong>💡 Next Step for Site Operations:</strong><br/>
-                Once the vehicle arrives at the destination site, please inspect the material and acknowledge/confirm receipt on the portal to close the delivery cycle.
-              </div>
-
-              <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
-              <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
-            </div>
-          `;
-
-          await sendEmail({
-            to: recipientEmail,
-            subject,
-            html: htmlContent
-          });
-          console.log(`✉️ Automated DC dispatch email sent to: ${recipientEmail}`);
-        } catch (mailErr) {
-          console.error('❌ Failed to send automated DC email alert:', mailErr);
-        }
-      })();
-    }
+    triggerNotification(db, 'DC_SCR_RAISED', {
+      soId: po_id,
+      performedBy: req.user.full_name || req.user.username,
+      extraDetails: {
+        'DC Number': dc_number,
+        'Type': 'Direct Delivery Challan',
+        'Vehicle No': vehicle_number || 'N/A'
+      },
+      customCc: recipientEmail ? [recipientEmail] : []
+    }).catch(err => console.error('Failed to trigger DC_SCR_RAISED notification:', err));
 
     res.json({ success: true, dc_number, dc_id: dcId });
   } catch (err) {
@@ -4239,6 +4004,22 @@ app.put('/api/dc/:id/status', authenticate, (req, res) => {
   try {
     const { status } = req.body;
     db.prepare('UPDATE delivery_challans SET status=? WHERE id=?').run(status, req.params.id);
+
+    if (status === 'delivery_confirmed' || status === 'approved') {
+      const dc = db.prepare('SELECT po_id, dc_number FROM delivery_challans WHERE id = ?').get(req.params.id);
+      if (dc) {
+        triggerNotification(db, 'DC_SCR_APPROVED', {
+          soId: dc.po_id,
+          performedBy: req.user.full_name || req.user.username,
+          extraDetails: {
+            'DC Number': dc.dc_number,
+            'Type': 'Delivery Challan Approval',
+            'Status': status
+          }
+        }).catch(err => console.error('Failed to trigger DC_SCR_APPROVED notification:', err));
+      }
+    }
+
     res.json({ success: true });
   } catch (err) {
     /* console.error('ERROR:', err); */
@@ -4327,6 +4108,16 @@ app.post('/api/dc-requests', authenticate, upload.single('proof'), (req, res) =>
     for (const item of parsedItems) {
       insertItem.run(dc_request_id, item.line_item_id, item.qty);
     }
+
+    triggerNotification(db, 'DC_SCR_RAISED', {
+      soId: po_id,
+      performedBy: req.user.full_name || req.user.username,
+      extraDetails: {
+        'DC Request No': dc_request_no,
+        'Type': 'Delivery Challan Request',
+        'Vehicle No': vehicle_no || 'N/A'
+      }
+    }).catch(err => console.error('Failed to trigger DC_SCR_RAISED notification:', err));
 
     res.json({ success: true, dc_request: dc_request_no, id: dc_request_id });
   } catch (err) {
@@ -4691,163 +4482,30 @@ app.post('/api/dc-requests/:id/raise', authenticate, (req, res) => {
     db.exec('COMMIT');
     auditLog(req.user.username, 'CREATE', 'DeliveryChallan', dcId, null, { dc_number, po_id: po.id });
 
-    // Trigger asynchronous email alert to Project SPOC / Selected Email Proxy
+    // Trigger centralized workflow notification
     let recipientEmail = null;
-    let recipientName = 'Project SPOC';
     if (email_to_project) {
-      const uObj = db.prepare('SELECT full_name, email FROM users WHERE email = ? OR username = ?').get(email_to_project, email_to_project);
+      const uObj = db.prepare('SELECT email FROM users WHERE email = ? OR username = ?').get(email_to_project, email_to_project);
       if (uObj && uObj.email) {
         recipientEmail = uObj.email;
-        recipientName = uObj.full_name;
       } else if (email_to_project.includes('@')) {
         recipientEmail = email_to_project;
       }
     }
     if (!recipientEmail && po.project_spoc_email) {
       recipientEmail = po.project_spoc_email;
-      recipientName = po.project_spoc_name || 'Project SPOC';
     }
 
-    if (recipientEmail && recipientEmail.trim()) {
-      (async () => {
-        try {
-          // Format items table rows
-          let itemsHtml = '';
-          (items || []).forEach((it, idx) => {
-            const poItem = db.prepare('SELECT item_name, description, uom FROM po_line_items WHERE id = ?').get(it.line_item_id);
-            const itemName = poItem ? poItem.item_name : 'Item';
-            const uom = poItem ? poItem.uom : '';
-            const hsn = itemHSNs ? (itemHSNs[it.line_item_id] || '') : '';
-            itemsHtml += `
-              <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 8px 12px; font-weight: 600; color: #64748B;">${idx + 1}</td>
-                <td style="padding: 8px 12px; font-weight: 600; color: #1E293B;">${itemName}</td>
-                <td style="padding: 8px 12px; color: #334155;">${hsn || '-'}</td>
-                <td style="padding: 8px 12px; color: #334155;">${uom || '-'}</td>
-                <td style="padding: 8px 12px; text-align: right; font-weight: 600; color: #059669;">${it.qty}</td>
-              </tr>
-            `;
-          });
-
-          const vehicleNo = request.vehicle_no || 'N/A';
-          const driverName = request.driver_name || 'N/A';
-          const driverPhone = request.driver_phone || 'N/A';
-          const transporterName = request.transporter || 'N/A';
-          const remarks = request.logistics_remarks || 'N/A';
-
-          const dLine1 = dispatchFrom?.line1 || request.dispatch_from_address1 || df1;
-          const dLine2 = dispatchFrom?.line2 || request.dispatch_from_address2 || df2;
-          const dPin = dispatchFrom?.pin || request.dispatch_from_pincode || dfp;
-          const dispatchFromAddress = `${dLine1}, ${dLine2} - ${dPin}`;
-
-          const location = db.prepare('SELECT label, address_line1, address_line2, city, pincode FROM customer_locations WHERE id = ?').get(po.location_id);
-          const destinationAddress = location ? `${location.label}, ${location.address_line1}, ${location.address_line2 || ''}, ${location.city || ''} - ${location.pincode}` : 'N/A';
-
-          const subject = `🚚 Shipment Dispatched: DC No. ${dc_number} | SO ${po.po_number}`;
-          const isAutoInvoice = po.need_sales_invoice_approval === 'no' ? 'Yes (Auto-Generated)' : 'No (Requires Approval)';
-
-          const htmlContent = `
-            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background-color: #FFFFFF; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-              <!-- Header -->
-              <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 20px; border-radius: 8px; text-align: center; color: #FFFFFF; margin-bottom: 24px;">
-                <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Delivery Challan Dispatched</h1>
-                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Material Transit Tracking Notification</p>
-              </div>
-
-              <!-- Main Greeting -->
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">Dear <strong>${recipientName}</strong>,</p>
-              <p style="font-size: 14px; color: #334155; line-height: 1.5;">We are pleased to inform you that the shipment containing items under Sales Order <strong>${po.po_number}</strong> has been dispatched. Below are the transit details and the item dispatch summary:</p>
-
-              <!-- Logistics and Dispatch Summary Card -->
-              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">🚚 Logistics & Dispatch Information</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B; width: 40%;"><strong>Delivery Challan No:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;"><strong>${dc_number}</strong></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>SO Number:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${po.po_number}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Vehicle No:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; font-weight: 600;">${vehicleNo}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Driver Name:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${driverName}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Driver Phone:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${driverPhone}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Transporter Name:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${transporterName}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Dispatch From Address:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; font-size: 12px;">${dispatchFromAddress}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Destination Site Address:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; font-size: 12px; font-weight: 600;">${destinationAddress}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Auto-Invoice Generated:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B;">${isAutoInvoice}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 0; color: #64748B;"><strong>Logistics Remarks:</strong></td>
-                    <td style="padding: 4px 0; color: #1E293B; font-style: italic;">${remarks}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <!-- Line Items Dispatched Table -->
-              <div style="margin: 20px 0;">
-                <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #059669; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">📦 Dispatch Material Summary</h3>
-                <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                  <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                    <thead>
-                      <tr style="background-color: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
-                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 8%;">#</th>
-                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em;">Item Name</th>
-                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 20%;">HSN Code</th>
-                        <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 15%;">UOM</th>
-                        <th style="padding: 8px 12px; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.02em; width: 22%;">Qty Dispatched</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${itemsHtml}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- Next Steps Card -->
-              <div style="background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 14px; color: #065F46; font-size: 13px; line-height: 1.5; margin-top: 24px;">
-                <strong>💡 Next Step for Site Operations:</strong><br/>
-                Once the vehicle arrives at the destination site, please inspect the material and acknowledge/confirm receipt on the portal to close the delivery cycle.
-              </div>
-
-              <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
-              <p style="font-size: 11px; color: #94A3B8; text-align: center; margin: 0;">This is an automated operational alert generated by the Enterprise O2C Workflow Engine.</p>
-            </div>
-          `;
-
-          await sendEmail({
-            to: recipientEmail,
-            subject,
-            html: htmlContent
-          });
-          console.log(`✉️ Automated DC dispatch email sent to: ${recipientEmail}`);
-        } catch (mailErr) {
-          console.error('❌ Failed to send automated DC email alert:', mailErr);
-        }
-      })();
-    }
+    triggerNotification(db, 'DC_SCR_RAISED', {
+      soId: po.id,
+      performedBy: req.user.full_name || req.user.username,
+      extraDetails: {
+        'DC Number': dc_number,
+        'Type': 'Delivery Challan Dispatch',
+        'Vehicle No': request.vehicle_no || 'N/A'
+      },
+      customCc: recipientEmail ? [recipientEmail] : []
+    }).catch(err => console.error('Failed to trigger DC_SCR_RAISED notification:', err));
 
     res.json({ success: true, dc_number, dc_id: dcId });
   } catch (err) {
@@ -5440,6 +5098,16 @@ app.post('/api/scr', authenticate, upload.single('file'), (req, res) => {
 
     auditLog(req.user.username, 'CREATE_SCR', 'scr_requests', scrId, null, { scr_number, status: 'pending' });
 
+    triggerNotification(db, 'DC_SCR_RAISED', {
+      soId: po_id,
+      performedBy: req.user.full_name || req.user.username,
+      extraDetails: {
+        'SCR Number': scr_number,
+        'Type': 'Site Clearance Request',
+        'Project Manager': pm_name || 'N/A'
+      }
+    }).catch(err => console.error('Failed to trigger DC_SCR_RAISED notification for SCR:', err));
+
     res.json({ success: true, id: scrId, scr_number });
   } catch (err) {
     try { db.exec('ROLLBACK'); } catch (e) { }
@@ -5691,6 +5359,16 @@ app.post('/api/scr/:id/raise-invoice-request', authenticate, (req, res) => {
 
       auditLog(req.user.username, 'RAISE_SERVICE_INVOICE_REQUEST', 'scr_requests', id, null, { invoice_number, status: 'requested' });
 
+      triggerNotification(db, 'INVOICE_REQUESTED', {
+        soId: scr.po_id,
+        performedBy: req.user.full_name || req.user.username,
+        extraDetails: {
+          'Request Number': invoice_number,
+          'Type': 'Site Clearance Invoice Request',
+          'Grand Total': `₹${(grand_total || 0).toLocaleString('en-IN')}`
+        }
+      }).catch(err => console.error('Failed to trigger INVOICE_REQUESTED notification for SCR:', err));
+
       res.json({ success: true, invoice_id: invoiceId, invoice_number });
     } catch (err) {
       db.exec('ROLLBACK');
@@ -5723,6 +5401,19 @@ app.put('/api/scr/:id/status', requireRole(['admin', 'accounts']), (req, res) =>
 
     const updated = db.prepare('SELECT * FROM scr_requests WHERE id = ?').get(id);
     auditLog(req.user.username, 'UPDATE_SCR_STATUS', 'scr_requests', id, current, updated);
+
+    if (status === 'approved') {
+      triggerNotification(db, 'DC_SCR_APPROVED', {
+        soId: current.po_id,
+        performedBy: req.user.full_name || req.user.username,
+        extraDetails: {
+          'SCR Number': current.scr_number,
+          'Type': 'Site Clearance Request Approval',
+          'Status': 'Approved',
+          'Remarks': remarks || 'N/A'
+        }
+      }).catch(err => console.error('Failed to trigger DC_SCR_APPROVED notification for SCR:', err));
+    }
 
     res.json({ success: true, status });
   } catch (err) {
