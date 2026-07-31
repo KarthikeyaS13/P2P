@@ -7,27 +7,28 @@
 
 echo "Starting automated deployment..."
 
-# 1. Ensure we are in the right directory
-# Update this path if your O2C project is hosted elsewhere on the production server
-PROJECT_DIR="/var/www/O2C"
+# 1. Navigate to Git Repository
+PROJECT_DIR="$HOME/P2P/O2C"
+NGINX_DIR="/var/www/o2c"
 
-if [ ! -d "$PROJECT_DIR" ]; then
-    echo "❌ Error: Could not find the project directory at $PROJECT_DIR"
-    echo "Please update the PROJECT_DIR variable in this script."
-    exit 1
-fi
+echo "✅ Using project directory: $PROJECT_DIR"
+cd "$PROJECT_DIR" || exit 1
 
-cd "$PROJECT_DIR"
-echo "✅ Found project directory at $PROJECT_DIR"
-
-# 1.5 Pull Latest Code
+# 2. Pull Latest Code
 echo "📥 Pulling latest code from GitHub..."
-git fetch origin main
-git reset --hard origin/main
+git pull origin main
 
-# 2. Build the React Frontend
-echo "📦 Building the React Frontend..."
+# 3. Setup the Backend
+echo "⚙️ Setting up the Node.js Backend..."
+cd server
 npm install
+pm2 restart all
+pm2 save
+echo "✅ Backend restarted with PM2."
+
+# 4. Build the React Frontend
+echo "📦 Building the React Frontend..."
+cd "$PROJECT_DIR"
 npm run build
 
 if [ ! -d "$PROJECT_DIR/dist" ]; then
@@ -36,43 +37,24 @@ if [ ! -d "$PROJECT_DIR/dist" ]; then
 fi
 echo "✅ React frontend built successfully."
 
-# 3. Setup the Backend
-echo "⚙️ Setting up the Node.js Backend..."
-cd server
-npm install
-npm install -g pm2
+# 5. Deploy Frontend to Nginx Directory
+echo "🚚 Copying files to Nginx directory ($NGINX_DIR)..."
+rm -rf "$NGINX_DIR"/*
+cp -r dist/* "$NGINX_DIR"/
 
-# Stop existing PM2 process if it exists
-pm2 stop o2c-backend 2>/dev/null
-pm2 delete o2c-backend 2>/dev/null
-
-# Start the backend via PM2 (pointing to server.js since we are inside the 'server' folder)
-pm2 start server.js --name "o2c-backend" --update-env
-pm2 save
-pm2 startup
-echo "✅ Backend started with PM2."
-
-# 4. Setup Nginx Configuration (Skipped as Certbot handles it)
-echo "🌐 Nginx configuration is handled separately for SSL."
-
-# 5. Fix Permissions
+# 6. Fix Permissions
 echo "🔒 Fixing File Permissions..."
-chown -R www-data:www-data $PROJECT_DIR/dist
-chmod -R 755 $PROJECT_DIR/dist
+chown -R www-data:www-data "$NGINX_DIR"
+chmod -R 755 "$NGINX_DIR"
 
-# 6. Restart Nginx
+# 7. Restart Nginx
 echo "🔄 Restarting Nginx..."
-nginx -t
-if [ $? -eq 0 ]; then
-    systemctl restart nginx
-    echo "✅ Nginx restarted successfully."
-else
-    echo "❌ Nginx configuration test failed. Please check the config."
-    exit 1
-fi
+systemctl restart nginx
+echo "✅ Nginx restarted successfully."
 
 echo "=============================================================================="
 echo "🎉 DEPLOYMENT COMPLETE! 🎉"
-echo "Your application has been deployed."
-echo "If you see a 500 error, run: sudo tail -50 /var/log/nginx/error.log"
+echo "Check backend status: pm2 status"
+echo "Check Nginx status: systemctl status nginx"
 echo "=============================================================================="
+
