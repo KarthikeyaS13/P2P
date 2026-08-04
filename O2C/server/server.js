@@ -1383,10 +1383,10 @@ app.post('/api/change-password', authenticate, (req, res) => {
 app.get('/api/project-users', requireRole(['admin', 'sales', 'accounts', 'management']), (req, res) => {
   try {
     const rows = db.prepare(`
-      SELECT u.id, u.username, u.full_name, u.email, u.phone, u.is_active, r.name as role
+      SELECT u.id, u.username, u.full_name, u.email, u.phone, u.is_active, COALESCE(r.name, 'projects') as role
       FROM users u
-      JOIN user_roles ur ON u.id = ur.user_id
-      JOIN roles r ON ur.role_id = r.id
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
       ORDER BY u.full_name ASC
     `).all();
     res.json(rows);
