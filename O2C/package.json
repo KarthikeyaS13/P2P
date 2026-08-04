@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "concurrently \"vite\" \"cd server && npx nodemon server.js\"",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync:db": "bash server/scripts/deploy-db-to-prod.sh"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",
