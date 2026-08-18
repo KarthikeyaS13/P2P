@@ -21,13 +21,13 @@ export default function Customers() {
   useEffect(() => {
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
-    
+
     axios.get('/api/customers', { headers })
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : [];
         setCustomers(data);
       })
-      .catch(err => {})
+      .catch(err => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -80,11 +80,11 @@ export default function Customers() {
       accessorKey: 'location_count',
       header: 'Locations',
       cell: info => (
-        <span style={{ 
-          background: '#EFF6FF', 
-          color: '#1D4ED8', 
-          padding: '2px 10px', 
-          borderRadius: '12px', 
+        <span style={{
+          background: '#EFF6FF',
+          color: '#1D4ED8',
+          padding: '2px 10px',
+          borderRadius: '12px',
           fontSize: '0.85rem',
           fontWeight: 600
         }}>
@@ -94,16 +94,23 @@ export default function Customers() {
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: () => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span>Actions</span>
+          <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'none', letterSpacing: 'normal', fontWeight: '500' }}>
+            (+ to add location)
+          </span>
+        </div>
+      ),
       cell: ({ row }) => (
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button 
+          <button
             onClick={() => navigate(`/customers/${row.original.id}/edit`)}
             title="Edit Customer"
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              cursor: 'pointer', 
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
               color: '#4B5563',
               display: 'flex',
               alignItems: 'center'
@@ -112,29 +119,30 @@ export default function Customers() {
             <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit</span>
           </button>
           {role === 'admin' && (
-            <button 
+            <button
               onClick={() => navigate(`/customers/${row.original.id}/locations`)}
               title="Add/View Locations"
-              style={{ 
-                background: 'none', 
-                border: 'none', 
-                cursor: 'pointer', 
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
                 color: '#1D4ED8',
                 display: 'flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                gap: '4px'
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>add_circle</span>
             </button>
           )}
           {role === 'admin' && (
-            <button 
+            <button
               onClick={() => handleDelete(row.original.id, row.original.name)}
               title="Delete Customer & All Data"
-              style={{ 
-                background: 'none', 
-                border: 'none', 
-                cursor: 'pointer', 
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
                 color: '#EF4444',
                 display: 'flex',
                 alignItems: 'center'
@@ -164,7 +172,7 @@ export default function Customers() {
   return (
     <div style={{ padding: '0 0 16px 0', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', marginTop: '0' }}>
-        <button 
+        <button
           onClick={() => navigate('/dashboard')}
           className="btn-ghost btn-back"
           style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -229,10 +237,10 @@ export default function Customers() {
         )}
       </div>
 
-      <div style={{ 
-        background: 'white', 
-        borderRadius: '8px', 
-        border: '1px solid #E5E7EB', 
+      <div style={{
+        background: 'white',
+        borderRadius: '8px',
+        border: '1px solid #E5E7EB',
         overflow: 'hidden',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>

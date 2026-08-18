@@ -7,6 +7,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import CustomCustomerSelect from '../components/CustomCustomerSelect';
 import { useAuth } from '../context/AuthContext';
 import {
   useReactTable,
@@ -1332,10 +1333,11 @@ export default function NewPO() {
                 <div style={{ display: 'grid', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Customer</label>
-                    <select name="customerId" value={basicDetails.customerId} onChange={handleCustomerChange} className="compact-form-select">
-                      <option value="">Select Customer</option>
-                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <CustomCustomerSelect
+                      customers={customers}
+                      value={basicDetails.customerId}
+                      onChange={handleCustomerChange}
+                    />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Location</label>
@@ -1343,6 +1345,11 @@ export default function NewPO() {
                       <option value="">Select Location</option>
                       {locations.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
                     </select>
+                    {basicDetails.customerId && locations.length === 0 && (
+                      <p style={{ color: '#D97706', fontSize: '0.75rem', marginTop: '4px', fontWeight: 600 }}>
+                        No locations found. Please inform the admin to add a location.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Sales Order Number(User Input - Enter the PO/WO Number by the Customer)</label>

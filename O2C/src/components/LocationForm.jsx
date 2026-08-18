@@ -107,6 +107,7 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
   };
 
   const handleSubmit = (e) => {
+    e.preventDefault();
     if (!form.label) return Swal.fire({ icon: 'error', title: 'Required', text: 'Location Name is required' });
     if (!form.address_line1) return Swal.fire({ icon: 'error', title: 'Required', text: 'Address Line 1 is required' });
     if (!form.city) return Swal.fire({ icon: 'error', title: 'Required', text: 'City is required' });
@@ -353,15 +354,15 @@ export default function LocationForm({ customerId, customer, corporateGST, locat
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: showSpoc2 ? '10px' : '12px', rowGap: '6px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Contact Person Name (SPOC 1)</label>
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Contact Person Name (SPOC 1) *</label>
               <input name="contact_name" value={form.contact_name} onChange={handleChange} placeholder="Full Name" style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Contact Email</label>
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Contact Email *</label>
               <input type="email" name="contact_email" value={form.contact_email} onChange={handleChange} placeholder="email@example.com" style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Contact Phone (10 digits)</label>
+              <label style={{ display: 'block', marginBottom: '2px', color: '#4B5563', fontWeight: 500, fontSize: '0.8rem' }}>Contact Phone (10 digits) *</label>
               <input name="contact_phone" value={form.contact_phone} onChange={handleChange} placeholder="9876543210" style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #D1D5DB', fontSize: '0.85rem', height: '30px', boxSizing: 'border-box' }} />
             </div>
           </div>
