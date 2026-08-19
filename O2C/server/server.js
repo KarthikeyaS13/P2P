@@ -484,6 +484,7 @@ try {
 }
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- Database is fully initialized and seeded via schema.sql and init_db.js ---
 

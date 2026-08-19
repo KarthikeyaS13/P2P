@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, getFileUrl } from '../config';
+
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
@@ -134,7 +135,7 @@ export default function Sidebar() {
   const logoSrc = branding.logo_path
     ? (branding.logo_path.startsWith('http') || branding.logo_path.startsWith('blob:')
       ? branding.logo_path
-      : `${API_BASE_URL}${branding.logo_path}`)
+      : getFileUrl(branding.logo_path))
     : null;
 
   return (

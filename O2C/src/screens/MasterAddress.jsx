@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import CustomStateSelect from '../components/CustomStateSelect';
 import CustomCitySelect from '../components/CustomCitySelect';
 import { POPULAR_CITIES } from '../utils/cities';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, getFileUrl } from '../config';
 
 export default function MasterAddress() {
   const [addresses, setAddresses] = useState([]);
@@ -875,7 +875,7 @@ export default function MasterAddress() {
                     }}>
                       {logoPreview ? (
                         <img 
-                          src={logoPreview.startsWith('http') || logoPreview.startsWith('blob:') ? logoPreview : `${API_BASE_URL}${logoPreview}`} 
+                          src={logoPreview.startsWith('http') || logoPreview.startsWith('blob:') ? logoPreview : getFileUrl(logoPreview)} 
                           alt="Logo Preview" 
                           style={{ maxWidth: '100%', maxHeight: '74px', objectFit: 'contain' }} 
                         />

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, getFileUrl } from '../config';
 
 export default function SCR() {
   const { user } = useAuth();
@@ -957,7 +957,7 @@ export default function SCR() {
                   <div>
                     <label style={{ fontSize: '9px', color: '#64748B', fontWeight: '800', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Clearance File</label>
                     <a
-                      href={`${API_BASE_URL}${selectedSCR.file_path}`}
+                      href={getFileUrl(selectedSCR.file_path)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-ghost"

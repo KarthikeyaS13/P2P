@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, getFileUrl } from '../config';
 import Swal from 'sweetalert2';
 import {
   useReactTable,
@@ -217,8 +217,8 @@ export default function DispatchConfirmation() {
                 <div className="info-block">
                   <label style={{ fontSize: '9px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 800, marginBottom: '8px', display: 'block' }}>Dispatch Proof</label>
                   {details.dispatch_proof_path ? (
-                    <a href={`${API_BASE_URL}${details.dispatch_proof_path}`} target="_blank" rel="noreferrer" style={{ display: 'block', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-                      <img src={`${API_BASE_URL}${details.dispatch_proof_path}`} alt="Proof" style={{ width: '100%', height: '120px', objectFit: 'cover' }} />
+                    <a href={getFileUrl(details.dispatch_proof_path)} target="_blank" rel="noreferrer" style={{ display: 'block', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+                      <img src={getFileUrl(details.dispatch_proof_path)} alt="Proof" style={{ width: '100%', height: '120px', objectFit: 'cover' }} />
                     </a>
                   ) : (
                     <div style={{ padding: '20px', textAlign: 'center', background: '#F9FAFB', borderRadius: '8px', border: '1px dashed #D1D5DB', fontSize: '11px', color: '#9CA3AF' }}>No image evidence available</div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, getFileUrl } from '../config';
 
 export default function Login({ onSuccess }) {
   const { login } = useAuth();
@@ -21,7 +21,7 @@ export default function Login({ onSuccess }) {
           const path = res.data.logo_path;
           const fullPath = path.startsWith('http') || path.startsWith('blob:')
             ? path
-            : `${API_BASE_URL}${path}`;
+            : getFileUrl(path);
           setLogoPath(fullPath);
         }
       } catch (err) {
